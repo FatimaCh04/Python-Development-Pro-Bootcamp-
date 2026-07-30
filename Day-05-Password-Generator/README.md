@@ -23,3 +23,5 @@ python main.py
 - Working with lists
 - Random password generation
 - List shuffling
+
+- <img width="342" height="124" alt="output" src="https://github.com/user-attachments/assets/f6176eab-0226-43d2-b538-57efbf8a0759" />
