@@ -12,3 +12,5 @@ This Python program asks the user for:
 2. Their pet's name.
 
 It combines both values to generate a fun band name.
+
+<img width="429" height="191" alt="Screenshot 2026-07-30 161516" src="https://github.com/user-attachments/assets/ac4ae985-3096-4648-a3cc-4aaf424ea011" />
