@@ -32,3 +32,5 @@ Users can:
 ```bash
 python main.py
 ```
+
+<img width="483" height="237" alt="output" src="https://github.com/user-attachments/assets/3681db50-9677-433f-9ba3-99404205af73" />
