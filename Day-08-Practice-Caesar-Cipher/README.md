@@ -1,3 +1,4 @@
+
 # Day 8 - Caesar Cipher (Practice)
 
 ## Topics Covered
@@ -25,3 +26,6 @@ Features:
 ```bash
 python main.py
 ```
+
+<img width="326" height="193" alt="outpuy" src="https://github.com/user-attachments/assets/34034f7e-906b-4272-b221-26d372f4137f" />
+
