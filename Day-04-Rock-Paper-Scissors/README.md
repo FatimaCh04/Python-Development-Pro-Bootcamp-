@@ -24,3 +24,5 @@ python main.py
 - Working with lists
 - Building simple game logic
 - Decision making with if-else
+
+<img width="493" height="305" alt="output" src="https://github.com/user-attachments/assets/e13703b1-0571-45ba-b9db-31de90c0faf3" />
