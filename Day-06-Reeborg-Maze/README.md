@@ -24,3 +24,5 @@ https://reeborg.ca/
 - Using while loops
 - Writing reusable code
 - Algorithmic thinking
+
+<img width="321" height="43" alt="output" src="https://github.com/user-attachments/assets/46cde714-3765-48ab-9829-3875dbd1592b" />
