@@ -37,3 +37,5 @@ python main.py
 - Building menu-driven applications
 - Managing program state
 - Creating reusable functions
+[README.md](https://github.com/user-attachments/files/30634640/README.md)
+  <img width="507" height="224" alt="output" src="https://github.com/user-attachments/assets/3986d82c-563a-4ec4-bcf0-f61efd84fac5" />
