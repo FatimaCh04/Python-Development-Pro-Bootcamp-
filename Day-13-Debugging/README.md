@@ -29,3 +29,4 @@
 ```bash
 python main.py
 ```
+<img width="440" height="369" alt="output" src="https://github.com/user-attachments/assets/26bd07e7-63a0-4103-bfb5-e0985b8e7eb0" />
