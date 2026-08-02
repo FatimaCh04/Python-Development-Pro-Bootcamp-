@@ -44,3 +44,5 @@ or type 'n' to start a new calculation:
 ## Run
 
 python main.py
+
+<img width="529" height="427" alt="output" src="https://github.com/user-attachments/assets/97f79cf5-3a35-41d0-9e25-0d0fa8c9925a" />
