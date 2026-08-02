@@ -27,3 +27,6 @@
 ## ▶️ Run
 
 python main.py
+
+
+<img width="341" height="337" alt="output" src="https://github.com/user-attachments/assets/aec34061-18ad-44b3-a172-ad482625e6d1" />
