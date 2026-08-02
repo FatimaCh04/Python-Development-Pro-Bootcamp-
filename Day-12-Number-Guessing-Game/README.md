@@ -27,3 +27,7 @@
 ```bash
 python main.py
 ```
+<img width="396" height="430" alt="output1" src="https://github.com/user-attachments/assets/d76be2d6-b437-4c58-baa7-9b29a2b0189a" />
+[README.md](https://github.com/user-attachments/files/30634604/README.md)
+<img width="464" height="376" alt="output2" src="https://github.com/user-attachments/assets/24fb8b84-9823-4b4f-ad45-9fcf6e7235cf" />
+
