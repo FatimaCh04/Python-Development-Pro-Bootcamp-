@@ -28,3 +28,6 @@
 ```bash
 python main.py
 ```
+
+<img width="464" height="411" alt="output" src="https://github.com/user-attachments/assets/8948a138-c209-45e6-b8d0-21f8cdfcbdf7" />
+[README.md](https://github.com/user-attachments/files/30634636/README.md)
