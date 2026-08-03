@@ -129,5 +129,7 @@ Attack Power     : 35
 Fatima Ch
 
 
-<img width="782" height="387" alt="output2" src="https://github.com/user-attachments/assets/10cfa17d-e8cf-46e2-bcad-b987a0747955" />
 <img width="956" height="707" alt="output1" src="https://github.com/user-attachments/assets/c1c1e83e-5008-44df-a65c-0a500be0c680" />
+
+
+<img width="782" height="387" alt="output2" src="https://github.com/user-attachments/assets/10cfa17d-e8cf-46e2-bcad-b987a0747955" />
