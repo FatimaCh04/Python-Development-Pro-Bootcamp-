@@ -80,14 +80,4 @@ class Snake:
         if self.head.heading() != 180:
             self.head.setheading(0)
 
-    def reset(self):
-
-        for segment in self.body:
-
-            segment.goto(1000,1000)
-
-
-        self.body.clear()
-
-
-        self.create_snake()
+            

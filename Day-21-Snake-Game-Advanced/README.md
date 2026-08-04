@@ -1,25 +1,44 @@
-# 🐍 Snake Game - Day 22
+# 🐍 Day 21 - Snake Game Advanced
 
-A classic Snake Game built using Python Turtle.
+## Course
+
+100 Days of Python - Day 21 Practice
+
+## Topics Covered
+
+- Object-Oriented Programming (OOP)
+- Classes & Objects
+- Inheritance
+- Turtle Graphics
+- Score Tracking
+- Collision Detection
+- Game Loop
 
 ## Features
 
 - Snake movement
-- Food generation
-- Score tracking
-- High score saving
-- Restart system
-- Collision detection
+- Food collection
+- Snake growth
+- Live score display
+- Wall collision detection
+- Game Over screen
+- Keyboard controls
 
-## Concepts Learned
+## Technologies
 
-- Python OOP
-- Classes and Objects
-- File Handling
-- Turtle Graphics
-- Game Logic
+- Python 3
+- Turtle Module
 
-## How to Run
+## Run
 
 ```bash
 python main.py
+```
+
+## Learning Outcomes
+
+- Working with multiple classes
+- Building interactive games
+- Collision detection
+- Updating game state
+- Managing scores
