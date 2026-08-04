@@ -1,5 +1,8 @@
 # 🐍 Day 20 - Snake Practice Game
 
+## Video Link:
+https://drive.google.com/file/d/1Ay_1khvaC0r2-Bm68i9DM7_bZ5miudp_/view?usp=drive_link
+
 ## Course
 
 100 Days of Python - Day 20 Practice
