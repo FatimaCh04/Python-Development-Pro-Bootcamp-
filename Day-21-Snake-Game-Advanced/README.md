@@ -1,5 +1,8 @@
 # 🐍 Day 21 - Snake Game Advanced
 
+## Video Link:
+https://drive.google.com/file/d/14S3EoWNcrTAt4cbe67s7Ndi6kXdBzwLd/view?usp=drive_link
+
 ## Course
 
 100 Days of Python - Day 21 Practice
