@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}User Profile - DevBlog Platform{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center my-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white border-bottom p-4">
+                <div class="d-flex flex-column flex-sm-row align-items-center gap-4">
+                    {% if current_user.avatar %}
+                        <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}" alt="{{ current_user.username }}" class="avatar-img-lg">
+                    {% else %}
+                        <div class="avatar-img-lg bg-primary-subtle text-primary d-flex align-items-center justify-content-center fs-1 fw-bold">
+                            {{ current_user.username[0]|upper }}
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h3 class="fw-bold mb-1 text-center text-sm-start">{{ current_user.username }}</h3>
+                        <p class="text-muted small mb-2 text-center text-sm-start"><i class="bi bi-envelope me-1"></i>{{ current_user.email }}</p>
+                        <div class="d-flex flex-wrap gap-2 justify-content-center justify-content-sm-start">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                <i class="bi bi-journal-text me-1"></i> {{ current_user.posts.count() }} Post(s) Published
+                            </span>
+                            {% if current_user.is_admin %}
+                                <span class="badge bg-danger">Administrator</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+                <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+                    <i class="bi bi-gear text-primary"></i> Edit Profile Details
+                </h5>
+                
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row g-3 mb-3">
+                        <!-- Username -->
+                        <div class="col-md-6">
+                            {{ form.username.label(class="form-label fw-semibold") }}
+                            {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                            {% for error in form.username.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            {{ form.email.label(class="form-label fw-semibold") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                            {% for error in form.email.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="mb-3">
+                        {{ form.bio.label(class="form-label fw-semibold") }}
+                        {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Tell the community about yourself...") }}
+                        {% for error in form.bio.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Upload Profile Picture -->
+                    <div class="mb-4">
+                        {{ form.avatar.label(class="form-label fw-semibold") }}
+                        {{ form.avatar(class="form-control" + (" is-invalid" if form.avatar.errors else "")) }}
+                        <small class="form-text text-muted">Upload an avatar image (JPG, PNG, WEBP, GIF).</small>
+                        {% for error in form.avatar.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-light">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-lg me-1"></i> Save Changes
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

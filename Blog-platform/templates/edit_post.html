@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Post - DevBlog Platform{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl mx-auto my-3" style="max-width: 860px;">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h2 class="fw-bold mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-pencil-fill text-primary"></i> Edit Post
+        </h2>
+        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-4 p-md-5">
+            <form method="POST" enctype="multipart/form-data" novalidate>
+                {{ form.hidden_tag() }}
+
+                <!-- Post Title -->
+                <div class="mb-4">
+                    {{ form.title.label(class="form-label fw-semibold fs-5") }}
+                    {{ form.title(class="form-control form-control-lg" + (" is-invalid" if form.title.errors else "")) }}
+                    {% for error in form.title.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <!-- Category -->
+                    <div class="col-md-6">
+                        {{ form.category_id.label(class="form-label fw-semibold") }}
+                        {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                        {% for error in form.category_id.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="col-md-6">
+                        {{ form.tags.label(class="form-label fw-semibold") }}
+                        {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else "")) }}
+                        <small class="form-text text-muted">Comma-separated tags.</small>
+                        {% for error in form.tags.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Short Summary -->
+                <div class="mb-4">
+                    {{ form.summary.label(class="form-label fw-semibold") }}
+                    {{ form.summary(class="form-control" + (" is-invalid" if form.summary.errors else ""), rows="3") }}
+                    {% for error in form.summary.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Featured Cover Image -->
+                <div class="mb-4">
+                    {{ form.featured_image.label(class="form-label fw-semibold") }}
+                    {{ form.featured_image(class="form-control" + (" is-invalid" if form.featured_image.errors else "")) }}
+                    <small class="form-text text-muted">Upload replacement cover image.</small>
+                    {% for error in form.featured_image.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+
+                    {% if post and post.featured_image %}
+                        <div class="mt-3">
+                            <span class="d-block text-muted small mb-1">Current Cover Image:</span>
+                            <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" alt="Current Image" class="rounded shadow-sm" style="max-height: 120px;">
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Content -->
+                <div class="mb-4">
+                    {{ form.content.label(class="form-label fw-semibold fs-5") }}
+                    {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows="12") }}
+                    {% for error in form.content.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Status -->
+                <div class="mb-4 col-md-6">
+                    {{ form.status.label(class="form-label fw-semibold") }}
+                    {{ form.status(class="form-select") }}
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex align-items-center justify-content-end gap-2">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-light">Cancel</a>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-save me-1"></i> Update Post
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

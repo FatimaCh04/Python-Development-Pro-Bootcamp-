@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Server Error - DevBlog{% endblock %}
+
+{% block content %}
+
+<div class="text-center py-5 my-5">
+    <div class="mb-4 text-danger">
+        <i class="bi bi-exclamation-octagon display-1 fw-bold"></i>
+    </div>
+    <h1 class="display-4 fw-bold">500 - Internal Server Error</h1>
+    <p class="lead text-muted max-w-md mx-auto mb-4">
+        Something went wrong on our end. Please try refreshing the page or try again later.
+    </p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
+        <i class="bi bi-house-door me-2"></i> Return to Home Feed
+    </a>
+</div>
+
+{% endblock %}

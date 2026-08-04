@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - DevBlog{% endblock %}
+
+{% block content %}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <h1 class="fw-bold mb-1">Author Dashboard</h1>
+        <p class="text-muted mb-0">Welcome back, {{ current_user.username }}! Here is an overview of your articles and activity.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('main.create_post') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Create New Post
+        </a>
+    </div>
+</div>
+
+<!-- Stats Counter Cards Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="bi bi-file-earmark-post"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ published_count }}</h3>
+                <small class="text-muted">Published</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="bi bi-pencil-square"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ draft_count }}</h3>
+                <small class="text-muted">Drafts</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="bi bi-eye"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ total_views }}</h3>
+                <small class="text-muted">Total Views</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="bi bi-chat-dots"></i>
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ total_comments }}</h3>
+                <small class="text-muted">Comments</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Posts Table Management -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-primary"></i> Your Articles
+        </h5>
+        <span class="badge bg-light text-dark border">{{ posts|length }} Total</span>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if posts %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col" class="ps-3">Title</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Views</th>
+                        <th scope="col">Date Created</th>
+                        <th scope="col" class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                    <tr>
+                        <td class="ps-3">
+                            <div class="d-flex align-items-center gap-3">
+                                {% if post.featured_image %}
+                                    <img src="{{ url_for('static', filename='uploads/' + post.featured_image) }}" alt="" style="width: 42px; height: 42px; object-fit: cover; border-radius: 6px;">
+                                {% else %}
+                                    <div class="bg-light text-secondary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 6px;">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <a href="{{ url_for('main.post_detail', slug=post.slug) }}" class="fw-bold text-dark text-decoration-none">
+                                        {{ post.title }}
+                                    </a>
+                                    <small class="d-block text-muted">/post/{{ post.slug }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if post.category %}
+                                <span class="badge bg-light text-dark border">{{ post.category.name }}</span>
+                            {% else %}
+                                <span class="text-muted small">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if post.is_published %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Published</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Draft</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="small text-muted"><i class="bi bi-eye me-1"></i>{{ post.views }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ post.created_at|datetimeformat('%b %d, %Y') }}</small>
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('main.post_detail', slug=post.slug) }}" class="btn btn-outline-secondary" title="View Post">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('main.edit_post', post_id=post.id) }}" class="btn btn-outline-primary" title="Edit Post">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form action="{{ url_for('main.delete_post', post_id=post.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Permanently delete this post?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete Post">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-journal-plus display-4 text-muted d-block mb-3"></i>
+            <h5>No posts created yet</h5>
+            <p class="text-muted small">Start writing your first article now to publish or save as a draft.</p>
+            <a href="{{ url_for('main.create_post') }}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-plus-lg me-1"></i> Write First Post
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
