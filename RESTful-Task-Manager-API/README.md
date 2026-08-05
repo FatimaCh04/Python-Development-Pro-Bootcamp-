@@ -61,53 +61,6 @@ RESTful-Task-Manager-API/
 
 ---
 
-## Installation
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-org/RESTful-Task-Manager-API.git
-cd RESTful-Task-Manager-API
-```
-
-### 2. Create and activate a virtual environment
-
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# macOS / Linux
-python -m venv venv
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure environment variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your values:
-
-```env
-FLASK_APP=run.py
-FLASK_ENV=development
-SECRET_KEY=your-very-secret-key
-DATABASE_URL=postgresql://postgres:password@localhost:5432/task_manager_db
-JWT_SECRET_KEY=your-jwt-secret-key
-JWT_ACCESS_TOKEN_EXPIRES=3600
-RATELIMIT_STORAGE_URL=memory://
-```
-
----
-
 ## Database Setup
 
 ### 1. Create the PostgreSQL database
@@ -357,6 +310,3 @@ All errors return a consistent JSON structure:
 
 ---
 
-## License
-
-MIT License – see [LICENSE](LICENSE) for details.
