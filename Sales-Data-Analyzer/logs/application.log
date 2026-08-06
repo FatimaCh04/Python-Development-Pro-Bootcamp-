@@ -1,0 +1,231 @@
+2026-08-06 18:59:15,292 [INFO] Running in automated mode (--run-all)
+2026-08-06 18:59:15,293 [INFO] Generating 50000 rows of highly realistic sales data...
+2026-08-06 18:59:17,037 [INFO] Successfully saved realistic dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 18:59:17,636 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 18:59:17,636 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 18:59:18,021 [INFO] Data cleaning pipeline completed.
+2026-08-06 18:59:19,114 [INFO] Successfully saved cleaned dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv
+2026-08-06 18:59:19,561 [INFO] Loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv for analysis.
+2026-08-06 18:59:19,561 [INFO] Starting data analysis pipeline...
+2026-08-06 18:59:19,619 [INFO] Generated time-series sales DataFrames (Daily, Weekly, Monthly, Quarterly, Yearly).
+2026-08-06 18:59:19,682 [INFO] Generated categorical sales DataFrames (Region, Category, Product, Customer).
+2026-08-06 18:59:19,688 [INFO] Generated summary performance metrics.
+2026-08-06 18:59:19,796 [INFO] Generated all ranked product, category, and region tables.
+2026-08-06 18:59:19,899 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_5_products.csv
+2026-08-06 18:59:19,911 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_10_products.csv
+2026-08-06 18:59:19,916 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\most_profitable_products.csv
+2026-08-06 18:59:19,919 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\least_profitable_products.csv
+2026-08-06 18:59:19,927 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\highest_revenue_categories.csv
+2026-08-06 18:59:19,931 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\best_regions.csv
+2026-08-06 18:59:19,951 [INFO] Exported summary statistics to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\summary_statistics.csv
+2026-08-06 18:59:19,951 [INFO] Data analysis pipeline completed successfully.
+2026-08-06 18:59:19,952 [INFO] Initializing chart generation process...
+2026-08-06 18:59:20,600 [INFO] Successfully loaded 50000 rows for visualization.
+2026-08-06 18:59:22,404 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\monthly_sales_line.png
+2026-08-06 18:59:24,876 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\quarterly_sales_bar.png
+2026-08-06 18:59:26,023 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\category_sales_bar.png
+2026-08-06 18:59:26,891 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\region_sales_pie.png
+2026-08-06 18:59:28,472 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\top_products_bar.png
+2026-08-06 18:59:30,301 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\correlation_heatmap.png
+2026-08-06 18:59:35,999 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\scatter_plot.png
+2026-08-06 18:59:37,767 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\histogram.png
+2026-08-06 18:59:39,267 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\profit_distribution.png
+2026-08-06 18:59:41,268 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\moving_average_trend.png
+2026-08-06 18:59:41,268 [INFO] All professional visualizations have been successfully generated and saved.
+2026-08-06 18:59:41,760 [INFO] Loaded and aggregated data for prediction.
+2026-08-06 18:59:41,760 [INFO] Training Linear Regression model...
+2026-08-06 18:59:42,249 [INFO] Model trained. Metrics: {'MAE': 115471.5697766291, 'RMSE': np.float64(261605.64563230297), 'R2_Score': -0.21939376689260293}
+2026-08-06 18:59:42,252 [INFO] Saved trained model to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 18:59:43,139 [INFO] Saved prediction graph to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 18:59:43,146 [INFO] Predictions: {'Next_Month_Sales': np.float64(1093898.5944036762), 'Next_Quarter_Sales': np.float64(3285010.393396656)}
+2026-08-06 18:59:43,147 [INFO] Generating PDF Report at C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\reports\Sales_Report.pdf
+2026-08-06 18:59:45,554 [INFO] PDF Report generation completed.
+2026-08-06 18:59:45,555 [INFO] Automated run completed successfully.
+2026-08-06 19:05:08,012 [INFO] Running in automated mode (--run-all)
+2026-08-06 19:05:08,012 [INFO] Generating 50000 rows of highly realistic sales data...
+2026-08-06 19:05:09,910 [INFO] Successfully saved realistic dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:05:10,318 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:05:10,318 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 19:05:10,496 [INFO] Data cleaning pipeline completed.
+2026-08-06 19:05:11,272 [INFO] Successfully saved cleaned dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv
+2026-08-06 19:05:11,678 [INFO] Loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv for analysis.
+2026-08-06 19:05:11,678 [INFO] Starting data analysis pipeline...
+2026-08-06 19:05:11,738 [INFO] Generated time-series sales DataFrames (Daily, Weekly, Monthly, Quarterly, Yearly).
+2026-08-06 19:05:11,804 [INFO] Generated categorical sales DataFrames (Region, Category, Product, Customer).
+2026-08-06 19:05:11,809 [INFO] Generated summary performance metrics.
+2026-08-06 19:05:11,894 [INFO] Generated all ranked product, category, and region tables.
+2026-08-06 19:05:11,934 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_5_products.csv
+2026-08-06 19:05:11,938 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_10_products.csv
+2026-08-06 19:05:11,942 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\most_profitable_products.csv
+2026-08-06 19:05:11,951 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\least_profitable_products.csv
+2026-08-06 19:05:11,955 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\highest_revenue_categories.csv
+2026-08-06 19:05:11,959 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\best_regions.csv
+2026-08-06 19:05:11,966 [INFO] Exported summary statistics to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\summary_statistics.csv
+2026-08-06 19:05:11,967 [INFO] Data analysis pipeline completed successfully.
+2026-08-06 19:05:11,968 [INFO] Initializing chart generation process...
+2026-08-06 19:05:12,488 [INFO] Successfully loaded 50000 rows for visualization.
+2026-08-06 19:05:14,156 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\monthly_sales_line.png
+2026-08-06 19:05:16,043 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\quarterly_sales_bar.png
+2026-08-06 19:05:17,513 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\category_sales_bar.png
+2026-08-06 19:05:19,321 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\region_sales_pie.png
+2026-08-06 19:05:21,197 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\top_products_bar.png
+2026-08-06 19:05:23,679 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\correlation_heatmap.png
+2026-08-06 19:05:31,357 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\scatter_plot.png
+2026-08-06 19:05:35,337 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\histogram.png
+2026-08-06 19:05:38,463 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\profit_distribution.png
+2026-08-06 19:05:41,341 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\moving_average_trend.png
+2026-08-06 19:05:41,370 [INFO] All professional visualizations have been successfully generated and saved.
+2026-08-06 19:05:42,586 [INFO] Model trained — Train: 48 months | Test: 13 months | MAE: 133,222.02 | RMSE: 252,244.11 | R²: -0.0970
+2026-08-06 19:05:42,591 [INFO] Model saved to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 19:05:44,386 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\regression_line.png
+2026-08-06 19:05:45,692 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 19:05:45,700 [INFO] Predictions — Next Month: $1,087,497.16 | Next Quarter: $3,265,799.33
+2026-08-06 19:05:45,827 [ERROR] Pipeline failed: Unknown format code 'f' for object of type 'str'
+Traceback (most recent call last):
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\main.py", line 157, in run
+    report.generate(metrics=metrics, predictions=future)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\src\pdf_report.py", line 546, in generate
+    self._build_executive_summary(stats)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\src\pdf_report.py", line 309, in _build_executive_summary
+    ("MoM Growth",   f"{stats.get('Growth Percentage (%)', 0):.2f}%"),
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Unknown format code 'f' for object of type 'str'
+2026-08-06 19:21:21 [INFO] Running in automated mode (--run-all)
+2026-08-06 19:21:25 [INFO] Action: Clean Data
+2026-08-06 19:21:25 [INFO] Generating 50000 rows of highly realistic sales data...
+2026-08-06 19:21:27 [INFO] Successfully saved realistic dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:21:27 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:21:27 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 19:21:28 [INFO] Data cleaning pipeline completed.
+2026-08-06 19:21:28 [INFO] Successfully saved cleaned dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv
+2026-08-06 19:21:28 [INFO] Data cleaning completed.
+2026-08-06 19:21:28 [INFO] Action: Sales Analysis
+2026-08-06 19:21:32 [INFO] Loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\_tmp_filtered.csv for analysis.
+2026-08-06 19:21:32 [INFO] Starting data analysis pipeline...
+2026-08-06 19:21:32 [INFO] Generated time-series sales DataFrames (Daily, Weekly, Monthly, Quarterly, Yearly).
+2026-08-06 19:21:32 [INFO] Generated categorical sales DataFrames (Region, Category, Product, Customer).
+2026-08-06 19:21:32 [INFO] Generated summary performance metrics.
+2026-08-06 19:21:32 [INFO] Generated all ranked product, category, and region tables.
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_5_products.csv
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_10_products.csv
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\most_profitable_products.csv
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\least_profitable_products.csv
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\highest_revenue_categories.csv
+2026-08-06 19:21:32 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\best_regions.csv
+2026-08-06 19:21:32 [INFO] Exported summary statistics to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\summary_statistics.csv
+2026-08-06 19:21:32 [INFO] Data analysis pipeline completed successfully.
+2026-08-06 19:21:32 [INFO] Sales analysis completed.
+2026-08-06 19:21:39 [INFO] Action: Generate Charts
+2026-08-06 19:21:41 [INFO] Initializing chart generation process...
+2026-08-06 19:21:41 [INFO] Successfully loaded 50000 rows for visualization.
+2026-08-06 19:21:43 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\monthly_sales_line.png
+2026-08-06 19:21:45 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\quarterly_sales_bar.png
+2026-08-06 19:21:46 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\category_sales_bar.png
+2026-08-06 19:21:47 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\region_sales_pie.png
+2026-08-06 19:21:48 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\top_products_bar.png
+2026-08-06 19:21:50 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\correlation_heatmap.png
+2026-08-06 19:22:00 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\scatter_plot.png
+2026-08-06 19:22:02 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\histogram.png
+2026-08-06 19:22:04 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\profit_distribution.png
+2026-08-06 19:22:05 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\moving_average_trend.png
+2026-08-06 19:22:05 [INFO] All professional visualizations have been successfully generated and saved.
+2026-08-06 19:22:05 [INFO] Chart generation completed.
+2026-08-06 19:22:07 [INFO] Action: Predict Future Sales
+2026-08-06 19:22:08 [INFO] Loaded 50,000 rows -> 61 monthly periods (2021-08-31 to 2026-08-31)
+2026-08-06 19:22:09 [INFO] Model trained -- Train: 48 months | Test: 13 months | MAE: 111,355.40 | RMSE: 244,526.12 | R2: -0.1069
+2026-08-06 19:22:09 [INFO] Model saved to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 19:22:10 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\regression_line.png
+2026-08-06 19:22:11 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 19:22:11 [INFO] Predictions -- Next Month: $1,064,285.42 | Next Quarter: $3,195,742.29
+2026-08-06 19:22:11 [INFO] Prediction completed.
+2026-08-06 19:22:11 [INFO] Action: Generate PDF Report
+2026-08-06 19:22:12 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:22:12 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 19:22:12 [INFO] Data cleaning pipeline completed.
+2026-08-06 19:22:14 [INFO] Loaded 50,000 rows -> 61 monthly periods (2021-08-31 to 2026-08-31)
+2026-08-06 19:22:14 [INFO] Model trained -- Train: 48 months | Test: 13 months | MAE: 111,355.40 | RMSE: 244,526.12 | R2: -0.1069
+2026-08-06 19:22:14 [INFO] Model saved to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 19:22:15 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\regression_line.png
+2026-08-06 19:22:16 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 19:22:16 [INFO] Predictions -- Next Month: $1,064,285.42 | Next Quarter: $3,195,742.29
+2026-08-06 19:22:16 [INFO] Building PDF report -> C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\reports\Sales_Report.pdf
+2026-08-06 19:22:26 [INFO] PDF report generated successfully.
+2026-08-06 19:22:26 [ERROR] Automated pipeline failed: 'charmap' codec can't encode character '\u2705' in position 0: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\main.py", line 542, in main
+    action_pdf(start, end)
+    ~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\main.py", line 329, in action_pdf
+    report.generate(metrics=metrics, predictions=predictions, cleaning_summary=c_summary)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\src\pdf_report.py", line 575, in generate
+    print(f"âœ… Report saved â†’ {self.output_path}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3824.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2705' in position 0: character maps to <undefined>
+2026-08-06 19:23:00 [INFO] Running in automated mode (--run-all)
+2026-08-06 19:23:03 [INFO] Action: Clean Data
+2026-08-06 19:23:03 [INFO] Generating 50000 rows of highly realistic sales data...
+2026-08-06 19:23:04 [INFO] Successfully saved realistic dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:23:05 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:23:05 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 19:23:06 [INFO] Data cleaning pipeline completed.
+2026-08-06 19:23:07 [INFO] Successfully saved cleaned dataset to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\cleaned_sales_data.csv
+2026-08-06 19:23:07 [INFO] Data cleaning completed.
+2026-08-06 19:23:07 [INFO] Action: Sales Analysis
+2026-08-06 19:23:08 [INFO] Loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\_tmp_filtered.csv for analysis.
+2026-08-06 19:23:08 [INFO] Starting data analysis pipeline...
+2026-08-06 19:23:08 [INFO] Generated time-series sales DataFrames (Daily, Weekly, Monthly, Quarterly, Yearly).
+2026-08-06 19:23:08 [INFO] Generated categorical sales DataFrames (Region, Category, Product, Customer).
+2026-08-06 19:23:08 [INFO] Generated summary performance metrics.
+2026-08-06 19:23:08 [INFO] Generated all ranked product, category, and region tables.
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_5_products.csv
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\top_10_products.csv
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\most_profitable_products.csv
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\least_profitable_products.csv
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\highest_revenue_categories.csv
+2026-08-06 19:23:08 [INFO] Saved ranking table to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\best_regions.csv
+2026-08-06 19:23:08 [INFO] Exported summary statistics to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\summary_statistics.csv
+2026-08-06 19:23:08 [INFO] Data analysis pipeline completed successfully.
+2026-08-06 19:23:08 [INFO] Sales analysis completed.
+2026-08-06 19:23:13 [INFO] Action: Generate Charts
+2026-08-06 19:23:14 [INFO] Initializing chart generation process...
+2026-08-06 19:23:15 [INFO] Successfully loaded 50000 rows for visualization.
+2026-08-06 19:23:16 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\monthly_sales_line.png
+2026-08-06 19:23:18 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\quarterly_sales_bar.png
+2026-08-06 19:23:19 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\category_sales_bar.png
+2026-08-06 19:23:20 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\region_sales_pie.png
+2026-08-06 19:23:23 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\top_products_bar.png
+2026-08-06 19:23:25 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\correlation_heatmap.png
+2026-08-06 19:23:31 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\scatter_plot.png
+2026-08-06 19:23:32 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\histogram.png
+2026-08-06 19:23:34 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\profit_distribution.png
+2026-08-06 19:23:36 [INFO] Chart saved successfully: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\moving_average_trend.png
+2026-08-06 19:23:36 [INFO] All professional visualizations have been successfully generated and saved.
+2026-08-06 19:23:36 [INFO] Chart generation completed.
+2026-08-06 19:23:37 [INFO] Action: Predict Future Sales
+2026-08-06 19:23:39 [INFO] Loaded 50,000 rows -> 61 monthly periods (2021-08-31 to 2026-08-31)
+2026-08-06 19:23:39 [INFO] Model trained -- Train: 48 months | Test: 13 months | MAE: 135,514.04 | RMSE: 260,391.34 | R2: -0.0435
+2026-08-06 19:23:39 [INFO] Model saved to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 19:23:40 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\regression_line.png
+2026-08-06 19:23:41 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 19:23:41 [INFO] Predictions -- Next Month: $1,045,894.18 | Next Quarter: $3,137,593.65
+2026-08-06 19:23:41 [INFO] Prediction completed.
+2026-08-06 19:23:42 [INFO] Action: Generate PDF Report
+2026-08-06 19:23:42 [INFO] Successfully loaded 50000 rows from C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\data\sales_data.csv
+2026-08-06 19:23:42 [INFO] Initiating professional data cleaning pipeline...
+2026-08-06 19:23:42 [INFO] Data cleaning pipeline completed.
+2026-08-06 19:23:44 [INFO] Loaded 50,000 rows -> 61 monthly periods (2021-08-31 to 2026-08-31)
+2026-08-06 19:23:44 [INFO] Model trained -- Train: 48 months | Test: 13 months | MAE: 135,514.04 | RMSE: 260,391.34 | R2: -0.0435
+2026-08-06 19:23:44 [INFO] Model saved to C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\models\sales_prediction_model.pkl
+2026-08-06 19:23:45 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\regression_line.png
+2026-08-06 19:23:46 [INFO] Chart saved: C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\charts\prediction_graph.png
+2026-08-06 19:23:46 [INFO] Predictions -- Next Month: $1,045,894.18 | Next Quarter: $3,137,593.65
+2026-08-06 19:23:46 [INFO] Building PDF report -> C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\Sales-Data-Analyzer\reports\Sales_Report.pdf
+2026-08-06 19:23:55 [INFO] PDF report generated successfully.
+2026-08-06 19:23:55 [INFO] PDF report generated.
+2026-08-06 19:23:55 [INFO] Automated run completed.
