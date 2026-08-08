@@ -1,0 +1,14 @@
+[
+    {
+        "date": "2026-08-08",
+        "category": "xyz",
+        "amount": 2000.0,
+        "note": "abc"
+    },
+    {
+        "date": "2026-08-08",
+        "category": "chocolates",
+        "amount": 2000.0,
+        "note": "xyz"
+    }
+]
