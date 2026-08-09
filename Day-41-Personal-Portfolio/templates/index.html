@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>My Python Portfolio</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <header>
+        <nav>
+            <h2>My Portfolio</h2>
+
+            <div>
+                <a href="/">Home</a>
+                <a href="/about">About</a>
+            </div>
+        </nav>
+    </header>
+
+
+    <main>
+
+        <section class="hero">
+
+            <h1>Hello, I'm a Python Developer 👋</h1>
+
+            <p>
+                I'm learning Python and building projects
+                every day.
+            </p>
+
+            <a
+                class="button"
+                href="#projects"
+            >
+                View My Projects
+            </a>
+
+        </section>
+
+
+        <section class="section">
+
+            <h2>My Skills</h2>
+
+            <div class="skills">
+
+                {% for skill in skills %}
+
+                <div class="skill">
+                    {{ skill }}
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+        <section
+            class="section"
+            id="projects"
+        >
+
+            <h2>My Projects</h2>
+
+            <div class="projects">
+
+                {% for project in projects %}
+
+                <div class="project-card">
+
+                    <h3>
+                        {{ project.name }}
+                    </h3>
+
+                    <p>
+                        {{ project.description }}
+                    </p>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+
+        <p>
+            © 2026 My Python Portfolio
+        </p>
+
+    </footer>
+
+</body>
+
+</html>
