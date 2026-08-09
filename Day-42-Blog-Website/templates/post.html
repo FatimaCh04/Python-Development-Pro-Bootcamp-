@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+{{ post.title }} | My Blog
+{% endblock %}
+
+
+{% block content %}
+
+<article class="single-post">
+
+    <span class="date">
+        {{ post.date }}
+    </span>
+
+    <h1>
+        {{ post.title }}
+    </h1>
+
+    <h2>
+        {{ post.subtitle }}
+    </h2>
+
+    <p class="author">
+        Written by {{ post.author }}
+    </p>
+
+    <div class="post-content">
+
+        <p>
+            {{ post.content }}
+        </p>
+
+        <p>
+            This post is part of my 100 Days of Python
+            learning journey. Every project helps me
+            practice Python and improve my development skills.
+        </p>
+
+    </div>
+
+    <a
+        href="{{ url_for('home') }}"
+        class="back-button"
+    >
+        ← Back to Home
+    </a>
+
+</article>
+
+{% endblock %}
