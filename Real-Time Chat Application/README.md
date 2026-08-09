@@ -373,37 +373,18 @@ PulseChat provides a modern chat experience with:
 
 # 📸 Screenshots
 
-Add your project screenshots here after uploading them to GitHub.
-
-Example:
-
-```text
-docs/
-├── welcome-screen.png
-├── chat-room.png
-├── typing-indicator.png
-└── mobile-view.png
-```
-
-Then add them to the README:
-
-```markdown
-## Screenshots
-
 ### Welcome Screen
-
-![Welcome Screen](docs/welcome-screen.png)
+<img width="1361" height="688" alt="OutPut 1" src="https://github.com/user-attachments/assets/967639b4-0ca8-4921-87ae-5ec1b69cca4b" />
 
 ### Chat Room
 
-![Chat Room](docs/chat-room.png)
+<img width="1366" height="690" alt="OutPut 2" src="https://github.com/user-attachments/assets/ff75a37b-a9bb-445c-982d-85320b0712f5" />
 
-### Mobile View
 
-![Mobile View](docs/mobile-view.png)
-```
+<img width="1363" height="685" alt="OutPut 4" src="https://github.com/user-attachments/assets/9cee7fee-d0c8-40ff-a661-a6405636f3df" />
 
----
+
+<img width="739" height="1600" alt="OutPut 5 PNG" src="https://github.com/user-attachments/assets/945a2359-9b82-47ee-9118-337651acddde" />
 
 # 📌 Key Learning Outcomes
 
@@ -454,7 +435,7 @@ Contributions are welcome.
 To contribute:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/pulsechat.git
+git clone https://github.com/FatimaCh04/Python-Development-Pro-Bootcamp-/tree/main/Real-Time%20Chat%20Application.git
 ```
 
 Create a new branch:
@@ -480,22 +461,11 @@ Then open a Pull Request.
 
 ---
 
-# 📄 License
-
-This project is available for educational and portfolio purposes.
-
----
-
 # 👩‍💻 Author
 
-**Your Name**
+**Fatima Choudhry**
 
 Built with ❤️ using Flask, Flask-SocketIO, Redis, SQLite, and JavaScript.
 
 ---
 
-## ⭐ Support
-
-If you found this project useful or interesting, consider giving the repository a ⭐ on GitHub.
-
-**PulseChat — Connect. Chat. In Real Time.**
