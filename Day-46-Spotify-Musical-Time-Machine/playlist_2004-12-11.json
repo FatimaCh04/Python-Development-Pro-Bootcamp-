@@ -1,0 +1,507 @@
+{
+    "name": "2004-12-11 Billboard Hot 100",
+    "date": "2004-12-11",
+    "source": "Billboard Hot 100",
+    "songs": [
+        {
+            "position": 1,
+            "title": "Drop It Like It's Hot",
+            "artist": "Snoop Dogg Featuring Pharrell"
+        },
+        {
+            "position": 2,
+            "title": "My Boo",
+            "artist": "Usher And Alicia Keys"
+        },
+        {
+            "position": 3,
+            "title": "Let Me Love You",
+            "artist": "Mario"
+        },
+        {
+            "position": 4,
+            "title": "Over And Over",
+            "artist": "Nelly Featuring Tim McGraw"
+        },
+        {
+            "position": 5,
+            "title": "Lose My Breath",
+            "artist": "Destiny's Child"
+        },
+        {
+            "position": 6,
+            "title": "1, 2 Step",
+            "artist": "Ciara Featuring Missy Elliott"
+        },
+        {
+            "position": 7,
+            "title": "Wonderful",
+            "artist": "Ja Rule Featuring R. Kelly & Ashanti"
+        },
+        {
+            "position": 8,
+            "title": "Let's Go",
+            "artist": "Trick Daddy Featuring Lil Jon & Twista"
+        },
+        {
+            "position": 9,
+            "title": "Breakaway",
+            "artist": "Kelly Clarkson"
+        },
+        {
+            "position": 10,
+            "title": "Lovers And Friends",
+            "artist": "Lil Jon & The East Side Boyz Featuring Usher & Ludacris"
+        },
+        {
+            "position": 11,
+            "title": "Breathe",
+            "artist": "Fabolous"
+        },
+        {
+            "position": 12,
+            "title": "Goodies",
+            "artist": "Ciara Featuring Petey Pablo"
+        },
+        {
+            "position": 13,
+            "title": "Oye Mi Canto",
+            "artist": "N.O.R.E. Featuring Daddy Yankee, Nina Sky, Gem Star & Big Mato"
+        },
+        {
+            "position": 14,
+            "title": "Soldier",
+            "artist": "Destiny's Child Featuring T.I. & Lil Wayne"
+        },
+        {
+            "position": 15,
+            "title": "I Don't Want To Be",
+            "artist": "Gavin DeGraw"
+        },
+        {
+            "position": 16,
+            "title": "She Will Be Loved",
+            "artist": "Maroon 5"
+        },
+        {
+            "position": 17,
+            "title": "Go D.J.",
+            "artist": "Lil Wayne"
+        },
+        {
+            "position": 18,
+            "title": "Dare You To Move",
+            "artist": "Switchfoot"
+        },
+        {
+            "position": 19,
+            "title": "Just Lose It",
+            "artist": "Eminem"
+        },
+        {
+            "position": 20,
+            "title": "Shorty Wanna Ride",
+            "artist": "Young Buck"
+        },
+        {
+            "position": 21,
+            "title": "Broken",
+            "artist": "Seether Featuring Amy Lee"
+        },
+        {
+            "position": 22,
+            "title": "Charlene",
+            "artist": "Anthony Hamilton"
+        },
+        {
+            "position": 23,
+            "title": "Baby It's You",
+            "artist": "JoJo Featuring Bow Wow"
+        },
+        {
+            "position": 24,
+            "title": "Lean Back",
+            "artist": "Terror Squad"
+        },
+        {
+            "position": 25,
+            "title": "Balla Baby",
+            "artist": "Chingy"
+        },
+        {
+            "position": 26,
+            "title": "On The Way Down",
+            "artist": "Ryan Cabrera"
+        },
+        {
+            "position": 27,
+            "title": "One Thing",
+            "artist": "Finger Eleven"
+        },
+        {
+            "position": 28,
+            "title": "Hush",
+            "artist": "LL Cool J Featuring 7 Aurelius"
+        },
+        {
+            "position": 29,
+            "title": "Get Back",
+            "artist": "Ludacris"
+        },
+        {
+            "position": 30,
+            "title": "What U Gon' Do",
+            "artist": "Lil Jon & The East Side Boyz Featuring Lil Scrappy"
+        },
+        {
+            "position": 31,
+            "title": "Diary",
+            "artist": "Alicia Keys Featuring Tony! Toni! Tone!"
+        },
+        {
+            "position": 32,
+            "title": "Nothing On But The Radio",
+            "artist": "Gary Allan"
+        },
+        {
+            "position": 33,
+            "title": "My Happy Ending",
+            "artist": "Avril Lavigne"
+        },
+        {
+            "position": 34,
+            "title": "Back When",
+            "artist": "Tim McGraw"
+        },
+        {
+            "position": 35,
+            "title": "Only U",
+            "artist": "Ashanti"
+        },
+        {
+            "position": 36,
+            "title": "Vertigo",
+            "artist": "U2"
+        },
+        {
+            "position": 37,
+            "title": "U Make Me Wanna",
+            "artist": "Jadakiss Featuring Mariah Carey"
+        },
+        {
+            "position": 38,
+            "title": "Some Beach",
+            "artist": "Blake Shelton"
+        },
+        {
+            "position": 39,
+            "title": "The Woman With You",
+            "artist": "Kenny Chesney"
+        },
+        {
+            "position": 40,
+            "title": "How We Do",
+            "artist": "The Game Featuring 50 Cent"
+        },
+        {
+            "position": 41,
+            "title": "Mr. Mom",
+            "artist": "Lonestar"
+        },
+        {
+            "position": 42,
+            "title": "Encore",
+            "artist": "Eminem, Dr. Dre & 50 Cent"
+        },
+        {
+            "position": 43,
+            "title": "Daughters",
+            "artist": "John Mayer"
+        },
+        {
+            "position": 44,
+            "title": "New York",
+            "artist": "Ja Rule Featuring Fat Joe & Jadakiss"
+        },
+        {
+            "position": 45,
+            "title": "Welcome To My Life",
+            "artist": "Simple Plan"
+        },
+        {
+            "position": 46,
+            "title": "1985",
+            "artist": "Bowling For Soup"
+        },
+        {
+            "position": 47,
+            "title": "Karma",
+            "artist": "Lloyd Banks Featuring Avant"
+        },
+        {
+            "position": 48,
+            "title": "Locked Up",
+            "artist": "Akon Featuring Styles P."
+        },
+        {
+            "position": 49,
+            "title": "How Am I Doin'",
+            "artist": "Dierks Bentley"
+        },
+        {
+            "position": 50,
+            "title": "Awful, Beautiful Life",
+            "artist": "Darryl Worley"
+        },
+        {
+            "position": 51,
+            "title": "Bring Em Out",
+            "artist": "T.I."
+        },
+        {
+            "position": 52,
+            "title": "True",
+            "artist": "Ryan Cabrera"
+        },
+        {
+            "position": 53,
+            "title": "Somebody Told Me",
+            "artist": "The Killers"
+        },
+        {
+            "position": 54,
+            "title": "Disco Inferno",
+            "artist": "50 Cent"
+        },
+        {
+            "position": 55,
+            "title": "Boulevard Of Broken Dreams",
+            "artist": "Green Day"
+        },
+        {
+            "position": 56,
+            "title": "Tempted To Touch",
+            "artist": "Rupee"
+        },
+        {
+            "position": 57,
+            "title": "Let's Get It Started",
+            "artist": "The Black Eyed Peas"
+        },
+        {
+            "position": 58,
+            "title": "Party For Two",
+            "artist": "Shania Twain With Billy Currington Or Mark McGrath"
+        },
+        {
+            "position": 59,
+            "title": "Nothin 'Bout Love Makes Sense",
+            "artist": "LeAnn Rimes"
+        },
+        {
+            "position": 60,
+            "title": "When I Think About Cheatin'",
+            "artist": "Gretchen Wilson"
+        },
+        {
+            "position": 61,
+            "title": "Nobody's Home",
+            "artist": "Avril Lavigne"
+        },
+        {
+            "position": 62,
+            "title": "You're My Better Half",
+            "artist": "Keith Urban"
+        },
+        {
+            "position": 63,
+            "title": "Mud On The Tires",
+            "artist": "Brad Paisley"
+        },
+        {
+            "position": 64,
+            "title": "Monday Morning Church",
+            "artist": "Alan Jackson"
+        },
+        {
+            "position": 65,
+            "title": "Numb/Encore",
+            "artist": "Jay-Z/Linkin Park"
+        },
+        {
+            "position": 66,
+            "title": "Take Me Home",
+            "artist": "Terror Squad"
+        },
+        {
+            "position": 67,
+            "title": "Nolia Clap",
+            "artist": "Juvenile, Wacko & Skip"
+        },
+        {
+            "position": 68,
+            "title": "In A Real Love",
+            "artist": "Phil Vassar"
+        },
+        {
+            "position": 69,
+            "title": "Suds In The Bucket",
+            "artist": "Sara Evans"
+        },
+        {
+            "position": 70,
+            "title": "Fall To Pieces",
+            "artist": "Velvet Revolver"
+        },
+        {
+            "position": 71,
+            "title": "What You Waiting For?",
+            "artist": "Gwen Stefani"
+        },
+        {
+            "position": 72,
+            "title": "Beautiful Soul",
+            "artist": "Jesse McCartney"
+        },
+        {
+            "position": 73,
+            "title": "Lady",
+            "artist": "Lenny Kravitz"
+        },
+        {
+            "position": 74,
+            "title": "Give A Little Bit",
+            "artist": "Goo Goo Dolls"
+        },
+        {
+            "position": 75,
+            "title": "Come Home Soon",
+            "artist": "SHeDAISY"
+        },
+        {
+            "position": 76,
+            "title": "Caught Up",
+            "artist": "Usher"
+        },
+        {
+            "position": 77,
+            "title": "Vitamin R (Leading Us Along)",
+            "artist": "Chevelle"
+        },
+        {
+            "position": 78,
+            "title": "That's What It's All About",
+            "artist": "Brooks & Dunn"
+        },
+        {
+            "position": 79,
+            "title": "Knuck If You Buck",
+            "artist": "Crime Mob Featuring Lil Scrappy"
+        },
+        {
+            "position": 80,
+            "title": "Karma",
+            "artist": "Alicia Keys"
+        },
+        {
+            "position": 81,
+            "title": "Getting Away With Murder",
+            "artist": "Papa Roach"
+        },
+        {
+            "position": 82,
+            "title": "So Cold",
+            "artist": "Breaking Benjamin"
+        },
+        {
+            "position": 83,
+            "title": "I Smoke, I Drank",
+            "artist": "Body Head Bangerz Featuring YoungBloodz"
+        },
+        {
+            "position": 84,
+            "title": "I Changed My Mind",
+            "artist": "Keyshia Cole Featuring Shyne"
+        },
+        {
+            "position": 85,
+            "title": "Dangerously In Love",
+            "artist": "Beyonce"
+        },
+        {
+            "position": 86,
+            "title": "Cold",
+            "artist": "Crossfade"
+        },
+        {
+            "position": 87,
+            "title": "You're The One",
+            "artist": "Guerilla Black Featuring Mario Winans"
+        },
+        {
+            "position": 88,
+            "title": "Gasolina",
+            "artist": "Daddy Yankee"
+        },
+        {
+            "position": 89,
+            "title": "Gotta Go Solo",
+            "artist": "Patti LaBelle Featuring Ron Isley"
+        },
+        {
+            "position": 90,
+            "title": "Big Chips",
+            "artist": "R. Kelly & Jay-Z"
+        },
+        {
+            "position": 91,
+            "title": "Used To Love U",
+            "artist": "John Legend"
+        },
+        {
+            "position": 92,
+            "title": "American Idiot",
+            "artist": "Green Day"
+        },
+        {
+            "position": 93,
+            "title": "Hey Now (Mean Muggin)",
+            "artist": "Xzibit Featuring Keri Hilson"
+        },
+        {
+            "position": 94,
+            "title": "I Hate Everything",
+            "artist": "George Strait"
+        },
+        {
+            "position": 95,
+            "title": "Just Like You",
+            "artist": "Three Days Grace"
+        },
+        {
+            "position": 96,
+            "title": "Breathe, Stretch, Shake",
+            "artist": "Mase Featuring P. Diddy"
+        },
+        {
+            "position": 97,
+            "title": "Real Big",
+            "artist": "Mannie Fresh"
+        },
+        {
+            "position": 98,
+            "title": "You're My Everything",
+            "artist": "Anita Baker"
+        },
+        {
+            "position": 99,
+            "title": "Baby Girl",
+            "artist": "Sugarland"
+        },
+        {
+            "position": 100,
+            "title": "Bridging The Gap",
+            "artist": "Nas Featuring Olu Dara"
+        }
+    ]
+}
