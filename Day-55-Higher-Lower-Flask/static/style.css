@@ -1,0 +1,179 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    margin: 0;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f4f6f8;
+
+    color: #222;
+}
+
+
+.game-container {
+
+    width: 90%;
+
+    max-width: 650px;
+
+    padding: 45px;
+
+    text-align: center;
+
+    background: white;
+
+    border-radius: 20px;
+
+    box-shadow:
+        0 12px 35px
+        rgba(0, 0, 0, 0.12);
+}
+
+
+h1 {
+
+    font-size: 42px;
+
+    margin-bottom: 10px;
+}
+
+
+.instruction {
+
+    font-size: 20px;
+
+    color: #666;
+
+    margin-bottom: 30px;
+}
+
+
+.guess {
+
+    font-size: 18px;
+}
+
+
+.result {
+
+    margin: 25px 0;
+
+    padding: 20px;
+
+    border-radius: 12px;
+
+    background: #f1f3f5;
+}
+
+
+.result.low {
+
+    background: #fff3cd;
+}
+
+
+.result.high {
+
+    background: #e2e3ff;
+}
+
+
+.result.correct {
+
+    background: #d1e7dd;
+}
+
+
+.result h2 {
+
+    margin: 0;
+
+    font-size: 24px;
+}
+
+
+.numbers {
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    margin-top: 30px;
+}
+
+
+.number {
+
+    width: 50px;
+
+    height: 50px;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-decoration: none;
+
+    background: #333;
+
+    color: white;
+
+    border-radius: 50%;
+
+    font-size: 18px;
+
+    transition: 0.2s;
+}
+
+
+.number:hover {
+
+    transform: scale(1.1);
+
+    opacity: 0.8;
+}
+
+
+.reset {
+
+    display: inline-block;
+
+    margin-top: 30px;
+
+    padding: 12px 22px;
+
+    text-decoration: none;
+
+    color: white;
+
+    background: #555;
+
+    border-radius: 8px;
+}
+
+
+.reset:hover {
+
+    opacity: 0.8;
+}

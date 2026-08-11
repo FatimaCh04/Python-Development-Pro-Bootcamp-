@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Higher or Lower</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+    <div class="game-container">
+
+        <h1>🎯 Higher or Lower</h1>
+
+        <p class="instruction">
+            Guess a number between 0 and 9
+        </p>
+
+        {% if guess is defined %}
+
+            <p class="guess">
+                Your guess: <strong>{{ guess }}</strong>
+            </p>
+
+        {% endif %}
+
+
+        <div class="result {{ result | default('') }}">
+
+            <h2>
+                {{ message }}
+            </h2>
+
+        </div>
+
+
+        <div class="numbers">
+
+            {% for number in range(10) %}
+
+                <a
+                    href="{{ url_for('check_guess', guess=number) }}"
+                    class="number"
+                >
+                    {{ number }}
+                </a>
+
+            {% endfor %}
+
+        </div>
+
+
+        <a
+            href="/"
+            class="reset"
+        >
+            🔄 Reset
+        </a>
+
+    </div>
+
+</body>
+
+</html>
