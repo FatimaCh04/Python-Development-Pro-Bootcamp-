@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Day 54 - Flask</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🐍 Day {{ day }}</h1>
+
+        <h2>Welcome, {{ name }}!</h2>
+
+        <p>
+            I am learning Flask
+            with Python.
+        </p>
+
+        <div class="card">
+
+            <h3>What I'm Learning</h3>
+
+            <ul>
+
+                <li>Flask</li>
+
+                <li>Routes</li>
+
+                <li>Decorators</li>
+
+                <li>Templates</li>
+
+                <li>Dynamic URLs</li>
+
+            </ul>
+
+        </div>
+
+        <div class="links">
+
+            <a href="/about">
+                About
+            </a>
+
+            <a href="/project">
+                Project
+            </a>
+
+            <a href="/hello/Fatima">
+                Say Hello
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>
