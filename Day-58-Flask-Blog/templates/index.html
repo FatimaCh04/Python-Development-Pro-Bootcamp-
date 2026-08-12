@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+Home - Python Blog
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<section class="hero">
+
+    <div class="container text-center">
+
+        <h1>
+            My Python Journey 🐍
+        </h1>
+
+        <p>
+            Learning, building and sharing
+            something new every day.
+        </p>
+
+    </div>
+
+</section>
+
+
+<div class="container my-5">
+
+    <div class="text-center mb-5">
+
+        <h2>
+            Latest Posts
+        </h2>
+
+        <p class="text-muted">
+            Explore my latest Python projects
+            and learning experiences.
+        </p>
+
+    </div>
+
+
+    <div class="row g-4">
+
+
+        {% for post in posts %}
+
+
+        <div class="col-md-6 col-lg-4">
+
+
+            <div class="card blog-card h-100 shadow-sm">
+
+
+                <div class="card-body d-flex flex-column">
+
+
+                    <span class="badge bg-dark mb-3">
+                        {{ post.date }}
+                    </span>
+
+
+                    <h4 class="card-title">
+
+                        {{ post.title }}
+
+                    </h4>
+
+
+                    <p class="text-muted">
+
+                        {{ post.subtitle }}
+
+                    </p>
+
+
+                    <p class="card-text">
+
+                        {{ post.body[:120] }}...
+
+                    </p>
+
+
+                    <div class="mt-auto">
+
+                        <a
+                            href="{{ url_for(
+                                'post',
+                                post_id=post.id
+                            ) }}"
+                            class="btn btn-dark"
+                        >
+
+                            Read More →
+
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </div>
+
+</div>
+
+
+{% endblock %}
