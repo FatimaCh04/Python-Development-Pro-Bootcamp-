@@ -1,0 +1,39 @@
+# ──────────────────────────────────
+#  .gitignore – Automated Bulk Email Campaign Manager
+# ──────────────────────────────────
+
+# Environment / secrets (NEVER commit these)
+.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE / editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Log files
+*.log
+email_log.csv
+
+# OS artefacts
+.DS_Store
+Thumbs.db
