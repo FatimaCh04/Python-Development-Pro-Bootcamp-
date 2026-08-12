@@ -11,8 +11,10 @@ Public API:
 
 import smtplib
 import time
+import uuid
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 from pathlib import Path
 from typing import Optional
 
@@ -115,18 +117,31 @@ class EmailSender:
         if self._smtp is None:
             raise RuntimeError("EmailSender must be used as a context manager before calling send_email().")
 
-        # Build multipart/alternative message
+        # ── Build multipart/alternative message ───────────────────────────
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"{settings.sender_name} <{settings.email_address}>"
-        msg["To"] = f"{to_name} <{to_email}>"
+        msg["Subject"]      = subject
+        msg["From"]         = f"{settings.sender_name} <{settings.email_address}>"
+        msg["To"]           = f"{to_name} <{to_email}>"
+        msg["Reply-To"]     = settings.email_address
+        msg["Date"]         = formatdate(localtime=True)
+        msg["Message-ID"]   = make_msgid(domain=settings.email_address.split("@")[-1])
+        msg["MIME-Version"] = "1.0"
+        msg["X-Mailer"]     = "Campaign-Manager/1.0"
+        # List-Unsubscribe helps major email providers trust the sender
+        msg["List-Unsubscribe"] = f"<mailto:{settings.email_address}?subject=Unsubscribe>"
+        msg["Precedence"]   = "bulk"
 
-        # Plain-text fallback for clients that cannot render HTML
+        # ── Plain-text fallback ───────────────────────────────────────────
+        # A meaningful plain-text body dramatically lowers spam score
+        import re
+        plain = re.sub(r"<[^>]+>", "", html_body)          # strip HTML tags
+        plain = re.sub(r"[ \t]+", " ", plain)              # collapse spaces
+        plain = re.sub(r"\n{3,}", "\n\n", plain.strip())   # collapse blank lines
         if plain_text_body is None:
             plain_text_body = (
                 f"Hello {to_name},\n\n"
-                "Please view this email in an HTML-capable email client.\n\n"
-                f"Subject: {subject}"
+                + plain[:2000]
+                + f"\n\n---\nTo unsubscribe reply with 'Unsubscribe' to {settings.email_address}"
             )
 
         msg.attach(MIMEText(plain_text_body, "plain", "utf-8"))

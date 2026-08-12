@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter as tk
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -12,6 +13,13 @@ from config import settings, CONTACTS_FILE, TEMPLATE_FILE, LOG_FILE, MAX_EMAILS_
 from email_sender import EmailSender, send_campaign
 from utils import ContactLoader, render_template
 from scheduler import run_daily, run_every_hours, run_scheduler
+
+# Optional HTML renderer
+try:
+    from tkinterweb import HtmlFrame
+    _TKINTERWEB_AVAILABLE = True
+except ImportError:
+    _TKINTERWEB_AVAILABLE = False
 
 # Global tracker for the background scheduler loop thread
 _scheduler_thread = None
@@ -512,14 +520,32 @@ class CampaignView(ctk.CTkScrollableFrame):
         self.preview_frame = ctk.CTkFrame(self)
         self.preview_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
         self.preview_frame.grid_columnconfigure(0, weight=1)
+        self.preview_frame.grid_rowconfigure(1, weight=1)
         
         header_frame = ctk.CTkFrame(self.preview_frame, fg_color="transparent")
-        header_frame.pack(fill="x", padx=10, pady=10)
+        header_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
         ctk.CTkLabel(header_frame, text="Live Preview (First Contact)", font=ctk.CTkFont(weight="bold")).pack(side="left")
         ctk.CTkButton(header_frame, text="Refresh Preview", width=120, command=self.refresh_preview).pack(side="right")
         
-        self.preview_box = ctk.CTkTextbox(self.preview_frame, height=200, state="disabled")
-        self.preview_box.pack(fill="both", expand=True, padx=10, pady=(0,10))
+        if _TKINTERWEB_AVAILABLE:
+            # Wrap in a standard tk.Frame so HtmlFrame embeds correctly
+            self._html_container = tk.Frame(
+                self.preview_frame, height=380, bg="white", relief="flat"
+            )
+            self._html_container.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
+            self._html_container.pack_propagate(False)  # keep fixed height
+            self.html_preview = HtmlFrame(
+                self._html_container,
+                messages_enabled=False,
+                vertical_scrollbar=True,
+            )
+            self.html_preview.pack(fill="both", expand=True)
+            self.preview_box = None
+        else:
+            self._html_container = None
+            self.html_preview = None
+            self.preview_box = ctk.CTkTextbox(self.preview_frame, height=380, state="disabled")
+            self.preview_box.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         
         # --- Actions & Progress ---
         self.action_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -582,7 +608,7 @@ class CampaignView(ctk.CTkScrollableFrame):
             self.template_path = Path(path)
             self.lbl_template.configure(text=self.template_path.name)
             self.refresh_preview()
-            
+
     def refresh_preview(self):
         contact = {"name": "Jane Doe", "email": "jane@example.com"}
         try:
@@ -592,21 +618,25 @@ class CampaignView(ctk.CTkScrollableFrame):
                 contact = res.valid[0]
         except Exception:
             pass
-            
+
+        html = ""
         try:
             if not self.template_path.exists():
-                html = "Template file not found."
+                html = "<p style='color:red;font-family:sans-serif'>Template file not found.</p>"
             else:
                 html = render_template(self.template_path, contact)
-                html = f"--- RENDERED HTML PREVIEW ---\n\n{html}"
         except Exception as e:
-            html = f"Error rendering template: {e}"
-            
-        self.preview_box.configure(state="normal")
-        self.preview_box.delete("1.0", "end")
-        self.preview_box.insert("1.0", html)
-        self.preview_box.configure(state="disabled")
-        
+            html = f"<p style='color:red;font-family:sans-serif'>Error rendering template: {e}</p>"
+
+        if _TKINTERWEB_AVAILABLE and self.html_preview is not None:
+            self.html_preview.load_html(html)
+        else:
+            # Fallback: show raw HTML in textbox
+            self.preview_box.configure(state="normal")
+            self.preview_box.delete("1.0", "end")
+            self.preview_box.insert("1.0", html)
+            self.preview_box.configure(state="disabled")
+
     def log_msg(self, msg):
         self.log_box.configure(state="normal")
         self.log_box.insert("end", msg + "\n")
