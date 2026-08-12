@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{{ user.name }} - Portfolio</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- HERO -->
+
+        <section class="hero">
+
+            <div class="avatar">
+                🐍
+            </div>
+
+            <h1>
+                Hi, I'm {{ user.name }} 👋
+            </h1>
+
+            <h2>
+                {{ user.profession }}
+            </h2>
+
+            <p>
+                {{ user.description }}
+            </p>
+
+        </section>
+
+
+        <!-- SKILLS -->
+
+        <section class="section">
+
+            <h2>🛠 My Skills</h2>
+
+            <div class="skills">
+
+                {% for skill in skills %}
+
+                    <span class="skill">
+                        {{ skill }}
+                    </span>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+        <!-- PROJECTS -->
+
+        <section class="section">
+
+            <h2>🚀 My Projects</h2>
+
+            <div class="projects">
+
+                {% for project in projects %}
+
+                    <div class="project">
+
+                        <h3>
+                            {{ project }}
+                        </h3>
+
+                        <p>
+                            Built while learning
+                            Python and Flask.
+                        </p>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+
+        <footer>
+
+            <p>
+                Day 56 of 100 Days of Python 🐍
+            </p>
+
+        </footer>
+
+    </div>
+
+</body>
+
+</html>
