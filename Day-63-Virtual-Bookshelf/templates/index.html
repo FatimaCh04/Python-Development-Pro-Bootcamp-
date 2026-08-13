@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+My Virtual Bookshelf
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<section class="hero">
+
+    <div class="container text-center">
+
+        <h1>
+            📚 My Virtual Bookshelf
+        </h1>
+
+        <p>
+            Keep track of your favourite books.
+        </p>
+
+        <a
+            href="{{ url_for('add_book') }}"
+            class="btn btn-dark btn-lg"
+        >
+            + Add New Book
+        </a>
+
+    </div>
+
+</section>
+
+
+<div class="container my-5">
+
+
+    <div class="text-center mb-5">
+
+        <h2>
+            My Books
+        </h2>
+
+        <p class="text-muted">
+            Books are sorted by rating.
+        </p>
+
+    </div>
+
+
+    {% if books %}
+
+
+    <div class="row g-4">
+
+
+        {% for book in books %}
+
+
+        <div class="col-md-6 col-lg-4">
+
+
+            <div class="book-card h-100">
+
+
+                <div class="book-icon">
+
+                    📖
+
+                </div>
+
+
+                <h3>
+
+                    {{ book.title }}
+
+                </h3>
+
+
+                <p class="author">
+
+                    by {{ book.author }}
+
+                </p>
+
+
+                <div class="rating">
+
+                    ⭐ {{ book.rating }}/10
+
+                </div>
+
+
+                <div class="actions mt-4">
+
+
+                    <a
+                        href="{{ url_for(
+                            'edit_book',
+                            book_id=book.id
+                        ) }}"
+                        class="btn btn-warning"
+                    >
+                        ✏️ Edit
+                    </a>
+
+
+                    <form
+                        action="{{ url_for(
+                            'delete_book',
+                            book_id=book.id
+                        ) }}"
+                        method="POST"
+                        class="d-inline"
+                        onsubmit="return confirm(
+                            'Delete this book?'
+                        );"
+                    >
+
+                        <button
+                            type="submit"
+                            class="btn btn-danger"
+                        >
+                            🗑 Delete
+                        </button>
+
+                    </form>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </div>
+
+
+    {% else %}
+
+
+    <div class="empty-state text-center">
+
+        <h3>
+            📚 Your bookshelf is empty
+        </h3>
+
+        <p>
+            Add your first book!
+        </p>
+
+        <a
+            href="{{ url_for('add_book') }}"
+            class="btn btn-dark"
+        >
+            Add Book
+        </a>
+
+    </div>
+
+
+    {% endif %}
+
+
+</div>
+
+
+{% endblock %}
