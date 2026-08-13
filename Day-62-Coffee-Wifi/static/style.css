@@ -1,0 +1,109 @@
+body {
+
+    background: #f5f6f8;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+}
+
+
+.hero {
+
+    padding: 110px 20px;
+
+    background: #eeeeee;
+
+}
+
+
+.hero h1 {
+
+    font-size: 48px;
+
+    font-weight: 700;
+
+}
+
+
+.hero p {
+
+    font-size: 20px;
+
+    color: #666;
+
+    margin-bottom: 30px;
+
+}
+
+
+.feature-card {
+
+    background: white;
+
+    padding: 40px 25px;
+
+    border-radius: 15px;
+
+    box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+
+.cafe-card {
+
+    border: none;
+
+    border-radius: 15px;
+
+    transition: 0.2s;
+
+}
+
+
+.cafe-card:hover {
+
+    transform: translateY(-5px);
+
+}
+
+
+.form-container {
+
+    max-width: 700px;
+
+    margin: auto;
+
+    background: white;
+
+    padding: 45px;
+
+    border-radius: 15px;
+
+    box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+
+@media (max-width: 576px) {
+
+    .hero h1 {
+
+        font-size: 35px;
+
+    }
+
+
+    .form-container {
+
+        padding: 25px;
+
+    }
+
+}

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+All Cafes
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="container my-5">
+
+    <div class="text-center mb-5">
+
+        <h1>
+            ☕ Available Cafes
+        </h1>
+
+        <p class="text-muted">
+            Find your next work-friendly cafe.
+        </p>
+
+    </div>
+
+
+    <div class="row g-4">
+
+
+        {% for cafe in cafes %}
+
+
+        <div class="col-md-6 col-lg-4">
+
+
+            <div class="card cafe-card h-100 shadow-sm">
+
+
+                <div class="card-body">
+
+
+                    <h3>
+                        {{ cafe.name }}
+                    </h3>
+
+
+                    <p class="text-muted">
+
+                        📍 {{ cafe.location }}
+
+                    </p>
+
+
+                    <hr>
+
+
+                    <p>
+
+                        ☕ Coffee:
+                        <strong>
+                            {{ cafe.coffee_price }}
+                        </strong>
+
+                    </p>
+
+
+                    <p>
+
+                        📶 WiFi:
+
+                        {% if cafe.wifi %}
+                            ✅ Available
+                        {% else %}
+                            ❌ Not Available
+                        {% endif %}
+
+                    </p>
+
+
+                    <p>
+
+                        🔌 Power:
+
+                        {% if cafe.power %}
+                            ✅ Available
+                        {% else %}
+                            ❌ Not Available
+                        {% endif %}
+
+                    </p>
+
+
+                    <p>
+
+                        ☕ Coffee:
+
+                        {% if cafe.coffee %}
+                            ✅ Available
+                        {% else %}
+                            ❌ Not Available
+                        {% endif %}
+
+                    </p>
+
+
+                    <form
+                        action="{{ url_for(
+                            'delete_cafe',
+                            cafe_id=cafe.id
+                        ) }}"
+                        method="POST"
+                        onsubmit="return confirm(
+                            'Delete this cafe?'
+                        );"
+                    >
+
+                        <button
+                            class="btn btn-danger"
+                            type="submit"
+                        >
+                            🗑 Delete
+                        </button>
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </div>
+
+
+</div>
+
+
+{% endblock %}

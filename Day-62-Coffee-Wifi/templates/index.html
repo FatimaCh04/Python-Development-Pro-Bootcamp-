@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+Coffee & WiFi - Home
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<section class="hero">
+
+    <div class="container text-center">
+
+        <h1>
+            ☕ Find Your Perfect Cafe
+        </h1>
+
+        <p>
+            Coffee, WiFi and a perfect place to work.
+        </p>
+
+        <a
+            href="{{ url_for('cafes') }}"
+            class="btn btn-dark btn-lg"
+        >
+            Explore Cafes
+        </a>
+
+    </div>
+
+</section>
+
+
+<div class="container my-5">
+
+    <div class="row text-center g-4">
+
+        <div class="col-md-4">
+
+            <div class="feature-card">
+
+                <h2>☕</h2>
+
+                <h4>Great Coffee</h4>
+
+                <p>
+                    Find cafes with quality coffee.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="feature-card">
+
+                <h2>📶</h2>
+
+                <h4>Fast WiFi</h4>
+
+                <p>
+                    Work and study without interruptions.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-4">
+
+            <div class="feature-card">
+
+                <h2>🔌</h2>
+
+                <h4>Power Sockets</h4>
+
+                <p>
+                    Keep your devices charged.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+{% endblock %}

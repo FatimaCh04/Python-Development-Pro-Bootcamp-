@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+Add Cafe
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="container my-5">
+
+    <div class="form-container">
+
+        <h1>
+            ➕ Add a New Cafe
+        </h1>
+
+        <p class="text-muted">
+            Share a work-friendly cafe with others.
+        </p>
+
+
+        <form
+            method="POST"
+            class="mt-4"
+        >
+
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Cafe Name
+                </label>
+
+                <input
+                    type="text"
+                    name="name"
+                    class="form-control"
+                    placeholder="Enter cafe name"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Location
+                </label>
+
+                <input
+                    type="text"
+                    name="location"
+                    class="form-control"
+                    placeholder="Enter location"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Coffee Price
+                </label>
+
+                <input
+                    type="text"
+                    name="coffee_price"
+                    class="form-control"
+                    placeholder="e.g. $3"
+                    required
+                >
+
+            </div>
+
+
+            <h5 class="mt-4">
+                Available Facilities
+            </h5>
+
+
+            <div class="form-check">
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="wifi"
+                    id="wifi"
+                >
+
+                <label
+                    class="form-check-label"
+                    for="wifi"
+                >
+                    📶 WiFi Available
+                </label>
+
+            </div>
+
+
+            <div class="form-check">
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="power"
+                    id="power"
+                >
+
+                <label
+                    class="form-check-label"
+                    for="power"
+                >
+                    🔌 Power Sockets
+                </label>
+
+            </div>
+
+
+            <div class="form-check">
+
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="coffee"
+                    id="coffee"
+                >
+
+                <label
+                    class="form-check-label"
+                    for="coffee"
+                >
+                    ☕ Coffee Available
+                </label>
+
+            </div>
+
+
+            <div class="mt-4">
+
+                <button
+                    type="submit"
+                    class="btn btn-dark"
+                >
+                    Add Cafe
+                </button>
+
+                <a
+                    href="{{ url_for('cafes') }}"
+                    class="btn btn-secondary"
+                >
+                    Cancel
+                </a>
+
+            </div>
+
+
+        </form>
+
+
+    </div>
+
+</div>
+
+
+{% endblock %}
