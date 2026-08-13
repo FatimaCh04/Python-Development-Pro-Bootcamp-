@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+Edit Movie
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="container my-5">
+
+    <div class="form-container">
+
+        <h1>
+            ✏️ Edit Movie
+        </h1>
+
+        <h3 class="mt-3">
+            {{ movie.title }}
+        </h3>
+
+
+        <form
+            method="POST"
+            class="mt-4"
+        >
+
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Rating
+                </label>
+
+                <input
+                    type="number"
+                    name="rating"
+                    class="form-control"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value="{{ movie.rating }}"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Review
+                </label>
+
+                <textarea
+                    name="review"
+                    class="form-control"
+                    rows="5"
+                    required
+                >{{ movie.review }}</textarea>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-success"
+            >
+                Save Changes
+            </button>
+
+
+            <a
+                href="{{ url_for('home') }}"
+                class="btn btn-secondary"
+            >
+                Cancel
+            </a>
+
+
+        </form>
+
+    </div>
+
+</div>
+
+
+{% endblock %}

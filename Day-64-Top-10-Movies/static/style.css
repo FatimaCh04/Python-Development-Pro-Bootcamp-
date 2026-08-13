@@ -1,0 +1,171 @@
+body {
+
+    background: #f4f4f4;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+}
+
+
+.hero {
+
+    padding: 90px 20px;
+
+    background: #eeeeee;
+
+}
+
+
+.hero h1 {
+
+    font-size: 48px;
+
+    font-weight: 700;
+
+}
+
+
+.hero p {
+
+    font-size: 20px;
+
+    color: #666;
+
+    margin-bottom: 30px;
+
+}
+
+
+.movie-card {
+
+    background: white;
+
+    border-radius: 18px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+
+.movie-poster {
+
+    width: 100%;
+
+    height: 100%;
+
+    min-height: 330px;
+
+    object-fit: cover;
+
+}
+
+
+.movie-content {
+
+    padding: 35px;
+
+}
+
+
+.movie-content h2 {
+
+    font-weight: 700;
+
+}
+
+
+.rank {
+
+    display: inline-block;
+
+    padding: 6px 12px;
+
+    background: #212529;
+
+    color: white;
+
+    border-radius: 20px;
+
+    font-weight: bold;
+
+}
+
+
+.rating-box {
+
+    font-size: 20px;
+
+    font-weight: bold;
+
+}
+
+
+.movie-content blockquote {
+
+    border-left: 4px solid #212529;
+
+    padding-left: 15px;
+
+    font-style: italic;
+
+    color: #666;
+
+}
+
+
+.form-container {
+
+    max-width: 700px;
+
+    margin: auto;
+
+    background: white;
+
+    padding: 45px;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.08);
+
+}
+
+
+@media (max-width: 768px) {
+
+    .hero h1 {
+
+        font-size: 36px;
+
+    }
+
+
+    .movie-poster {
+
+        height: 350px;
+
+    }
+
+
+    .movie-content {
+
+        padding: 25px;
+
+    }
+
+
+    .form-container {
+
+        padding: 25px;
+
+    }
+
+}
