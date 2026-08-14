@@ -1,0 +1,411 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f6f7fb;
+    color: #202124;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar {
+    background: #17191f;
+    padding: 16px 0;
+}
+
+.navbar-brand {
+    font-size: 23px;
+    font-weight: 700;
+}
+
+.welcome-text {
+    color: white;
+    margin: 0 8px;
+}
+
+
+/* =========================
+   FLASH
+========================= */
+
+.flash-container {
+    margin-top: 20px;
+}
+
+
+/* =========================
+   HERO
+========================= */
+
+.hero {
+    padding: 110px 20px;
+    text-align: center;
+    background: white;
+}
+
+.hero-label {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+}
+
+.hero h1 {
+    font-size: 58px;
+    font-weight: 800;
+    max-width: 850px;
+    margin: auto;
+}
+
+.hero h1 span {
+    color: #635bff;
+}
+
+.hero p {
+    margin: 20px auto 30px;
+    color: #666;
+    font-size: 18px;
+}
+
+
+/* =========================
+   BUTTONS
+========================= */
+
+.btn-primary {
+    background: #635bff;
+    border-color: #635bff;
+}
+
+.btn-primary:hover {
+    background: #5149e5;
+    border-color: #5149e5;
+}
+
+
+/* =========================
+   POSTS
+========================= */
+
+.posts-section {
+    padding-top: 70px;
+    padding-bottom: 80px;
+}
+
+.section-heading {
+    margin-bottom: 30px;
+}
+
+.section-heading span {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #635bff;
+}
+
+.section-heading h2 {
+    font-size: 35px;
+    font-weight: 800;
+    margin-top: 5px;
+}
+
+
+/* =========================
+   BLOG CARD
+========================= */
+
+.blog-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    height: 100%;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, .06);
+    transition: .25s;
+}
+
+.blog-card:hover {
+    transform: translateY(-5px);
+}
+
+.blog-card img {
+    width: 100%;
+    height: 230px;
+    object-fit: cover;
+}
+
+.blog-card-content {
+    padding: 25px;
+}
+
+.blog-card-content small {
+    color: #777;
+}
+
+.blog-card-content h3 {
+    margin-top: 10px;
+    font-size: 24px;
+    font-weight: 750;
+}
+
+.subtitle {
+    color: #666;
+    line-height: 1.6;
+}
+
+.author {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.read-more {
+    display: inline-block;
+    margin-top: 10px;
+    text-decoration: none;
+    color: #635bff;
+    font-weight: bold;
+}
+
+
+/* =========================
+   EMPTY STATE
+========================= */
+
+.empty-state {
+    text-align: center;
+    padding: 70px 20px;
+}
+
+.empty-state div {
+    font-size: 50px;
+}
+
+.empty-state h3 {
+    margin-top: 15px;
+}
+
+
+/* =========================
+   AUTH
+========================= */
+
+.auth-page {
+    min-height: 75vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px 20px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 470px;
+    background: white;
+    padding: 45px;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .08);
+}
+
+.auth-icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+
+.auth-card h1 {
+    font-weight: 800;
+}
+
+.auth-card > p {
+    color: #777;
+    margin-bottom: 30px;
+}
+
+.auth-card label,
+.editor-card label {
+    display: block;
+    margin: 18px 0 7px;
+    font-weight: 600;
+}
+
+.auth-card .btn {
+    margin-top: 25px;
+    padding: 12px;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 25px !important;
+    margin-bottom: 0 !important;
+}
+
+.auth-footer a {
+    color: #635bff;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+
+/* =========================
+   ARTICLE
+========================= */
+
+.article-page {
+    max-width: 950px;
+    padding-top: 60px;
+    padding-bottom: 80px;
+}
+
+.article-image {
+    width: 100%;
+    height: 480px;
+    object-fit: cover;
+    border-radius: 18px;
+}
+
+.article-content {
+    background: white;
+    margin-top: -40px;
+    position: relative;
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 50px;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .07);
+}
+
+.article-meta {
+    color: #777;
+    display: flex;
+    gap: 10px;
+}
+
+.article-content h1 {
+    font-size: 48px;
+    font-weight: 800;
+    margin: 20px 0;
+}
+
+.article-content h2 {
+    color: #666;
+    font-size: 21px;
+    font-weight: 400;
+}
+
+.article-body {
+    margin-top: 35px;
+    white-space: pre-line;
+    line-height: 1.9;
+    font-size: 18px;
+}
+
+.article-actions {
+    margin-top: 40px;
+    display: flex;
+    gap: 10px;
+}
+
+
+/* =========================
+   EDITOR
+========================= */
+
+.editor-page {
+    padding: 70px 20px;
+}
+
+.editor-card {
+    max-width: 850px;
+    margin: auto;
+    background: white;
+    padding: 45px;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .07);
+}
+
+.editor-header span {
+    color: #635bff;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.editor-header h1 {
+    font-size: 38px;
+    font-weight: 800;
+    margin-top: 8px;
+    margin-bottom: 30px;
+}
+
+.editor-card textarea {
+    resize: vertical;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+
+/* =========================
+   FOOTER
+========================= */
+
+footer {
+    background: #17191f;
+    color: white;
+    text-align: center;
+    padding: 30px;
+    margin-top: 40px;
+}
+
+footer p {
+    margin: 5px;
+    opacity: .8;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 768px) {
+
+    .hero {
+        padding: 75px 20px;
+    }
+
+    .hero h1 {
+        font-size: 38px;
+    }
+
+    .article-image {
+        height: 300px;
+    }
+
+    .article-content {
+        width: 95%;
+        padding: 30px 22px;
+    }
+
+    .article-content h1 {
+        font-size: 34px;
+    }
+
+    .auth-card,
+    .editor-card {
+        padding: 30px 22px;
+    }
+
+    .welcome-text {
+        display: none;
+    }
+
+}

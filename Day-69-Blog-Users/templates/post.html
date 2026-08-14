@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ post.title }} | My Blog
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="container article-page">
+
+    <img
+        src="{{ post.image_url }}"
+        class="article-image"
+        alt="{{ post.title }}"
+    >
+
+
+    <article class="article-content">
+
+        <div class="article-meta">
+
+            <span>
+                {{ post.created_at }}
+            </span>
+
+            <span>
+                •
+            </span>
+
+            <span>
+                By {{ post.author.name }}
+            </span>
+
+        </div>
+
+
+        <h1>
+            {{ post.title }}
+        </h1>
+
+
+        <h2>
+            {{ post.subtitle }}
+        </h2>
+
+
+        <div class="article-body">
+
+            {{ post.body }}
+
+        </div>
+
+
+        {% if current_user.is_authenticated %}
+
+            {% if current_user.id == post.author_id
+                  or current_user.id == 1 %}
+
+                <div class="article-actions">
+
+                    <a
+                        href="{{ url_for(
+                            'edit_post',
+                            post_id=post.id
+                        ) }}"
+                        class="btn btn-warning"
+                    >
+                        Edit Post
+                    </a>
+
+                    <a
+                        href="{{ url_for(
+                            'delete_post',
+                            post_id=post.id
+                        ) }}"
+                        class="btn btn-danger"
+                        onclick="return confirm(
+                            'Delete this post?'
+                        )"
+                    >
+                        Delete Post
+                    </a>
+
+                </div>
+
+            {% endif %}
+
+        {% endif %}
+
+    </article>
+
+</div>
+
+
+{% endblock %}

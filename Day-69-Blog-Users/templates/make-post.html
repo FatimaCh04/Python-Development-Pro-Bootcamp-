@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}
+
+    {% if post %}
+        Edit Post
+    {% else %}
+        New Post
+    {% endif %}
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="editor-page">
+
+    <div class="editor-card">
+
+        <div class="editor-header">
+
+            <span>
+                BLOG EDITOR
+            </span>
+
+            <h1>
+
+                {% if post %}
+                    Edit Your Article
+                {% else %}
+                    Create New Article
+                {% endif %}
+
+            </h1>
+
+        </div>
+
+
+        <form method="POST">
+
+            <label>
+                Title
+            </label>
+
+            <input
+                type="text"
+                name="title"
+                class="form-control"
+                placeholder="Enter your title"
+                value="{% if post %}{{ post.title }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Subtitle
+            </label>
+
+            <input
+                type="text"
+                name="subtitle"
+                class="form-control"
+                placeholder="A short description"
+                value="{% if post %}{{ post.subtitle }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Date
+            </label>
+
+            <input
+                type="text"
+                name="created_at"
+                class="form-control"
+                placeholder="August 14, 2026"
+                value="{% if post %}{{ post.created_at }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Image URL
+            </label>
+
+            <input
+                type="url"
+                name="image_url"
+                class="form-control"
+                placeholder="https://example.com/image.jpg"
+                value="{% if post %}{{ post.image_url }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Article Content
+            </label>
+
+            <textarea
+                name="body"
+                class="form-control"
+                rows="12"
+                placeholder="Write your article here..."
+                required
+            >{% if post %}{{ post.body }}{% endif %}</textarea>
+
+
+            <div class="editor-actions">
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+
+                    {% if post %}
+                        Save Changes
+                    {% else %}
+                        Publish Article
+                    {% endif %}
+
+                </button>
+
+
+                <a
+                    href="{{ url_for('home') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Cancel
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+{% endblock %}
