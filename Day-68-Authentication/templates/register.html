@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+Register | SecureAuth
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="auth-page">
+
+    <div class="auth-card">
+
+        <div class="auth-icon">
+            👤
+        </div>
+
+
+        <h1>
+            Create Account
+        </h1>
+
+        <p class="text-muted">
+            Join SecureAuth today.
+        </p>
+
+
+        <form
+            method="POST"
+            class="mt-4"
+        >
+
+
+            <div class="mb-3">
+
+                <label
+                    for="name"
+                    class="form-label"
+                >
+                    Full Name
+                </label>
+
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    class="form-control"
+                    placeholder="Enter your name"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label
+                    for="email"
+                    class="form-label"
+                >
+                    Email Address
+                </label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    class="form-control"
+                    placeholder="you@example.com"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label
+                    for="password"
+                    class="form-label"
+                >
+                    Password
+                </label>
+
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-control"
+                    placeholder="Create a password"
+                    minlength="6"
+                    required
+                >
+
+            </div>
+
+
+            <div class="mb-3">
+
+                <label
+                    for="confirm_password"
+                    class="form-label"
+                >
+                    Confirm Password
+                </label>
+
+                <input
+                    type="password"
+                    id="confirm_password"
+                    name="confirm_password"
+                    class="form-control"
+                    placeholder="Confirm your password"
+                    minlength="6"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn btn-dark w-100 btn-lg"
+            >
+                Create Account
+            </button>
+
+
+        </form>
+
+
+        <p class="auth-footer">
+
+            Already have an account?
+
+            <a href="{{ url_for('login') }}">
+                Login
+            </a>
+
+        </p>
+
+
+    </div>
+
+</div>
+
+
+{% endblock %}
