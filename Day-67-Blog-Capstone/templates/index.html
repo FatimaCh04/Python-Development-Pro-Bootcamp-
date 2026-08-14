@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+
+My Blog
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<section class="hero">
+
+    <div class="container text-center">
+
+        <h1>
+            My Personal Blog
+        </h1>
+
+        <p>
+            Stories, ideas and my coding journey.
+        </p>
+
+        <a
+            href="{{ url_for('create_post') }}"
+            class="btn btn-dark btn-lg"
+        >
+            Write a Post
+        </a>
+
+    </div>
+
+</section>
+
+
+<div class="container my-5">
+
+    <div class="row g-4">
+
+
+        {% for post in posts %}
+
+
+        <div class="col-md-6 col-lg-4">
+
+
+            <div class="blog-card h-100">
+
+
+                <img
+                    src="{{ post.image_url }}"
+                    alt="{{ post.title }}"
+                >
+
+
+                <div class="card-content">
+
+
+                    <small class="text-muted">
+
+                        {{ post.date }}
+
+                    </small>
+
+
+                    <h2>
+
+                        {{ post.title }}
+
+                    </h2>
+
+
+                    <h6>
+
+                        {{ post.subtitle }}
+
+                    </h6>
+
+
+                    <p class="text-muted">
+
+                        By {{ post.author }}
+
+                    </p>
+
+
+                    <a
+                        href="{{ url_for(
+                            'show_post',
+                            post_id=post.id
+                        ) }}"
+                        class="btn btn-dark"
+                    >
+
+                        Read More →
+
+                    </a>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+        {% endfor %}
+
+
+    </div>
+
+</div>
+
+
+{% endblock %}
