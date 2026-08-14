@@ -1,0 +1,292 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #f5f6fa;
+    color: #202124;
+    font-family: Arial, sans-serif;
+}
+
+
+/* NAVBAR */
+
+.navbar {
+    background: #17191f;
+    padding: 16px 0;
+}
+
+.navbar-brand {
+    font-size: 23px;
+    font-weight: bold;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-name {
+    color: white;
+}
+
+
+/* HERO */
+
+.hero {
+    background: white;
+    text-align: center;
+    padding: 100px 20px;
+}
+
+.hero h1 {
+    font-size: 55px;
+    font-weight: 800;
+}
+
+.hero p {
+    color: #666;
+    font-size: 18px;
+    margin: 20px 0 30px;
+}
+
+
+/* POSTS */
+
+.posts-section {
+    padding: 70px 20px;
+}
+
+.posts-section h2 {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 30px;
+}
+
+.blog-card {
+    height: 100%;
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0,0,0,.07);
+}
+
+.blog-card img {
+    width: 100%;
+    height: 230px;
+    object-fit: cover;
+}
+
+.card-content {
+    padding: 25px;
+}
+
+.card-content h3 {
+    margin-top: 10px;
+    font-weight: 750;
+}
+
+.card-content p {
+    color: #666;
+    line-height: 1.6;
+}
+
+
+/* AUTH */
+
+.auth-wrapper {
+    min-height: 75vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px 20px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 450px;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 35px rgba(0,0,0,.08);
+}
+
+.auth-card h1 {
+    font-weight: 800;
+}
+
+.auth-card label,
+.editor-card label {
+    display: block;
+    margin-top: 18px;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 25px;
+}
+
+
+/* EDITOR */
+
+.editor-wrapper {
+    padding: 70px 20px;
+}
+
+.editor-card {
+    max-width: 850px;
+    margin: auto;
+    background: white;
+    padding: 45px;
+    border-radius: 16px;
+    box-shadow: 0 10px 35px rgba(0,0,0,.08);
+}
+
+.editor-card h1 {
+    font-weight: 800;
+}
+
+
+/* ARTICLE */
+
+.article-page {
+    max-width: 950px;
+    padding-top: 60px;
+    padding-bottom: 80px;
+}
+
+.article-image {
+    width: 100%;
+    height: 450px;
+    object-fit: cover;
+    border-radius: 18px;
+}
+
+.article {
+    background: white;
+    margin: -40px auto 0;
+    position: relative;
+    width: 90%;
+    padding: 45px;
+    border-radius: 18px;
+    box-shadow: 0 10px 35px rgba(0,0,0,.07);
+}
+
+.article h1 {
+    font-size: 48px;
+    font-weight: 800;
+    margin-top: 20px;
+}
+
+.article h3 {
+    color: #666;
+    font-weight: 400;
+}
+
+.article-body {
+    white-space: pre-line;
+    line-height: 1.9;
+    font-size: 18px;
+}
+
+
+/* =========================================
+   COMMENTS
+========================================= */
+
+.comments-section {
+    width: 90%;
+    margin: 30px auto;
+    background: white;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 10px 35px rgba(0,0,0,.07);
+}
+
+.comments-section h2 {
+    font-weight: 800;
+    margin-bottom: 25px;
+}
+
+.login-comment {
+    background: #f5f6fa;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.comment-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
+    margin-bottom: 15px;
+    background: #f7f7f8;
+    border-radius: 12px;
+}
+
+.comment-content strong {
+    font-size: 17px;
+}
+
+.comment-content p {
+    margin-top: 8px;
+    margin-bottom: 0;
+    line-height: 1.6;
+}
+
+
+/* FOOTER */
+
+footer {
+    background: #17191f;
+    color: white;
+    text-align: center;
+    padding: 30px;
+    margin-top: 40px;
+}
+
+
+/* MOBILE */
+
+@media (max-width: 768px) {
+
+    .hero h1 {
+        font-size: 38px;
+    }
+
+    .nav-actions {
+        flex-wrap: wrap;
+    }
+
+    .article-image {
+        height: 280px;
+    }
+
+    .article {
+        width: 95%;
+        padding: 25px;
+    }
+
+    .article h1 {
+        font-size: 34px;
+    }
+
+    .comments-section {
+        width: 95%;
+        padding: 25px;
+    }
+
+    .comment-card {
+        flex-direction: column;
+    }
+
+    .auth-card,
+    .editor-card {
+        padding: 28px 22px;
+    }
+}

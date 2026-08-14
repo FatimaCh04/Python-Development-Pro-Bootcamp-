@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ post.title }}
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container article-page">
+
+    <img
+        src="{{ post.image_url }}"
+        class="article-image"
+        alt="{{ post.title }}"
+    >
+
+
+    <article class="article">
+
+        <small>
+            {{ post.created_at }}
+            •
+            By {{ post.author.name }}
+        </small>
+
+
+        <h1>
+            {{ post.title }}
+        </h1>
+
+
+        <h3>
+            {{ post.subtitle }}
+        </h3>
+
+
+        <hr>
+
+
+        <div class="article-body">
+
+            {{ post.body }}
+
+        </div>
+
+
+        {% if current_user.is_authenticated %}
+
+            {% if current_user.id == post.author_id
+                  or current_user.id == 1 %}
+
+                <div class="mt-4">
+
+                    <a
+                        href="{{ url_for(
+                            'edit_post',
+                            post_id=post.id
+                        ) }}"
+                        class="btn btn-warning"
+                    >
+                        Edit
+                    </a>
+
+                    <a
+                        href="{{ url_for(
+                            'delete_post',
+                            post_id=post.id
+                        ) }}"
+                        class="btn btn-danger"
+                    >
+                        Delete
+                    </a>
+
+                </div>
+
+            {% endif %}
+
+        {% endif %}
+
+    </article>
+
+
+    <!-- =========================================
+         COMMENTS
+    ========================================== -->
+
+    <section class="comments-section">
+
+        <h2>
+            💬 Comments
+        </h2>
+
+
+        <!-- ADD COMMENT -->
+
+        {% if current_user.is_authenticated %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'add_comment',
+                post_id=post.id
+            ) }}"
+        >
+
+            <textarea
+                name="comment"
+                class="form-control"
+                rows="4"
+                placeholder="Write your comment..."
+                required
+            ></textarea>
+
+
+            <button
+                type="submit"
+                class="btn btn-primary mt-3"
+            >
+                Post Comment
+            </button>
+
+        </form>
+
+        {% else %}
+
+        <div class="login-comment">
+
+            <p>
+                Please login to leave a comment.
+            </p>
+
+            <a
+                href="{{ url_for('login') }}"
+                class="btn btn-dark"
+            >
+                Login
+            </a>
+
+        </div>
+
+        {% endif %}
+
+
+        <hr class="my-4">
+
+
+        <!-- COMMENT LIST -->
+
+        {% for comment in post.comments %}
+
+        <div class="comment-card">
+
+            <div class="comment-content">
+
+                <strong>
+                    {{ comment.author.name }}
+                </strong>
+
+                <p>
+                    {{ comment.text }}
+                </p>
+
+            </div>
+
+
+            {% if current_user.is_authenticated %}
+
+                {% if current_user.id == comment.author_id
+                      or current_user.id == 1 %}
+
+                    <a
+                        href="{{ url_for(
+                            'delete_comment',
+                            comment_id=comment.id
+                        ) }}"
+                        class="btn btn-sm btn-outline-danger"
+                    >
+                        Delete
+                    </a>
+
+                {% endif %}
+
+            {% endif %}
+
+        </div>
+
+        {% else %}
+
+        <p class="text-muted">
+            No comments yet. Be the first to comment!
+        </p>
+
+        {% endfor %}
+
+    </section>
+
+</div>
+
+{% endblock %}

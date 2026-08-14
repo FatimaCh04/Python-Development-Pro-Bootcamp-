@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if post %}
+Edit Post
+{% else %}
+New Post
+{% endif %}
+{% endblock %}
+
+
+{% block content %}
+
+<div class="editor-wrapper">
+
+    <div class="editor-card">
+
+        <h1>
+
+            {% if post %}
+            Edit Post
+            {% else %}
+            Create New Post
+            {% endif %}
+
+        </h1>
+
+
+        <form method="POST">
+
+            <label>
+                Title
+            </label>
+
+            <input
+                type="text"
+                name="title"
+                class="form-control"
+                value="{% if post %}{{ post.title }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Subtitle
+            </label>
+
+            <input
+                type="text"
+                name="subtitle"
+                class="form-control"
+                value="{% if post %}{{ post.subtitle }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Date
+            </label>
+
+            <input
+                type="text"
+                name="created_at"
+                class="form-control"
+                value="{% if post %}{{ post.created_at }}{% endif %}"
+                placeholder="August 2026"
+                required
+            >
+
+
+            <label>
+                Image URL
+            </label>
+
+            <input
+                type="url"
+                name="image_url"
+                class="form-control"
+                value="{% if post %}{{ post.image_url }}{% endif %}"
+                required
+            >
+
+
+            <label>
+                Article
+            </label>
+
+            <textarea
+                name="body"
+                class="form-control"
+                rows="12"
+                required
+            >{% if post %}{{ post.body }}{% endif %}</textarea>
+
+
+            <button
+                type="submit"
+                class="btn btn-primary mt-4"
+            >
+
+                {% if post %}
+                Save Changes
+                {% else %}
+                Publish
+                {% endif %}
+
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}
