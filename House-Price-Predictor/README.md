@@ -1,4 +1,3 @@
-Bilkul. Tumhare project ke liye README **professional GitHub-project level** honi chahiye, jisme screenshots ke placeholders bhi hon. Tum screenshots baad mein `screenshots/` folder mein rakh kar paths replace kar sakti ho.
 
 # 🏠 HousePrice AI — House Price Predictor
 
