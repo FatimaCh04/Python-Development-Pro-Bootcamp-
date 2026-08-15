@@ -1,11 +1,11 @@
 {
   "model": "Random Forest Regressor",
-  "r2_score": 0.973316,
-  "mae": 5231766.76,
-  "rmse": 6248608.72,
-  "dataset_records": 850,
-  "train_size": 680,
-  "test_size": 170,
+  "r2_score": 0.962662,
+  "mae": 5136003.0,
+  "rmse": 6921218.27,
+  "dataset_records": 1200,
+  "train_size": 960,
+  "test_size": 240,
   "locations": [
     "Bahria Town",
     "Clifton",
@@ -16,5 +16,5 @@
     "North Nazimabad",
     "PECHS"
   ],
-  "trained_at": "2026-08-15 15:58:05"
+  "trained_at": "2026-08-15 16:48:10"
 }
