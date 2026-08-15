@@ -29,18 +29,18 @@ The home page allows users to enter property details and receive an estimated ho
 ### 📊 ML Dashboard
 
 The ML Dashboard provides dataset upload, validation, preview, model training, and dataset information.
+<img width="1358" height="650" alt="H 5" src="https://github.com/user-attachments/assets/2176927e-64ab-4245-9418-437e811001a6" />
 
-![ML Dashboard](screenshots/dashboard.png)
+<img width="1357" height="649" alt="H 6" src="https://github.com/user-attachments/assets/63f23333-fbea-4a9f-8968-53759e56018b" />
+
+
+
 
 ---
 
 ### 📈 Model Performance
 
 The dashboard displays dynamically generated model evaluation metrics including R² Score, MAE, and RMSE along with the Actual vs Predicted visualization.
-
-<img width="1358" height="650" alt="H 5" src="https://github.com/user-attachments/assets/2176927e-64ab-4245-9418-437e811001a6" />
-
-<img width="1357" height="649" alt="H 6" src="https://github.com/user-attachments/assets/63f23333-fbea-4a9f-8968-53759e56018b" />
 
 
 <img width="1357" height="648" alt="H 7" src="https://github.com/user-attachments/assets/a23e4444-1ba5-4b2b-b608-c184c31b9df9" />
