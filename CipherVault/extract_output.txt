@@ -1,0 +1,18 @@
+﻿=== FILES IN ZIP ===
+vault-frontend/
+vault-frontend/index.html
+vault-frontend/css/
+vault-frontend/css/style.css
+vault-frontend/js/
+vault-frontend/js/script.js
+
+=== EXTRACTING ===
+Extraction complete to: c:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend
+
+=== EXTRACTED FILE TREE ===
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend\css
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend\js
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend\index.html
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend\css\style.css
+C:\Users\Shahab Computer's\Documents\GitHub\Python-Development-Pro-Bootcamp-\CipherVault\vault-frontend\vault-frontend\js\script.js

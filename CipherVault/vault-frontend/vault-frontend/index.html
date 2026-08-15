@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAULT — Encrypted Password Manager</title>
+<meta name="description" content="A CLI-born password manager reimagined: master-password protected, Fernet-encrypted, built for people who refuse to reuse passwords.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ================= NAV ================= -->
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a href="#top" class="nav__brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="12" cy="15" r="1.6" fill="currentColor"/>
+      </svg>
+      <span>VAULT</span>
+    </a>
+    <nav class="nav__links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#security">Security</a>
+    </nav>
+    <a href="#gate" class="btn btn--ghost btn--sm">Open Vault</a>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero" id="top">
+  <div class="hero__inner">
+    <div class="hero__copy">
+      <p class="eyebrow">OOP · FERNET ENCRYPTION · CLI-BORN</p>
+      <h1 class="hero__title">Your passwords,<br>locked behind <span class="accent-brass">one key.</span></h1>
+      <p class="hero__sub">A single master password guards every credential you own. Every entry is symmetrically encrypted at rest, decrypted only on demand, and forgotten the moment you walk away.</p>
+      <div class="hero__cta">
+        <a href="#gate" class="btn btn--primary">Open the Vault</a>
+        <a href="#how" class="btn btn--outline">See how it works</a>
+      </div>
+      <div class="spec-row">
+        <span class="spec-badge">🔒 Fernet (AES‑128‑CBC)</span>
+        <span class="spec-badge">⏱ 5‑min auto‑logout</span>
+        <span class="spec-badge">🗄 Local encrypted JSON</span>
+      </div>
+    </div>
+
+    <div class="hero__art" aria-hidden="true">
+      <svg class="dial" viewBox="0 0 360 360" width="360" height="360">
+        <circle class="dial__ring-outer" cx="180" cy="180" r="164"/>
+        <g class="dial__ticks"></g>
+        <circle class="dial__ring-inner" cx="180" cy="180" r="112"/>
+        <g class="dial__hand-group">
+          <line class="dial__hand" x1="180" y1="180" x2="180" y2="58"/>
+          <circle class="dial__hub" cx="180" cy="180" r="10"/>
+        </g>
+        <g class="dial__keyhole" transform="translate(180,180)">
+          <circle r="26" class="keyhole__ring"/>
+          <path class="keyhole__glyph" d="M0,-9 a9,9 0 1 0 0.01,0 Z M-4,4 L4,4 L7,16 L-7,16 Z"/>
+        </g>
+      </svg>
+      <div class="hero__glow"></div>
+    </div>
+  </div>
+  <div class="hero__fade"></div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section class="section" id="features">
+  <div class="section__head">
+    <p class="eyebrow">CAPABILITIES</p>
+    <h2>Everything a vault needs. Nothing it doesn't.</h2>
+  </div>
+
+  <div class="grid grid--features">
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V5l-8-3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h3>Master password hashing</h3>
+      <p>Set once, verified every time. Your master key is never stored in plain text — only its hash stands guard at the door.</p>
+    </article>
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <h3>Fernet encryption</h3>
+      <p>Every website, username, and password is symmetrically encrypted before it ever touches disk. Decryption happens in memory, on request only.</p>
+    </article>
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <h3>Search &amp; decrypt</h3>
+      <p>Type a site name, get its credentials back — decrypted just long enough to read, copy, and disappear again.</p>
+    </article>
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="8" y="2" width="8" height="4" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="6" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <h3>One-click clipboard copy</h3>
+      <p>No password ever needs to be read aloud or retyped. Copy it straight to your clipboard and paste where it's needed.</p>
+    </article>
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <h3>Auto-logout on idle</h3>
+      <p>Walk away and the vault seals itself after five quiet minutes. No lingering sessions, no exceptions.</p>
+    </article>
+
+    <article class="card card--feature reveal">
+      <div class="card__icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <h3>Add entries in seconds</h3>
+      <p>Website, username, password — three fields in, one encrypted record out. Built for the accounts you create weekly.</p>
+    </article>
+
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="section section--dim" id="how">
+  <div class="section__head">
+    <p class="eyebrow">THE FLOW</p>
+    <h2>Four steps between you and a forgotten password.</h2>
+  </div>
+
+  <div class="stepper">
+    <div class="stepper__line" aria-hidden="true"></div>
+
+    <div class="step reveal">
+      <span class="step__num">01</span>
+      <h3>Set your master password</h3>
+      <p>Chosen once, hashed immediately. This is the only password you'll ever need to remember again.</p>
+    </div>
+
+    <div class="step reveal">
+      <span class="step__num">02</span>
+      <h3>Add a credential</h3>
+      <p>Enter the website, username, and password. The vault takes it from here.</p>
+    </div>
+
+    <div class="step reveal">
+      <span class="step__num">03</span>
+      <h3>Encrypt &amp; store</h3>
+      <p>Fernet encrypts the entry and writes it to a local JSON vault file. Plaintext never touches the disk.</p>
+    </div>
+
+    <div class="step reveal">
+      <span class="step__num">04</span>
+      <h3>Search, decrypt, copy</h3>
+      <p>Look up a site by name, verify your master password, and the credential decrypts just for you.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SECURITY ================= -->
+<section class="section" id="security">
+  <div class="security">
+    <div class="security__copy reveal">
+      <p class="eyebrow">UNDER THE HOOD</p>
+      <h2>Symmetric encryption, explained plainly.</h2>
+      <p class="security__lede">Fernet generates one secret key from your master password. That key both locks and unlocks every record — lose it, and the vault stays sealed even from you. That's the trade you're making: total privacy for total responsibility.</p>
+      <ul class="security__list">
+        <li><span class="dot"></span> Ciphertext is authenticated — tampered records are rejected, not silently corrupted.</li>
+        <li><span class="dot"></span> Each entry is encrypted independently, so a leaked record never exposes the rest.</li>
+        <li><span class="dot"></span> The vault file is portable JSON — back it up, move it, it stays unreadable without the key.</li>
+      </ul>
+    </div>
+
+    <div class="terminal reveal" aria-hidden="true">
+      <div class="terminal__bar">
+        <span class="dot dot--red"></span><span class="dot dot--amber"></span><span class="dot dot--green"></span>
+        <span class="terminal__title">vault.py</span>
+      </div>
+      <div class="terminal__body" id="terminalBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GATE (LOGIN) ================= -->
+<section class="section section--gate" id="gate">
+  <div class="gate-card reveal">
+    <svg class="gate-dial" viewBox="0 0 120 120" width="72" height="72" aria-hidden="true">
+      <circle cx="60" cy="60" r="50" class="gate-dial__ring"/>
+      <circle cx="60" cy="60" r="10" class="gate-dial__hub" id="gateHub"/>
+    </svg>
+    <p class="eyebrow">MASTER ACCESS</p>
+    <h2>Unlock your vault</h2>
+    <p class="gate-sub">This is a front-end preview — any password opens the demo vault below.</p>
+
+    <form id="unlockForm" class="gate-form" autocomplete="off">
+      <label class="field">
+        <span>Master password</span>
+        <input type="password" id="masterInput" placeholder="Enter master password" required>
+      </label>
+      <button type="submit" class="btn btn--primary btn--block">Unlock Vault</button>
+      <p class="gate-error" id="gateError">Incorrect master password. Try again.</p>
+    </form>
+  </div>
+</section>
+
+<!-- ================= DASHBOARD (DEMO) ================= -->
+<section class="dashboard" id="dashboard">
+  <div class="dash-topbar">
+    <div class="dash-brand">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3" stroke="currentColor" stroke-width="1.6"/></svg>
+      <span>VAULT / demo session</span>
+    </div>
+    <div class="dash-session">
+      <svg class="ring" width="30" height="30" viewBox="0 0 36 36">
+        <circle class="ring__bg" cx="18" cy="18" r="15.5"/>
+        <circle class="ring__fg" id="sessionRing" cx="18" cy="18" r="15.5"/>
+      </svg>
+      <span class="mono" id="sessionTime">05:00</span>
+      <span class="dash-session__label">until auto-logout</span>
+    </div>
+    <button class="btn btn--ghost btn--sm" id="lockBtn">Lock now</button>
+  </div>
+
+  <div class="dash-body">
+    <div class="dash-controls">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search by website…">
+      </div>
+      <button class="btn btn--primary btn--sm" id="addBtn">+ Add Password</button>
+    </div>
+
+    <div class="vault-grid" id="vaultGrid"></div>
+    <p class="empty-state" id="emptyState" hidden>No entries match that search.</p>
+  </div>
+</section>
+
+<!-- ================= ADD PASSWORD MODAL ================= -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal__head">
+      <h3>Add a new entry</h3>
+      <button class="modal__close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <form id="addForm" class="gate-form">
+      <label class="field">
+        <span>Website</span>
+        <input type="text" id="siteInput" placeholder="e.g. github.com" required>
+      </label>
+      <label class="field">
+        <span>Username</span>
+        <input type="text" id="userInput" placeholder="e.g. hamza_dev" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <div class="pw-generate">
+          <input type="text" id="pwInput" placeholder="Enter or generate" required>
+          <button type="button" class="btn btn--outline btn--sm" id="genBtn">Generate</button>
+        </div>
+      </label>
+      <button type="submit" class="btn btn--primary btn--block">Encrypt &amp; Save</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+  <div class="footer__inner">
+    <span class="mono">VAULT — built with Python OOP · cryptography.fernet · JSON</span>
+    <span class="mono footer__muted">front-end preview, no data leaves this browser</span>
+  </div>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>
