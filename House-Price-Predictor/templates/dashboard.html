@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HousePrice AI — ML Dashboard</title>
+  <meta name="description" content="Manage datasets, train models, and view real ML metrics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+  <!-- ══════════════ NAVBAR ══════════════ -->
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="/" class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-building-user"></i></div>
+        <span class="brand-name">HousePrice AI</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="/"          class="nav-link"><i class="fa-solid fa-house"></i> Home</a></li>
+        <li><a href="/dashboard" class="nav-link active"><i class="fa-solid fa-chart-line"></i> ML Dashboard</a></li>
+        <li><a href="/about"     class="nav-link"><i class="fa-solid fa-circle-info"></i> About</a></li>
+      </ul>
+      <a href="/" class="btn btn-sm btn-outline-nav nav-cta">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Predictor
+      </a>
+    </div>
+  </nav>
+
+  <!-- ══════════════ DASHBOARD HEADER ══════════════ -->
+  <div class="db-header">
+    <div class="container db-header-inner">
+      <div>
+        <h1 class="db-title"><i class="fa-solid fa-chart-line"></i> ML Dashboard</h1>
+        <p class="db-sub">Upload datasets, train your model, and inspect live performance metrics</p>
+      </div>
+      <a href="/" class="btn btn-sm btn-primary">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Go to Predictor
+      </a>
+    </div>
+  </div>
+
+  <!-- ══════════════ MAIN CONTENT ══════════════ -->
+  <main class="db-main container">
+
+    <!-- ROW 1: Model Status | Dataset Upload -->
+    <div class="db-row db-row-2col">
+
+      <!-- Model Status -->
+      <div class="card" id="status-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--purple"><i class="fa-solid fa-microchip"></i></div>
+          <div>
+            <h2 class="card-title">Model Status</h2>
+            <p class="card-sub">Live — reads from model/status.json</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="status-badge-wrap">
+            {% if status.trained %}
+            <div class="status-badge status-badge--ok">
+              <i class="fa-solid fa-circle-check"></i> Trained
+            </div>
+            {% else %}
+            <div class="status-badge status-badge--warn">
+              <i class="fa-solid fa-circle-xmark"></i> Not Trained
+            </div>
+            {% endif %}
+          </div>
+          <table class="info-table" id="status-table">
+            <tbody>
+              <tr><th>Algorithm</th>     <td>{{ status.model or 'Random Forest Regressor' }}</td></tr>
+              <tr><th>Dataset Used</th>  <td>{{ status.dataset_file or '—' }}</td></tr>
+              <tr><th>Trained At</th>    <td>{{ status.trained_at or '—' }}</td></tr>
+              <tr><th>Train Records</th> <td>{{ status.train_records or '—' }}</td></tr>
+              <tr><th>Test Records</th>  <td>{{ status.test_records or '—' }}</td></tr>
+            </tbody>
+          </table>
+          {% if not status.trained %}
+          <p class="card-note">
+            <i class="fa-solid fa-circle-info"></i>
+            Upload a CSV and click <strong>Train Model</strong> to get started.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Dataset Upload -->
+      <div class="card" id="upload-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--blue"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+          <div>
+            <h2 class="card-title">Dataset Upload</h2>
+            <p class="card-sub">Upload a CSV with the required columns</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="req-cols">
+            <span class="req-label">Required:</span>
+            <span class="col-tag">area_sqft</span>
+            <span class="col-tag">bedrooms</span>
+            <span class="col-tag">bathrooms</span>
+            <span class="col-tag">location</span>
+            <span class="col-tag col-tag--target">price</span>
+          </div>
+          <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
+               aria-label="Click or drag and drop CSV file here">
+            <i class="fa-solid fa-file-csv dz-icon"></i>
+            <p class="dz-text">Drag &amp; drop your CSV here</p>
+            <p class="dz-sub">or click to browse</p>
+            <input type="file" id="csv-file-input" accept=".csv"
+                   class="dz-input" aria-label="Upload CSV file" />
+          </div>
+          <p class="selected-file" id="selected-file-name"></p>
+          <button class="btn btn-primary btn-block" id="btn-upload" disabled style="margin-top:12px">
+            <i class="fa-solid fa-upload"></i>
+            <span class="btn-text">Upload &amp; Validate</span>
+            <span class="btn-loader" aria-hidden="true"></span>
+          </button>
+          <div id="upload-feedback" class="feedback-box hidden"></div>
+        </div>
+      </div>
+
+    </div><!-- /ROW 1 -->
+
+    <!-- ROW 2: Dataset Preview (full width) -->
+    <div class="db-row">
+      <div class="card" id="dataset-preview-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--green"><i class="fa-solid fa-table"></i></div>
+          <div>
+            <h2 class="card-title">Dataset Preview</h2>
+            <p class="card-sub" id="preview-sub">Upload a CSV to see a preview</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="preview-empty" class="empty-state">
+            <i class="fa-solid fa-table empty-icon"></i>
+            <p>No dataset loaded. Upload a CSV file to preview it here.</p>
+          </div>
+          <div id="preview-content" class="hidden">
+            <div class="ds-stats-row" id="ds-stats-row"></div>
+            <div class="table-wrap">
+              <p class="table-caption">First 10 rows of dataset</p>
+              <div class="table-scroll">
+                <table class="data-table">
+                  <thead id="preview-thead"></thead>
+                  <tbody id="preview-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /ROW 2 -->
+
+    <!-- ROW 3: Model Training | Model Performance -->
+    <div class="db-row db-row-2col">
+
+      <!-- Model Training -->
+      <div class="card" id="train-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--orange"><i class="fa-solid fa-gears"></i></div>
+          <div>
+            <h2 class="card-title">Model Training</h2>
+            <p class="card-sub">RandomForestRegressor — 80/20 split</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="train-info">
+            <div class="ti-item"><i class="fa-solid fa-code-branch ti-icon"></i><span>200 estimators, no max depth</span></div>
+            <div class="ti-item"><i class="fa-solid fa-filter ti-icon"></i><span>Median imputation → StandardScaler → OneHotEncoder</span></div>
+            <div class="ti-item"><i class="fa-solid fa-flask ti-icon"></i><span>80% train / 20% test (random_state=42)</span></div>
+            <div class="ti-item"><i class="fa-solid fa-floppy-disk ti-icon"></i><span>Saved to model/house_price_model.pkl via Joblib</span></div>
+          </div>
+          <button class="btn btn-success btn-block" id="btn-train">
+            <i class="fa-solid fa-play"></i>
+            <span class="btn-text">Train Model</span>
+            <span class="btn-loader" aria-hidden="true"></span>
+          </button>
+          <div id="train-log" class="train-log hidden" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- Model Performance -->
+      <div class="card" id="metrics-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--teal"><i class="fa-solid fa-chart-column"></i></div>
+          <div>
+            <h2 class="card-title">Model Performance</h2>
+            <p class="card-sub">Computed on held-out test set — fully dynamic</p>
+          </div>
+        </div>
+        <div class="card-body">
+          {% if metrics %}
+          <div class="metrics-grid" id="metrics-grid">
+            <div class="metric-tile metric-tile--accent">
+              <div class="mt-label">R² Score</div>
+              <div class="mt-value">{{ metrics.r2_score }}</div>
+              <div class="mt-desc">Variance explained</div>
+            </div>
+            <div class="metric-tile">
+              <div class="mt-label">MAE</div>
+              <div class="mt-value mt-value--sm">PKR {{ "{:,.0f}".format(metrics.mae) }}</div>
+              <div class="mt-desc">Mean Absolute Error</div>
+            </div>
+            <div class="metric-tile">
+              <div class="mt-label">RMSE</div>
+              <div class="mt-value mt-value--sm">PKR {{ "{:,.0f}".format(metrics.rmse) }}</div>
+              <div class="mt-desc">Root Mean Squared Error</div>
+            </div>
+            <div class="metric-tile">
+              <div class="mt-label">Train Size</div>
+              <div class="mt-value">{{ metrics.train_size }}</div>
+              <div class="mt-desc">80% of dataset</div>
+            </div>
+            <div class="metric-tile">
+              <div class="mt-label">Test Size</div>
+              <div class="mt-value">{{ metrics.test_size }}</div>
+              <div class="mt-desc">20% of dataset</div>
+            </div>
+            <div class="metric-tile">
+              <div class="mt-label">Total Records</div>
+              <div class="mt-value">{{ metrics.dataset_records }}</div>
+              <div class="mt-desc">Rows used</div>
+            </div>
+          </div>
+          <p class="trained-at-note">
+            <i class="fa-regular fa-clock"></i> Trained at: {{ metrics.trained_at or '—' }}
+          </p>
+          {% else %}
+          <div class="empty-state">
+            <i class="fa-solid fa-chart-column empty-icon"></i>
+            <p>Model not trained yet. Upload a dataset and train the model to see metrics here.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div><!-- /ROW 3 -->
+
+    <!-- ROW 4: Dataset Information (full width) -->
+    <div class="db-row">
+      <div class="card" id="ds-info-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--blue"><i class="fa-solid fa-database"></i></div>
+          <div>
+            <h2 class="card-title">Dataset Information</h2>
+            <p class="card-sub">Read directly from the active CSV — nothing hardcoded</p>
+          </div>
+        </div>
+        <div class="card-body">
+          {% if dataset_info %}
+          <div id="ds-info-content">
+            <div class="info-cards-grid">
+              <div class="info-tile">
+                <i class="fa-solid fa-table-list info-tile-icon"></i>
+                <div class="info-tile-label">Total Rows</div>
+                <div class="info-tile-val">{{ dataset_info.rows }}</div>
+              </div>
+              <div class="info-tile">
+                <i class="fa-solid fa-table-columns info-tile-icon"></i>
+                <div class="info-tile-label">Columns</div>
+                <div class="info-tile-val">{{ dataset_info.columns }}</div>
+              </div>
+              <div class="info-tile">
+                <i class="fa-solid fa-triangle-exclamation info-tile-icon info-tile-icon--warn"></i>
+                <div class="info-tile-label">Missing Values</div>
+                <div class="info-tile-val">{{ dataset_info.missing_values }}</div>
+              </div>
+              <div class="info-tile">
+                <i class="fa-solid fa-location-dot info-tile-icon info-tile-icon--teal"></i>
+                <div class="info-tile-label">Locations</div>
+                <div class="info-tile-val">{{ dataset_info.locations | length }}</div>
+              </div>
+            </div>
+            <div class="info-detail-grid">
+              <div class="info-detail-block">
+                <div class="idb-label"><i class="fa-solid fa-list-check"></i> Features</div>
+                <div class="idb-val">{{ dataset_info.features | join(', ') }}</div>
+              </div>
+              <div class="info-detail-block">
+                <div class="idb-label"><i class="fa-solid fa-bullseye"></i> Target Column</div>
+                <div class="idb-val">{{ dataset_info.target }}</div>
+              </div>
+              <div class="info-detail-block">
+                <div class="idb-label"><i class="fa-solid fa-location-dot"></i> Available Locations</div>
+                <div class="idb-val">{{ dataset_info.locations | join(', ') }}</div>
+              </div>
+              <div class="info-detail-block">
+                <div class="idb-label"><i class="fa-solid fa-coins"></i> Price Range</div>
+                <div class="idb-val">
+                  PKR {{ "{:,.0f}".format(dataset_info.price_min) }}
+                  — PKR {{ "{:,.0f}".format(dataset_info.price_max) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="empty-state" id="ds-info-empty">
+            <i class="fa-solid fa-database empty-icon"></i>
+            <p>No dataset loaded. Upload a CSV file to see dataset information.</p>
+          </div>
+          <div id="ds-info-content" class="hidden"></div>
+          {% endif %}
+        </div>
+      </div>
+    </div><!-- /ROW 4 -->
+
+    <!-- ROW 5: Actual vs Predicted Graph (full width) -->
+    <div class="db-row">
+      <div class="card" id="viz-card">
+        <div class="card-hd">
+          <div class="card-hd-icon card-hd-icon--purple"><i class="fa-solid fa-chart-scatter"></i></div>
+          <div>
+            <h2 class="card-title">Actual vs Predicted</h2>
+            <p class="card-sub">Generated after each training run — auto-refreshes on train</p>
+          </div>
+        </div>
+        <div class="card-body" style="text-align:center">
+          {% if viz_exists %}
+          <div id="viz-container">
+            <img id="viz-img"
+                 src="/visualization?t={{ range(1,99999) | random }}"
+                 alt="Scatter plot of actual vs predicted house prices on the test set"
+                 class="viz-img"
+                 onerror="this.parentElement.innerHTML='<div class=\'empty-state\'><i class=\'fa-solid fa-chart-scatter empty-icon\'></i><p>Chart could not load. Try retraining.</p></div>'" />
+          </div>
+          {% else %}
+          <div class="empty-state" id="viz-fallback">
+            <i class="fa-solid fa-chart-scatter empty-icon"></i>
+            <p>No visualization yet. Train the model to generate the chart.</p>
+          </div>
+          <div id="viz-container" class="hidden">
+            <img id="viz-img" src="" alt="Actual vs Predicted chart" class="viz-img" />
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div><!-- /ROW 5 -->
+
+  </main>
+
+  <!-- ══════════════ FOOTER ══════════════ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="brand">
+        <div class="brand-icon brand-icon--sm"><i class="fa-solid fa-building-user"></i></div>
+        <span class="brand-name">HousePrice AI</span>
+      </div>
+      <p class="footer-note">All metrics computed from actual model training — no hardcoded values.</p>
+      <p class="footer-stack">Python · Flask · Scikit-learn · Pandas · NumPy · Matplotlib · Joblib</p>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+</body>
+</html>

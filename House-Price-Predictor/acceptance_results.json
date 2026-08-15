@@ -1,0 +1,233 @@
+{
+  "passed": 33,
+  "failed": 0,
+  "total": 33,
+  "dataset_a": {
+    "rows": 100,
+    "locations": [
+      "Clifton",
+      "Gulberg",
+      "Gulshan",
+      "North Nazimabad",
+      "PECHS"
+    ],
+    "r2": 0.962376,
+    "mae": 2019300.0,
+    "rmse": 2547253.65,
+    "train_size": 80,
+    "test_size": 20
+  },
+  "dataset_b": {
+    "rows": 180,
+    "locations": [
+      "Bahria Town",
+      "DHA",
+      "Model Town"
+    ],
+    "r2": 0.979524,
+    "mae": 8656923.61,
+    "rmse": 14020504.75,
+    "train_size": 144,
+    "test_size": 36
+  },
+  "results": [
+    {
+      "test": "Flask app boots",
+      "status": "PASS",
+      "detail": "app.py imported OK",
+      "data": null
+    },
+    {
+      "test": "A: Upload succeeds",
+      "status": "PASS",
+      "detail": "status=200, rows=100",
+      "data": null
+    },
+    {
+      "test": "A: /api/dataset-info returns A rows",
+      "status": "PASS",
+      "detail": "rows=100 expected=100",
+      "data": null
+    },
+    {
+      "test": "A: /api/dataset-info has correct locations",
+      "status": "PASS",
+      "detail": "locations=['Clifton', 'Gulberg', 'Gulshan', 'North Nazimabad', 'PECHS']",
+      "data": null
+    },
+    {
+      "test": "A: Training succeeds",
+      "status": "PASS",
+      "detail": "status=200",
+      "data": null
+    },
+    {
+      "test": "A: Metrics are present and non-zero",
+      "status": "PASS",
+      "detail": "R2=0.962376, MAE=PKR 2,019,300, RMSE=PKR 2,547,254, train=80, test=20",
+      "data": null
+    },
+    {
+      "test": "A: Train+Test = total records",
+      "status": "PASS",
+      "detail": "80+20=100 == 100",
+      "data": null
+    },
+    {
+      "test": "A: viz_url returned",
+      "status": "PASS",
+      "detail": "viz_url=/visualization",
+      "data": null
+    },
+    {
+      "test": "A: /api/metrics returns A metrics",
+      "status": "PASS",
+      "detail": "R2=0.962376",
+      "data": null
+    },
+    {
+      "test": "A: Chart PNG exists and non-empty",
+      "status": "PASS",
+      "detail": "size=126054 bytes",
+      "data": null
+    },
+    {
+      "test": "A: /visualization returns PNG",
+      "status": "PASS",
+      "detail": "status=200, content_type=image/png",
+      "data": null
+    },
+    {
+      "test": "A: Prediction works after training A",
+      "status": "PASS",
+      "detail": "price=PKR 30,627,500, location=Clifton",
+      "data": null
+    },
+    {
+      "test": "A: Model status = Trained, train_records = train_size",
+      "status": "PASS",
+      "detail": "trained=True, train_records=80 expected=80",
+      "data": null
+    },
+    {
+      "test": "B: Upload succeeds",
+      "status": "PASS",
+      "detail": "status=200, rows=180",
+      "data": null
+    },
+    {
+      "test": "B: /api/dataset-info rows changed from A",
+      "status": "PASS",
+      "detail": "A rows=100, B rows=180",
+      "data": null
+    },
+    {
+      "test": "B: /api/dataset-info locations changed from A",
+      "status": "PASS",
+      "detail": "A locs=['Clifton', 'Gulberg', 'Gulshan', 'North Nazimabad', 'PECHS'], B locs=['Bahria Town', 'DHA', 'Model Town']",
+      "data": null
+    },
+    {
+      "test": "B: /api/dataset-info filename reflects B",
+      "status": "PASS",
+      "detail": "filename=8d0073eea5d444b9a1ad0fbab2bdec3c_test_dataset_b.csv",
+      "data": null
+    },
+    {
+      "test": "B: Training succeeds",
+      "status": "PASS",
+      "detail": "status=200",
+      "data": null
+    },
+    {
+      "test": "B: Metrics are present and non-zero",
+      "status": "PASS",
+      "detail": "R2=0.979524, MAE=PKR 8,656,924, RMSE=PKR 14,020,505, train=144, test=36",
+      "data": null
+    },
+    {
+      "test": "B: R2 differs from A",
+      "status": "PASS",
+      "detail": "A R2=0.962376, B R2=0.979524",
+      "data": null
+    },
+    {
+      "test": "B: MAE differs from A",
+      "status": "PASS",
+      "detail": "A MAE=PKR 2,019,300, B MAE=PKR 8,656,924",
+      "data": null
+    },
+    {
+      "test": "B: RMSE differs from A",
+      "status": "PASS",
+      "detail": "A RMSE=PKR 2,547,254, B RMSE=PKR 14,020,505",
+      "data": null
+    },
+    {
+      "test": "B: Train size differs from A  (B has more records)",
+      "status": "PASS",
+      "detail": "A train=80, B train=144",
+      "data": null
+    },
+    {
+      "test": "B: Locations in metrics differ from A",
+      "status": "PASS",
+      "detail": "A=['Clifton', 'Gulberg', 'Gulshan', 'North Nazimabad', 'PECHS'], B=['Bahria Town', 'DHA', 'Model Town']",
+      "data": null
+    },
+    {
+      "test": "B: /api/metrics returns B R2",
+      "status": "PASS",
+      "detail": "R2 from API=0.979524 expected=0.979524",
+      "data": null
+    },
+    {
+      "test": "B: Chart PNG regenerated after training B",
+      "status": "PASS",
+      "detail": "A mtime=1786726719.842 size=126054B  B mtime=1786726727.270 size=128677B",
+      "data": null
+    },
+    {
+      "test": "B: Prediction works with B location after training B",
+      "status": "PASS",
+      "detail": "price=PKR 103,880,500, location=Bahria Town",
+      "data": null
+    },
+    {
+      "test": "B: A-only location rejected after training B",
+      "status": "PASS",
+      "detail": "location=Clifton, status=422, error=Unknown location 'Clifton'. Valid options: Bahria Town, DHA,",
+      "data": null
+    },
+    {
+      "test": "B: B prediction price different from A prediction price",
+      "status": "PASS",
+      "detail": "A pred=PKR 30,627,500, B pred=PKR 103,880,500",
+      "data": null
+    },
+    {
+      "test": "B: Model status train_records = B train_size",
+      "status": "PASS",
+      "detail": "train_records=144 expected=144",
+      "data": null
+    },
+    {
+      "test": "B: Model status dataset_file contains B filename",
+      "status": "PASS",
+      "detail": "dataset_file=8d0073eea5d444b9a1ad0fbab2bdec3c_test_dataset_b.csv",
+      "data": null
+    },
+    {
+      "test": "Restart: reload from disk gives same price as in-memory prediction",
+      "status": "PASS",
+      "detail": "in-memory=103,880,500, from-disk=103,880,500",
+      "data": null
+    },
+    {
+      "test": "Persistence: /api/dataset-info still returns B info",
+      "status": "PASS",
+      "detail": "rows=180 expected=180",
+      "data": null
+    }
+  ]
+}

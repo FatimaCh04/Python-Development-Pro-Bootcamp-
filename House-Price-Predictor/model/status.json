@@ -1,0 +1,9 @@
+{
+  "trained": true,
+  "model": "Random Forest Regressor",
+  "status": "Trained",
+  "dataset_file": "4dfaf45c6d8944cabc41c8f4d8d1fe05_house_data_test_2.csv",
+  "trained_at": "2026-08-15 15:58:05",
+  "train_records": 680,
+  "test_records": 170
+}

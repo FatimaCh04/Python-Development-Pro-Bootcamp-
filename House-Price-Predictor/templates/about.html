@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HousePrice AI — About</title>
+  <meta name="description" content="About HousePrice AI — a machine learning property valuation tool." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+  <!-- ══════════════ NAVBAR ══════════════ -->
+  <nav class="navbar">
+    <div class="container nav-inner">
+      <a href="/" class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-building-user"></i></div>
+        <span class="brand-name">HousePrice AI</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="/"          class="nav-link"><i class="fa-solid fa-house"></i> Home</a></li>
+        <li><a href="/dashboard" class="nav-link"><i class="fa-solid fa-chart-line"></i> ML Dashboard</a></li>
+        <li><a href="/about"     class="nav-link active"><i class="fa-solid fa-circle-info"></i> About</a></li>
+      </ul>
+      <a href="/" class="btn btn-sm btn-outline-nav nav-cta">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Predictor
+      </a>
+    </div>
+  </nav>
+
+  <!-- ══════════════ ABOUT HERO ══════════════ -->
+  <div class="db-header">
+    <div class="container db-header-inner">
+      <div>
+        <h1 class="db-title"><i class="fa-solid fa-circle-info"></i> About HousePrice AI</h1>
+        <p class="db-sub">A machine learning application for Pakistani property valuation</p>
+      </div>
+      <a href="/" class="btn btn-sm btn-primary">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Try the Predictor
+      </a>
+    </div>
+  </div>
+
+  <main>
+    <section class="about-section">
+      <div class="container">
+        <div class="about-grid">
+
+          <!-- Left: intro + workflow -->
+          <div class="about-intro">
+            <h2>What is HousePrice AI?</h2>
+            <p>
+              HousePrice AI is a full-stack machine learning web application that predicts
+              Pakistani residential property prices from four inputs: area in square feet,
+              number of bedrooms, number of bathrooms, and neighbourhood.
+            </p>
+            <p>
+              Every prediction comes from a <strong>Random Forest Regressor</strong> pipeline
+              trained on real estate data that you upload. There are no hardcoded formulas
+              and no static example values. The model is saved with <strong>Joblib</strong>
+              and reloaded on every prediction request — training only happens when you
+              explicitly click "Train Model" on the ML Dashboard.
+            </p>
+            <p>
+              The ML Dashboard lets you upload any compatible CSV dataset, inspect its
+              contents, train a new model, and immediately see the updated R², MAE, and RMSE
+              metrics alongside a freshly generated Actual vs Predicted scatter chart.
+            </p>
+            <div style="margin-top:18px">
+              <p style="font-size:.82rem;font-weight:700;color:var(--text-2);
+                         text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">
+                ML Workflow
+              </p>
+              <div class="about-workflow">
+                <span class="wf-step">Upload CSV</span>
+                <span class="wf-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                <span class="wf-step">Preprocessing</span>
+                <span class="wf-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                <span class="wf-step">Training</span>
+                <span class="wf-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                <span class="wf-step">Evaluation</span>
+                <span class="wf-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                <span class="wf-step">Prediction</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: technology stack -->
+          <div>
+            <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:16px">Technology Stack</h2>
+            <div class="tech-grid">
+              <div class="tech-item"><i class="fa-brands fa-python"></i> Python</div>
+              <div class="tech-item"><i class="fa-solid fa-flask"></i> Flask</div>
+              <div class="tech-item"><i class="fa-solid fa-table"></i> Pandas</div>
+              <div class="tech-item"><i class="fa-solid fa-calculator"></i> NumPy</div>
+              <div class="tech-item"><i class="fa-solid fa-robot"></i> Scikit-learn</div>
+              <div class="tech-item"><i class="fa-solid fa-chart-line"></i> Matplotlib</div>
+              <div class="tech-item"><i class="fa-solid fa-floppy-disk"></i> Joblib</div>
+              <div class="tech-item"><i class="fa-brands fa-html5"></i> HTML5</div>
+              <div class="tech-item"><i class="fa-brands fa-css3-alt"></i> CSS3</div>
+              <div class="tech-item"><i class="fa-brands fa-js"></i> JavaScript</div>
+            </div>
+
+            <div style="margin-top:22px">
+              <h3 style="font-size:1rem;font-weight:700;margin-bottom:14px">ML Pipeline Details</h3>
+              <div class="card" style="border-radius:var(--r-lg)">
+                <div class="card-body" style="padding:18px 20px">
+                  <table class="info-table">
+                    <tbody>
+                      <tr><th>Algorithm</th>   <td>Random Forest Regressor</td></tr>
+                      <tr><th>Estimators</th>  <td>200 trees</td></tr>
+                      <tr><th>Split</th>       <td>80% train / 20% test</td></tr>
+                      <tr><th>Imputation</th>  <td>Median (numeric), Most-frequent (categorical)</td></tr>
+                      <tr><th>Scaling</th>     <td>StandardScaler (area, beds, baths)</td></tr>
+                      <tr><th>Encoding</th>    <td>OneHotEncoder (location)</td></tr>
+                      <tr><th>Model save</th>  <td>Joblib (.pkl)</td></tr>
+                      <tr><th>Metrics</th>     <td>R², MAE, RMSE</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /about-grid -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ══════════════ FOOTER ══════════════ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="brand">
+        <div class="brand-icon brand-icon--sm"><i class="fa-solid fa-building-user"></i></div>
+        <span class="brand-name">HousePrice AI</span>
+      </div>
+      <p class="footer-note">Predictions are ML estimates, not professional appraisals.</p>
+      <p class="footer-stack">Python · Flask · Scikit-learn · Pandas · NumPy · Matplotlib · Joblib</p>
+    </div>
+  </footer>
+
+</body>
+</html>

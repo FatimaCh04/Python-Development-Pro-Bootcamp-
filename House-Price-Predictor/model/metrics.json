@@ -1,0 +1,20 @@
+{
+  "model": "Random Forest Regressor",
+  "r2_score": 0.973316,
+  "mae": 5231766.76,
+  "rmse": 6248608.72,
+  "dataset_records": 850,
+  "train_size": 680,
+  "test_size": 170,
+  "locations": [
+    "Bahria Town",
+    "Clifton",
+    "DHA",
+    "Gulberg",
+    "Gulshan",
+    "Model Town",
+    "North Nazimabad",
+    "PECHS"
+  ],
+  "trained_at": "2026-08-15 15:58:05"
+}

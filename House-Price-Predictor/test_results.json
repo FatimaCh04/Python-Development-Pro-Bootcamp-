@@ -1,0 +1,183 @@
+{
+  "passed": 22,
+  "failed": 0,
+  "total": 22,
+  "results": [
+    {
+      "test": "Flask app import",
+      "status": "PASS",
+      "detail": "app.py imported successfully",
+      "data": null
+    },
+    {
+      "test": "GET / — Home page renders",
+      "status": "PASS",
+      "detail": "status=200, contains 'HousePrice'=True",
+      "data": null
+    },
+    {
+      "test": "GET /dashboard — Dashboard page renders",
+      "status": "PASS",
+      "detail": "status=200, contains 'ML Dashboard'=True",
+      "data": null
+    },
+    {
+      "test": "POST /api/upload-dataset — valid CSV",
+      "status": "PASS",
+      "detail": "status=200, rows=1200",
+      "data": {
+        "rows": 1200,
+        "columns": 5,
+        "locations": [
+          "Bahria Town",
+          "Clifton",
+          "DHA",
+          "Gulberg",
+          "Gulshan",
+          "Model Town",
+          "North Nazimabad",
+          "PECHS"
+        ]
+      }
+    },
+    {
+      "test": "Dataset preview — 10 rows with correct columns",
+      "status": "PASS",
+      "detail": "rows_returned=10, has_required_cols=True",
+      "data": null
+    },
+    {
+      "test": "GET /api/dataset-info — dynamic info",
+      "status": "PASS",
+      "detail": "rows=1200, locations=8",
+      "data": null
+    },
+    {
+      "test": "POST /api/train — model training",
+      "status": "PASS",
+      "detail": "status=200, r2=0.962662, mae=5136003.0, rmse=6921218.27",
+      "data": {
+        "dataset_records": 1200,
+        "locations": [
+          "Bahria Town",
+          "Clifton",
+          "DHA",
+          "Gulberg",
+          "Gulshan",
+          "Model Town",
+          "North Nazimabad",
+          "PECHS"
+        ],
+        "mae": 5136003.0,
+        "model": "Random Forest Regressor",
+        "r2_score": 0.962662,
+        "rmse": 6921218.27,
+        "test_size": 240,
+        "train_size": 960,
+        "trained_at": "2026-08-15 14:23:27"
+      }
+    },
+    {
+      "test": "Metrics are real and non-hardcoded",
+      "status": "PASS",
+      "detail": "r2=0.962662, mae=5136003.0, rmse=6921218.27, train=960, test=240, locations=['Bahria Town', 'Clifton', 'DHA', 'Gulberg', 'Gulshan', 'Model Town', 'North Nazimabad', 'PECHS']",
+      "data": null
+    },
+    {
+      "test": "Actual vs Predicted chart generated",
+      "status": "PASS",
+      "detail": "exists=True, size=172748 bytes",
+      "data": null
+    },
+    {
+      "test": "Model saved and loadable via Joblib",
+      "status": "PASS",
+      "detail": "path=C:\\Users\\Shahab Computer's\\Documents\\GitHub\\Python-Development-Pro-Bootcamp-\\House-Price-Predictor\\model\\house_price_model.pkl, has_predict=True",
+      "data": null
+    },
+    {
+      "test": "GET /api/metrics — returns live metrics",
+      "status": "PASS",
+      "detail": "r2=0.962662",
+      "data": null
+    },
+    {
+      "test": "GET /api/model-status — shows Trained",
+      "status": "PASS",
+      "detail": "trained=True, model=Random Forest Regressor",
+      "data": null
+    },
+    {
+      "test": "POST /api/predict — valid prediction",
+      "status": "PASS",
+      "detail": "price=PKR 58,338,752, ppsqft=PKR 29169, location=Bahria Town",
+      "data": {
+        "currency": "PKR",
+        "formatted_price": "PKR 58,338,752",
+        "inputs": {
+          "area_sqft": 2000.0,
+          "bathrooms": 2,
+          "bedrooms": 3,
+          "location": "Bahria Town"
+        },
+        "predicted_price": 58338752,
+        "price_per_sqft": 29169,
+        "success": true
+      }
+    },
+    {
+      "test": "Restart simulation — model loaded from disk, same result",
+      "status": "PASS",
+      "detail": "first=58,338,752, after_reload=58,338,752, match=True",
+      "data": null
+    },
+    {
+      "test": "Invalid CSV — missing columns rejected",
+      "status": "PASS",
+      "detail": "status=422, error='Missing required columns: ['area_sqft', 'bathrooms', 'bedrooms', 'location', 'pr'",
+      "data": null
+    },
+    {
+      "test": "Invalid upload — wrong extension rejected",
+      "status": "PASS",
+      "detail": "status=400, error='Only CSV files are accepted.'",
+      "data": null
+    },
+    {
+      "test": "Invalid upload — empty CSV rejected",
+      "status": "PASS",
+      "detail": "status=422, error='Could not parse CSV: No columns to parse from file'",
+      "data": null
+    },
+    {
+      "test": "Invalid prediction — missing fields rejected",
+      "status": "PASS",
+      "detail": "status=400, error='All fields are required: area_sqft, bedrooms, bathrooms, location.'",
+      "data": null
+    },
+    {
+      "test": "Invalid prediction — unknown location rejected",
+      "status": "PASS",
+      "detail": "status=422, error='Unknown location 'FAKE_LOCATION_XYZ'. Valid options: Bahria Town, Clifton, DHA, '",
+      "data": null
+    },
+    {
+      "test": "Invalid prediction — negative area rejected",
+      "status": "PASS",
+      "detail": "status=422, error='area_sqft must be between 1 and 50,000.'",
+      "data": null
+    },
+    {
+      "test": "GET /visualization — returns PNG image",
+      "status": "PASS",
+      "detail": "status=200, content_type=image/png",
+      "data": null
+    },
+    {
+      "test": "No-model guard — 503 returned when model not loaded",
+      "status": "PASS",
+      "detail": "status=503, error='No trained model found. Please upload a dataset and train the model first.'",
+      "data": null
+    }
+  ]
+}

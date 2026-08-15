@@ -1,0 +1,27 @@
+{
+  "success": true,
+  "metrics": {
+    "model": "Random Forest Regressor",
+    "r2_score": 0.962662,
+    "mae": 5136003.0,
+    "rmse": 6921218.27,
+    "dataset_records": 1200,
+    "train_size": 960,
+    "test_size": 240,
+    "locations": [
+      "Bahria Town",
+      "Clifton",
+      "DHA",
+      "Gulberg",
+      "Gulshan",
+      "Model Town",
+      "North Nazimabad",
+      "PECHS"
+    ],
+    "trained_at": "2026-08-15 15:01:09"
+  },
+  "model_saved": true,
+  "model_path": "C:\\Users\\Shahab Computer's\\Documents\\GitHub\\Python-Development-Pro-Bootcamp-\\House-Price-Predictor\\model\\house_price_model.pkl",
+  "viz_saved": true,
+  "viz_path": "C:\\Users\\Shahab Computer's\\Documents\\GitHub\\Python-Development-Pro-Bootcamp-\\House-Price-Predictor\\static\\visualizations\\actual_vs_predicted.png"
+}
