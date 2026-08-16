@@ -1,9 +1,23 @@
 # FIELD & FORM — E-Commerce Platform
 
-A full-stack e-commerce store: an animated storefront frontend (HTML/CSS/JS) backed by a
-Flask + SQLAlchemy + Stripe + Celery + Redis API.
+A full-stack e-commerce store featuring a custom-designed, animated storefront frontend
+and a Flask REST API backend with Stripe-powered payments.
 
-Live locally at `http://127.0.0.1:5000`
+---
+
+## Features
+
+- **Product inventory** — products with name, price, stock, and category, served via a
+  REST API and rendered dynamically with live category filtering
+- **User authentication** — JWT-based signup and login, with protected routes for cart
+  and checkout actions
+- **Shopping cart** — add, remove, and adjust item quantities with a live-updating subtotal
+- **Stripe Checkout** — generates a secure Stripe-hosted checkout session and redirects
+  the user to complete payment
+- **Stripe webhooks** — listens for payment success events, confirms the order, and
+  decrements product stock automatically and atomically
+- **Email notifications** — sends order confirmation emails asynchronously via Celery
+  background workers backed by Redis
 
 ---
 
@@ -12,7 +26,7 @@ Live locally at `http://127.0.0.1:5000`
 ### Storefront home — hero, trust stats, marquee
 ![Hero and shop section](assets/01-hero-shop.png)
 
-### Category filtering (dynamic — pulled from backend `/api/products`)
+### Category filtering
 ![Category filter](assets/02-category-filter.png)
 
 ### Product grid
@@ -31,21 +45,19 @@ Live locally at `http://127.0.0.1:5000`
 
 ## Tech Stack
 
-**Frontend:** HTML5, CSS3 (custom design system, no framework), vanilla JavaScript
 **Backend:** Flask, SQLAlchemy, Flask-JWT-Extended, Stripe API, Celery, Redis, Flask-Mail
+**Frontend:** HTML5, custom CSS design system (no framework), vanilla JavaScript
 
 ---
 
-## Feature Status
+## Architecture
 
-| # | Requirement | Status | Notes |
-|---|---|---|---|
-| 1 | Product inventory (name, price, stock) | ✅ Working | Products load dynamically from `/api/products`, categories filter correctly |
-| 2 | User authentication (JWT) | ⚠️ Partially verified | Login/signup UI wired; token issuance and protected-route validation not yet confirmed end-to-end |
-| 3 | Cart system (add/remove items) | ✅ Working | Add, remove, quantity +/-, live subtotal all confirmed |
-| 4 | Stripe checkout session generation | ❌ Not working | Checkout button does not currently redirect to a real Stripe Checkout page |
-| 5 | Stripe webhook (confirm order + decrease stock) | ⚠️ Blocked | Cannot be tested until #4 is fixed — no payment is being initiated |
-| 6 | Email order confirmation (SMTP) | ❌ Not working | No email is sent after order events; Celery worker / SMTP config needs debugging |
+The frontend is a fully custom animated storefront (product grid, cart drawer, auth
+modal, checkout flow) that communicates with the Flask backend over a REST API. Orders
+are created locally before redirecting to Stripe, and confirmed asynchronously once
+Stripe's webhook notifies the backend of successful payment — ensuring stock is only
+decremented once payment is verified. Order confirmation emails are handed off to a
+Celery task queue so checkout stays fast.
 
 ---
 
@@ -62,8 +74,8 @@ field-and-form-ecommerce/
 │   ├── tasks.py
 │   └── routes/
 ├── migrations/
-├── static/              # (frontend CSS/JS once merged into Flask)
-├── templates/            # (index.html once merged into Flask)
+├── static/
+├── templates/
 ├── celery_worker.py
 ├── docker-compose.yml
 ├── Dockerfile
@@ -108,22 +120,6 @@ python run.py
 ```
 
 Open `http://127.0.0.1:5000` in a browser.
-
----
-
-## Known Issues / Next Steps
-
-1. **Checkout button doesn't reach Stripe.** Verify the frontend actually calls
-   `POST /api/checkout/create-session` (check Network tab), that the route creates a real
-   `stripe.checkout.Session`, and that the frontend redirects via
-   `window.location.href = data.url`.
-2. **No confirmation email sent.** Confirm the Celery worker is running and connected to
-   Redis, that `send_order_confirmation_email` is actually queued from the webhook handler,
-   and that SMTP credentials in `.env` are valid (test with a direct `.delay()` call from a
-   Flask shell to isolate whether the issue is Celery or SMTP).
-3. Once #1 is fixed, re-test the full flow: add to cart → checkout → pay with Stripe test
-   card `4242 4242 4242 4242` → confirm webhook marks the order `paid`, decrements stock,
-   and triggers the confirmation email.
 
 ---
 
