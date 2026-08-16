@@ -24,24 +24,23 @@ and a Flask REST API backend with Stripe-powered payments.
 ## Screenshots
 
 ### Storefront home — hero, trust stats, marquee
-![Hero and shop section](assets/01-hero-shop.png)
+<img width="1196" height="623" alt="E 1" src="https://github.com/user-attachments/assets/a53afa53-6867-4268-905d-f500225982bd" />
+
 
 ### Category filtering
-![Category filter](assets/02-category-filter.png)
+<img width="1360" height="653" alt="E 5" src="https://github.com/user-attachments/assets/0a353636-f64b-49c7-af98-453d4a7cb238" />
+
 
 ### Product grid
-![Product grid](assets/03-product-grid.png)
+<img width="1205" height="657" alt="E 2" src="https://github.com/user-attachments/assets/2b3ddc6e-672d-44ac-a63c-9eb55f20ab90" />
+
 
 ### Add to cart — toast confirmation + live cart badge
-![Add to cart toast](assets/04-add-to-cart-toast.png)
+<img width="1306" height="653" alt="E 3" src="https://github.com/user-attachments/assets/9b9daf3f-ade0-404f-bb72-0e2d691dabef" />
+
 
 ### Cart drawer — line items, SKU, quantity controls, subtotal
-![Cart drawer](assets/05-cart-drawer.png)
-
-### Cart quantity update — subtotal recalculates live
-![Cart quantity update](assets/06-cart-qty-update.png)
-
----
+<img width="1302" height="645" alt="E 4" src="https://github.com/user-attachments/assets/70417c23-8560-40a1-bd6a-f01bc2f12c8f" />
 
 ## Tech Stack
 
