@@ -1,0 +1,42 @@
+databases:
+  - name: pulse-db
+    databaseName: pulse_db
+    user: pulse
+    plan: free          # upgrade to starter/standard for production
+
+services:
+  - type: web
+    name: pulse-backend
+    runtime: python
+    plan: free          # upgrade for production workloads
+    rootDir: .          # render.yaml lives inside /backend; repo root is one level up
+                        # if your repo root IS /backend, remove rootDir
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 2 --threads 2 --timeout 120
+    healthCheckPath: /api/health
+    envVars:
+      # Render injects this automatically when the database above is attached
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pulse-db
+          property: connectionString
+
+      # Set these manually in the Render dashboard → Environment tab
+      - key: JWT_SECRET_KEY
+        sync: false          # marks it as a secret; Render prompts you to fill it in
+      - key: JWT_ACCESS_EXPIRES
+        value: "900"
+      - key: JWT_REFRESH_EXPIRES
+        value: "2592000"
+      - key: CORS_ORIGIN
+        value: "https://your-app.vercel.app"   # replace after Vercel deployment
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_REGION
+        value: "us-east-1"
+      - key: FLASK_DEBUG
+        value: "0"
