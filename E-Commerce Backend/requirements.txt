@@ -1,0 +1,33 @@
+# Core Flask
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+Flask-CORS==4.0.0
+Flask-JWT-Extended==4.6.0
+Flask-Mail==0.9.1
+
+# Database
+# psycopg2-binary is required for PostgreSQL (used in Docker / production).
+# SQLite (used for local dev without Docker) is built into Python — no driver needed.
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.52
+
+# Security
+bcrypt==4.1.2
+python-dotenv==1.0.0
+
+# Stripe
+stripe==8.11.0
+
+# Celery + Redis broker
+celery==5.3.6
+redis==5.0.1
+
+# Production WSGI server
+gunicorn==21.2.0
+
+# Celery monitoring dashboard
+flower==2.0.1
+
+# Utilities
+python-dateutil==2.8.2

@@ -1,0 +1,178 @@
+version: '3.8'
+
+# ---------------------------------------------------------------------------
+# How environment variables work in this file
+# ---------------------------------------------------------------------------
+# Docker Compose merges env_file and environment: with environment: winning.
+# We use that intentionally:
+#
+#   env_file: .env        — developer secrets (Stripe keys, SMTP creds, etc.)
+#   environment: block    — container-network overrides that MUST point at the
+#                           Docker service hostnames (postgres, redis) rather
+#                           than localhost.
+#
+# Any key set in both places will use the value from environment:.
+# Keys that only appear in env_file are passed through unchanged.
+#
+# Credentials that are used by BOTH postgres and the app containers are
+# centralised as YAML anchors (&pg_creds / *pg_creds) so they can't drift.
+# ---------------------------------------------------------------------------
+
+x-pg-creds: &pg_creds
+  POSTGRES_USER:     &pg_user     fieldform
+  POSTGRES_PASSWORD: &pg_password fieldform
+  POSTGRES_DB:       &pg_db       fieldform
+
+# Shared environment that every app container (web, celery_worker, flower)
+# must use — points at Docker service hostnames, not localhost.
+x-app-env: &app_env
+  FLASK_APP: run.py
+  FLASK_ENV: development
+  DATABASE_URL: "postgresql://fieldform:fieldform@postgres:5432/fieldform"
+  REDIS_URL:              "redis://redis:6379/0"
+  CELERY_BROKER_URL:      "redis://redis:6379/0"
+  CELERY_RESULT_BACKEND:  "redis://redis:6379/0"
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: fieldform_db
+    environment:
+      <<: *pg_creds
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldform -d fieldform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - fieldform_network
+    restart: unless-stopped
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: fieldform_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - fieldform_network
+    restart: unless-stopped
+
+  # ── Flask web API ─────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fieldform_web
+    # Use Flask dev server in development for auto-reload.
+    # Switch to the Dockerfile's gunicorn CMD for production.
+    command: python run.py
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    environment:
+      <<: *app_env
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fieldform_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/api/products')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Celery worker ─────────────────────────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fieldform_celery_worker
+    # --pool=prefork is the default on Linux; explicit here for clarity.
+    command: >
+      celery -A celery_worker.celery worker
+        --loglevel=info
+        --pool=prefork
+        --concurrency=2
+    volumes:
+      - .:/app
+    environment:
+      <<: *app_env
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fieldform_network
+    restart: unless-stopped
+    # Celery has its own liveness mechanism (inspect ping); a simple process
+    # check is sufficient here.
+    healthcheck:
+      test: ["CMD-SHELL",
+             "celery -A celery_worker.celery inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Flower (Celery monitoring dashboard) ─────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fieldform_flower
+    command: >
+      celery -A celery_worker.celery flower
+        --port=5555
+        --broker=redis://redis:6379/0
+    volumes:
+      - .:/app
+    ports:
+      - "5555:5555"
+    environment:
+      <<: *app_env
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
+    networks:
+      - fieldform_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  fieldform_network:
+    driver: bridge

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout Cancelled — Field & Form</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <style>
+    body { display:flex; align-items:center; justify-content:center;
+           min-height:100vh; background:var(--parchment,#EDE6D6); }
+    .card {
+      background:#fff; border-radius:12px; padding:56px 48px;
+      max-width:520px; width:90%; text-align:center;
+      box-shadow:0 4px 32px rgba(28,27,23,.08);
+    }
+    .icon { font-size:52px; margin-bottom:24px; opacity:.5; }
+    h1 { font-family:'Fraunces',serif; font-size:clamp(26px,4vw,36px);
+         color:#2C3A2E; margin:0 0 12px; }
+    p  { color:#666; line-height:1.7; margin:0 0 32px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">◌</div>
+    <h1>No charge made</h1>
+    <p>You left before completing checkout — your bag is still saved.
+       Head back whenever you're ready.</p>
+    <a href="/" class="btn btn-primary"
+       style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;padding:14px 28px;">
+      Back to shop
+    </a>
+  </div>
+</body>
+</html>
