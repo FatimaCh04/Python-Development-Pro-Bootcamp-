@@ -74,7 +74,7 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com  (try admin@pulse.app)"
+                placeholder="you@example.com"
                 className="w-full bg-surface-2 border border-white/[0.08] rounded-xl py-3 pl-10 pr-4 text-sm
                            placeholder:text-muted focus:border-signal/50 focus:ring-1 focus:ring-signal/30 outline-none transition-all"
               />
@@ -108,9 +108,7 @@ export default function Login() {
               Sign up
             </Link>
           </p>
-          <p className="text-center text-xs text-muted/70 mt-2 font-mono">
-            demo only — any email/password works
-          </p>
+
         </motion.div>
       </div>
     </div>

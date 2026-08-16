@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
       name: email.split('@')[0] || 'demo_user',
       email,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
-      role: email.includes('admin') ? 'admin' : 'user',
+      role: 'admin', // demo mode — everyone gets admin access
       token: 'mock-jwt-token',
     }
     localStorage.setItem('pulse_user', JSON.stringify(mockUser))
