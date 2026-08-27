@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}
+Movie Watchlist Dashboard
+{% endblock %}
+
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div>
+
+        <h1 class="fw-bold">
+            My Movie Watchlist
+        </h1>
+
+        <p class="text-muted">
+            Keep track of movies you want to watch.
+        </p>
+
+    </div>
+
+    <a
+        href="{{ url_for('add_movie') }}"
+        class="btn btn-primary"
+    >
+        + Add Movie
+    </a>
+
+</div>
+
+
+<!-- Statistics -->
+
+<div class="row g-3 mb-4">
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card">
+
+            <p>Total Movies</p>
+
+            <h2>
+                {{ total }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card">
+
+            <p>Watched</p>
+
+            <h2>
+                {{ watched }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card">
+
+            <p>To Watch</p>
+
+            <h2>
+                {{ unwatched }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card">
+
+            <p>Average Rating</p>
+
+            <h2>
+                ⭐ {{ average_rating }}
+            </h2>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Search & Filters -->
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-body">
+
+        <form
+            method="GET"
+            action="{{ url_for('index') }}"
+            class="row g-3"
+        >
+
+            <div class="col-md-5">
+
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search }}"
+                    class="form-control"
+                    placeholder="Search movie or genre..."
+                >
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <select
+                    name="genre"
+                    class="form-select"
+                >
+
+                    <option value="">
+                        All Genres
+                    </option>
+
+                    {% for genre in genres %}
+
+                    <option
+                        value="{{ genre }}"
+                        {% if genre_filter == genre %}
+                        selected
+                        {% endif %}
+                    >
+                        {{ genre }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <select
+                    name="status"
+                    class="form-select"
+                >
+
+                    <option value="">
+                        All Status
+                    </option>
+
+                    <option
+                        value="Watched"
+                        {% if status_filter == "Watched" %}
+                        selected
+                        {% endif %}
+                    >
+                        Watched
+                    </option>
+
+                    <option
+                        value="Unwatched"
+                        {% if status_filter == "Unwatched" %}
+                        selected
+                        {% endif %}
+                    >
+                        Unwatched
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <button
+                    type="submit"
+                    class="btn btn-dark w-100"
+                >
+                    Filter
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- Movie List -->
+
+{% if movies %}
+
+<div class="row g-4">
+
+    {% for movie in movies %}
+
+    <div class="col-md-6 col-lg-4">
+
+        <div class="movie-card h-100">
+
+            <div class="movie-icon">
+                🎬
+            </div>
+
+            <div class="movie-content">
+
+                <div class="d-flex justify-content-between">
+
+                    <h4 class="fw-bold">
+                        {{ movie.title }}
+                    </h4>
+
+                    {% if movie.status == "Watched" %}
+
+                    <span class="badge bg-success">
+                        Watched
+                    </span>
+
+                    {% else %}
+
+                    <span class="badge bg-secondary">
+                        To Watch
+                    </span>
+
+                    {% endif %}
+
+                </div>
+
+
+                <p class="text-muted mb-2">
+
+                    {{ movie.genre }}
+
+                    • {{ movie.year }}
+
+                </p>
+
+
+                <div class="rating mb-3">
+
+                    ⭐ {{ movie.rating }}/10
+
+                </div>
+
+
+                {% if movie.notes %}
+
+                <p class="small text-muted">
+
+                    <strong>Notes:</strong>
+                    {{ movie.notes }}
+
+                </p>
+
+                {% endif %}
+
+
+                <div class="movie-actions">
+
+                    <a
+                        href="{{ url_for('toggle_status', id=movie.id) }}"
+                        class="btn btn-sm btn-success"
+                    >
+
+                        {% if movie.status == "Watched" %}
+                        Unwatch
+                        {% else %}
+                        Watched
+                        {% endif %}
+
+                    </a>
+
+
+                    <a
+                        href="{{ url_for('edit_movie', id=movie.id) }}"
+                        class="btn btn-sm btn-warning"
+                    >
+                        Edit
+                    </a>
+
+
+                    <a
+                        href="{{ url_for('delete_movie', id=movie.id) }}"
+                        class="btn btn-sm btn-danger"
+                        onclick="return confirm('Delete this movie?');"
+                    >
+                        Delete
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+
+{% if watched > 0 %}
+
+<div class="mt-4">
+
+    <a
+        href="{{ url_for('clear_watched') }}"
+        class="btn btn-outline-danger"
+        onclick="return confirm('Delete all watched movies?');"
+    >
+        Clear Watched Movies
+    </a>
+
+</div>
+
+{% endif %}
+
+
+{% else %}
+
+<div class="empty-state">
+
+    <div class="empty-icon">
+        🎬
+    </div>
+
+    <h3>
+        No Movies Found
+    </h3>
+
+    <p class="text-muted">
+        Add your first movie to start building your watchlist.
+    </p>
+
+    <a
+        href="{{ url_for('add_movie') }}"
+        class="btn btn-primary"
+    >
+        Add First Movie
+    </a>
+
+</div>
+
+{% endif %}
+
+{% endblock %}

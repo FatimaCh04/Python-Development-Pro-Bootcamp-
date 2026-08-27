@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit Movie
+{% endblock %}
+
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-8">
+
+        <div class="card shadow-sm">
+
+            <div class="card-body p-4">
+
+                <h2 class="fw-bold mb-4">
+                    ✏️ Edit Movie
+                </h2>
+
+
+                <form method="POST">
+
+                    <!-- Title -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Movie Title
+                        </label>
+
+                        <input
+                            type="text"
+                            name="title"
+                            value="{{ movie.title }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Genre -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Genre
+                        </label>
+
+                        <input
+                            type="text"
+                            name="genre"
+                            value="{{ movie.genre }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Year -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Release Year
+                        </label>
+
+                        <input
+                            type="number"
+                            name="year"
+                            value="{{ movie.year }}"
+                            class="form-control"
+                            min="1888"
+                            max="2100"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Rating -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Rating
+                        </label>
+
+                        <input
+                            type="number"
+                            name="rating"
+                            value="{{ movie.rating }}"
+                            class="form-control"
+                            min="0"
+                            max="10"
+                            step="0.1"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Notes -->
+
+                    <div class="mb-4">
+
+                        <label class="form-label">
+                            Notes
+                        </label>
+
+                        <textarea
+                            name="notes"
+                            class="form-control"
+                            rows="4"
+                        >{{ movie.notes or "" }}</textarea>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-success"
+                    >
+                        Update Movie
+                    </button>
+
+
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
