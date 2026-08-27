@@ -1,0 +1,21 @@
+Major,Starting Median Salary,Mid-Career Median Salary,Mid-Career 90th Percentile Salary,Mid-Career 10th Percentile Salary,Unemployment Rate
+Computer Science,95000,65000,120000,70000,1.8
+Information Systems,82000,56000,105000,62000,2.0
+Mechanical Engineering,78000,52000,98000,60000,2.2
+Electrical Engineering,85000,58000,110000,65000,2.1
+Civil Engineering,72000,50000,90000,57000,2.4
+Business Management,68000,45000,88000,52000,2.8
+Marketing,62000,42000,80000,48000,3.1
+Accounting,70000,47000,90000,54000,2.7
+Economics,76000,51000,97000,58000,2.3
+Finance,80000,54000,102000,61000,2.0
+Psychology,52000,35000,72000,43000,3.8
+English,50000,34000,70000,41000,4.0
+History,48000,33000,68000,40000,4.2
+Biology,56000,38000,76000,44000,3.5
+Chemistry,65000,44000,85000,50000,3.0
+Nursing,74000,52000,91000,59000,2.6
+Education,54000,37000,73000,42000,3.6
+Communications,58000,39000,76000,45000,3.3
+Sociology,51000,35000,69000,42000,3.9
+Political Science,60000,40000,78000,46000,3.4
