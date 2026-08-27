@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit Study Task
+{% endblock %}
+
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-8">
+
+        <div class="card shadow-sm">
+
+            <div class="card-body p-4">
+
+                <h2 class="fw-bold mb-4">
+                    Edit Study Task
+                </h2>
+
+
+                <form method="POST">
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Task Title
+                        </label>
+
+                        <input
+                            type="text"
+                            name="title"
+                            value="{{ task.title }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Subject
+                        </label>
+
+                        <input
+                            type="text"
+                            name="subject"
+                            value="{{ task.subject }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Deadline
+                        </label>
+
+                        <input
+                            type="date"
+                            name="deadline"
+                            value="{{ task.deadline }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Priority
+                        </label>
+
+                        <select
+                            name="priority"
+                            class="form-select"
+                            required
+                        >
+
+                            <option
+                                value="High"
+                                {% if task.priority == "High" %}
+                                selected
+                                {% endif %}
+                            >
+                                High
+                            </option>
+
+                            <option
+                                value="Medium"
+                                {% if task.priority == "Medium" %}
+                                selected
+                                {% endif %}
+                            >
+                                Medium
+                            </option>
+
+                            <option
+                                value="Low"
+                                {% if task.priority == "Low" %}
+                                selected
+                                {% endif %}
+                            >
+                                Low
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="mb-4">
+
+                        <label class="form-label">
+                            Notes
+                        </label>
+
+                        <textarea
+                            name="notes"
+                            class="form-control"
+                            rows="4"
+                        >{{ task.notes or "" }}</textarea>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-success"
+                    >
+                        Update Task
+                    </button>
+
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
