@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit Transaction
+{% endblock %}
+
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-lg-8">
+
+        <div class="card shadow-sm">
+
+            <div class="card-body p-4">
+
+                <h2 class="fw-bold mb-4">
+                    ✏️ Edit Transaction
+                </h2>
+
+
+                <form method="POST">
+
+                    <!-- Title -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Transaction Title
+                        </label>
+
+                        <input
+                            type="text"
+                            name="title"
+                            value="{{ transaction.title }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Amount -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Amount
+                        </label>
+
+                        <input
+                            type="number"
+                            name="amount"
+                            value="{{ transaction.amount }}"
+                            class="form-control"
+                            min="0.01"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Type -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Transaction Type
+                        </label>
+
+                        <select
+                            name="transaction_type"
+                            class="form-select"
+                            required
+                        >
+
+                            <option
+                                value="Income"
+                                {% if transaction.transaction_type == "Income" %}
+                                selected
+                                {% endif %}
+                            >
+                                Income
+                            </option>
+
+                            <option
+                                value="Expense"
+                                {% if transaction.transaction_type == "Expense" %}
+                                selected
+                                {% endif %}
+                            >
+                                Expense
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Category -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Category
+                        </label>
+
+                        <input
+                            type="text"
+                            name="category"
+                            value="{{ transaction.category }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Date -->
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Date
+                        </label>
+
+                        <input
+                            type="date"
+                            name="date"
+                            value="{{ transaction.date }}"
+                            class="form-control"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- Notes -->
+
+                    <div class="mb-4">
+
+                        <label class="form-label">
+                            Notes
+                        </label>
+
+                        <textarea
+                            name="notes"
+                            class="form-control"
+                            rows="4"
+                        >{{ transaction.notes or "" }}</textarea>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="btn btn-success"
+                    >
+                        Update Transaction
+                    </button>
+
+
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="btn btn-secondary"
+                    >
+                        Cancel
+                    </a>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

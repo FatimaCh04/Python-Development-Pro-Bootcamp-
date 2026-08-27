@@ -1,47 +1,55 @@
-# 📚 Day 81 — Student Task & Study Planner
+# 🎬 Day 82 — Movie Watchlist Manager
 
-A modern **Student Task & Study Planner** built with **Python, Flask, SQLite, and SQLAlchemy**. This project provides a centralized platform for organizing study tasks, managing deadlines, setting priorities, and tracking academic progress.
+A professional web-based **Movie Watchlist Manager** built with **Python, Flask, SQLite, and SQLAlchemy**. The application allows users to organize their movie collection, track watched and unwatched titles, manage ratings, and quickly search or filter their watchlist.
+
+---
 
 ## 📌 Project Overview
 
-Managing multiple assignments, study sessions, and academic deadlines can be challenging. The **Student Task & Study Planner** provides a simple and practical solution for organizing study-related tasks in one place.
+Managing a growing list of movies can become difficult when titles, ratings, genres, and viewing status are stored in different places.
 
-Users can create tasks, assign subjects, set deadlines and priorities, add notes, mark tasks as completed, and quickly search or filter their task list.
+The **Movie Watchlist Manager** provides a centralized platform for managing this information. Users can add movies, update their details, mark movies as watched, search the watchlist, and filter movies based on genre or viewing status.
 
-The project demonstrates how a Python Flask application can be integrated with a relational database to create a functional CRUD-based web application.
+This project demonstrates the integration of **Flask web development with SQLite database management and SQLAlchemy ORM**.
+
+---
 
 ## ✨ Features
 
-* **Task Management** — Create, view, update, and delete study tasks.
-* **Subject Organization** — Associate each task with a specific subject.
-* **Deadline Tracking** — Set deadlines for individual study tasks.
-* **Priority Management** — Categorize tasks as High, Medium, or Low priority.
-* **Task Completion** — Mark tasks as completed and undo completion when necessary.
-* **Search** — Search tasks by title or subject.
-* **Filtering** — Filter tasks by priority and completion status.
-* **Dashboard Statistics** — View total, pending, completed, and high-priority tasks.
-* **Notes** — Add additional information or study notes to each task.
-* **Persistent Storage** — Store task data using SQLite.
-* **Responsive Design** — Bootstrap-based interface suitable for desktop and mobile screens.
+* 🎬 **Movie Management** — Add, edit, and delete movies.
+* ⭐ **Rating System** — Store ratings from 0 to 10.
+* 🎭 **Genre Organization** — Categorize movies by genre.
+* 📅 **Release Year** — Record the movie's release year.
+* ✅ **Watch Status** — Mark movies as Watched or Unwatched.
+* 🔎 **Search** — Search movies by title or genre.
+* 🏷️ **Filtering** — Filter movies by genre and watch status.
+* 📊 **Dashboard Statistics** — View total movies, watched movies, unwatched movies, and average rating.
+* 📝 **Notes** — Add personal notes to individual movies.
+* 💾 **Persistent Storage** — Store data using SQLite.
+* 📱 **Responsive UI** — Bootstrap-based interface for different screen sizes.
+
+---
 
 ## 🛠️ Technologies Used
 
-| Technology       | Purpose                    |
-| ---------------- | -------------------------- |
-| Python           | Core programming language  |
-| Flask            | Web application framework  |
-| Flask-SQLAlchemy | Flask database integration |
-| SQLAlchemy       | Object-Relational Mapping  |
-| SQLite           | Local relational database  |
-| HTML5            | Web page structure         |
-| CSS3             | Custom styling             |
-| Bootstrap 5      | Responsive user interface  |
-| Jinja2           | Dynamic template rendering |
+| Technology           | Purpose                    |
+| -------------------- | -------------------------- |
+| **Python**           | Core programming language  |
+| **Flask**            | Web application framework  |
+| **Flask-SQLAlchemy** | Flask database integration |
+| **SQLAlchemy**       | Object-Relational Mapping  |
+| **SQLite**           | Database storage           |
+| **HTML5**            | Application structure      |
+| **CSS3**             | Custom styling             |
+| **Bootstrap 5**      | Responsive UI              |
+| **Jinja2**           | Dynamic template rendering |
+
+---
 
 ## 🗂️ Project Structure
 
 ```text
-Day81-Study-Planner/
+Day82-Movie-Watchlist/
 │
 ├── app.py
 ├── requirements.txt
@@ -57,65 +65,110 @@ Day81-Study-Planner/
     └── edit.html
 ```
 
-The SQLite database is automatically created when the application is initialized.
+The `movies.db` SQLite database is automatically generated when the application is initialized.
+
+---
 
 ## 🗄️ Database Model
 
-The application uses a `StudyTask` model with the following fields:
+The application uses a `Movie` model containing the following fields:
 
 ```text
-StudyTask
+Movie
 │
 ├── id
 ├── title
-├── subject
-├── deadline
-├── priority
+├── genre
+├── year
+├── rating
 ├── status
 └── notes
 ```
 
-## 🔄 CRUD Functionality
+### Field Description
 
-The application implements the complete CRUD workflow:
+| Field    | Description               |
+| -------- | ------------------------- |
+| `id`     | Unique movie identifier   |
+| `title`  | Movie title               |
+| `genre`  | Movie category            |
+| `year`   | Release year              |
+| `rating` | Rating between 0 and 10   |
+| `status` | Watched or Unwatched      |
+| `notes`  | Additional personal notes |
+
+---
+
+## 🔄 CRUD Operations
+
+The application implements complete **CRUD functionality**.
 
 ### Create
 
-Add a new study task with its subject, deadline, priority, and notes.
+Add a new movie with its title, genre, release year, rating, and notes.
 
 ### Read
 
-View all saved tasks from the dashboard.
+Display all saved movies on the main dashboard.
 
 ### Update
 
-Modify existing task information whenever required.
+Edit movie information whenever required.
 
 ### Delete
 
-Remove tasks that are no longer needed.
+Remove movies from the watchlist.
 
-## 🔎 Search & Filtering
+---
 
-The dashboard provides flexible task organization through:
+## 🔍 Search & Filtering
 
-* Search by task title
-* Search by subject
-* Filter by priority
-* Filter by task status
+The application provides multiple ways to organize the watchlist:
 
-This makes it easier to focus on specific academic tasks.
+* Search by movie title
+* Search by genre
+* Filter by genre
+* Filter by Watched/Unwatched status
 
-## 📊 Dashboard Statistics
+This allows users to quickly find specific movies.
 
-The dashboard automatically displays:
+---
 
-* **Total Tasks**
-* **Pending Tasks**
-* **Completed Tasks**
-* **High-Priority Tasks**
+## 📊 Dashboard
 
-These statistics provide a quick overview of current study workload.
+The dashboard provides an overview of the movie collection:
+
+* **Total Movies**
+* **Watched Movies**
+* **Movies To Watch**
+* **Average Rating**
+
+These statistics are calculated dynamically from the SQLite database.
+
+---
+
+## 🔄 Application Workflow
+
+```text
+                  ┌─────────────────┐
+                  │    Dashboard    │
+                  └────────┬────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+        Add Movie      Search/Filter   Statistics
+             │
+             ▼
+       SQLite Database
+             │
+      ┌──────┼──────┐
+      │      │      │
+      ▼      ▼      ▼
+     Edit   Watch   Delete
+```
+
+---
 
 ## ⚙️ Installation & Setup
 
@@ -128,7 +181,7 @@ git clone YOUR_REPOSITORY_URL
 ### 2. Navigate to the Project
 
 ```bash
-cd Day81-Study-Planner
+cd Day82-Movie-Watchlist
 ```
 
 ### 3. Install Dependencies
@@ -137,7 +190,7 @@ cd Day81-Study-Planner
 pip install -r requirements.txt
 ```
 
-### 4. Start the Application
+### 4. Run the Application
 
 ```bash
 python app.py
@@ -149,72 +202,61 @@ python app.py
 http://127.0.0.1:5000
 ```
 
-The database will be generated automatically when the application runs.
+The SQLite database will be created automatically on the first run.
+
+---
 
 ## 🎯 Learning Objectives
 
-This project helped strengthen my understanding of:
+This project helped strengthen my practical understanding of:
 
 * Flask application development
 * Flask routing
 * GET and POST requests
-* HTML forms
+* HTML form handling
 * Jinja2 templating
 * SQLAlchemy ORM
 * SQLite database integration
 * CRUD operations
-* Database querying and filtering
-* Dynamic web pages
+* Database queries
+* Search and filtering
+* Dynamic dashboard statistics
 * Bootstrap responsive design
-* Organizing a Flask project into templates and static files
+* Structuring a Flask web application
 
-## 🔐 Application Workflow
+---
 
-```text
-User
-  │
-  ▼
-Dashboard
-  │
-  ├── Add Task
-  │      └── Save to SQLite
-  │
-  ├── View Tasks
-  │
-  ├── Search / Filter
-  │
-  ├── Mark Complete
-  │
-  ├── Edit Task
-  │
-  └── Delete Task
-```
+## 🚀 Future Enhancements
 
-## 🚀 Future Improvements
+Possible improvements for future versions include:
 
-Possible future enhancements include:
+* 🎞️ Movie poster integration
+* 🔗 Integration with a movie API
+* 👤 User authentication
+* ❤️ Favorites and watch-later lists
+* 📅 Personal watch dates
+* 📈 Movie statistics and analytics
+* 🎯 Personalized recommendations
+* 📤 Export watchlist to CSV/PDF
+* 🌙 Dark mode
+* ☁️ Cloud database support
 
-* User authentication and personal accounts
-* Calendar-based deadline management
-* Study session scheduling
-* Automatic deadline reminders
-* Progress charts and analytics
-* Subject-wise progress tracking
-* Recurring study tasks
-* Dark mode
-* Export tasks to CSV or PDF
-* Cloud database integration
+---
 
 ## 📚 100 Days of Python
 
-**Day 81 of 100 Days of Python**
+**Day 82 of 100 Days of Python**
 
-This project represents another milestone in my Python development journey. It combines **Python web development, Flask, database management, SQLAlchemy, CRUD operations, and responsive UI design** into a practical student productivity application.
+This project represents another milestone in my Python development journey, combining **Flask, SQLAlchemy, SQLite, CRUD operations, database management, search functionality, filtering, and responsive web design** into a practical application.
+
+---
 
 ## 👩‍💻 Author
 
 **Fatima Ch**
 
----
+### ⭐ Project Status
 
-⭐ If you find this project useful, consider starring the repository.
+**Completed — Day 82/100 ✅**
+
+> Part of my ongoing **100 Days of Python** coding journey. 🐍💻

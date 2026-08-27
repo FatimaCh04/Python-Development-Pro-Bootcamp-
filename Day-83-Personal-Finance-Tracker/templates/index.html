@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+
+{% block title %}
+Finance Dashboard
+{% endblock %}
+
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+    <div>
+
+        <h1 class="fw-bold">
+            Personal Finance Dashboard
+        </h1>
+
+        <p class="text-muted">
+            Track your income, expenses, and financial balance.
+        </p>
+
+    </div>
+
+    <a
+        href="{{ url_for('add_transaction') }}"
+        class="btn btn-primary"
+    >
+        + Add Transaction
+    </a>
+
+</div>
+
+
+<!-- =========================
+     Financial Statistics
+========================= -->
+
+<div class="row g-3 mb-4">
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card income-card">
+
+            <p>Total Income</p>
+
+            <h2>
+                ${{ "%.2f"|format(total_income) }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card expense-card">
+
+            <p>Total Expenses</p>
+
+            <h2>
+                ${{ "%.2f"|format(total_expenses) }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card balance-card">
+
+            <p>Current Balance</p>
+
+            <h2>
+                ${{ "%.2f"|format(balance) }}
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="col-md-6 col-lg-3">
+
+        <div class="stat-card">
+
+            <p>Transactions</p>
+
+            <h2>
+                {{ total_transactions }}
+            </h2>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================
+     Search & Filters
+========================= -->
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-body">
+
+        <form
+            method="GET"
+            action="{{ url_for('index') }}"
+            class="row g-3"
+        >
+
+            <div class="col-md-5">
+
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search }}"
+                    class="form-control"
+                    placeholder="Search transaction or category..."
+                >
+
+            </div>
+
+
+            <div class="col-md-3">
+
+                <select
+                    name="category"
+                    class="form-select"
+                >
+
+                    <option value="">
+                        All Categories
+                    </option>
+
+                    {% for category in categories %}
+
+                    <option
+                        value="{{ category }}"
+                        {% if category_filter == category %}
+                        selected
+                        {% endif %}
+                    >
+                        {{ category }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <select
+                    name="type"
+                    class="form-select"
+                >
+
+                    <option value="">
+                        All Types
+                    </option>
+
+                    <option
+                        value="Income"
+                        {% if type_filter == "Income" %}
+                        selected
+                        {% endif %}
+                    >
+                        Income
+                    </option>
+
+                    <option
+                        value="Expense"
+                        {% if type_filter == "Expense" %}
+                        selected
+                        {% endif %}
+                    >
+                        Expense
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="col-md-2">
+
+                <button
+                    type="submit"
+                    class="btn btn-dark w-100"
+                >
+                    Filter
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<div class="row g-4">
+
+
+<!-- =========================
+     Transactions
+========================= -->
+
+<div class="col-lg-8">
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between mb-3">
+
+                <h4 class="fw-bold">
+                    Recent Transactions
+                </h4>
+
+                <a
+                    href="{{ url_for('add_transaction') }}"
+                    class="btn btn-sm btn-primary"
+                >
+                    Add New
+                </a>
+
+            </div>
+
+
+            {% if transactions %}
+
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead>
+
+                    <tr>
+
+                        <th>Transaction</th>
+                        <th>Category</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Actions</th>
+
+                    </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                    {% for transaction in transactions %}
+
+                    <tr>
+
+                        <td>
+
+                            <strong>
+                                {{ transaction.title }}
+                            </strong>
+
+                            {% if transaction.notes %}
+
+                            <br>
+
+                            <small class="text-muted">
+                                {{ transaction.notes }}
+                            </small>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+                            <span class="badge bg-light text-dark">
+                                {{ transaction.category }}
+                            </span>
+                        </td>
+
+
+                        <td>
+                            {{ transaction.date }}
+                        </td>
+
+
+                        <td>
+
+                            {% if transaction.transaction_type == "Income" %}
+
+                            <span class="badge bg-success">
+                                Income
+                            </span>
+
+                            {% else %}
+
+                            <span class="badge bg-danger">
+                                Expense
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            {% if transaction.transaction_type == "Income" %}
+
+                            <span class="text-success fw-bold">
+                                +${{ "%.2f"|format(transaction.amount) }}
+                            </span>
+
+                            {% else %}
+
+                            <span class="text-danger fw-bold">
+                                -${{ "%.2f"|format(transaction.amount) }}
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            <a
+                                href="{{ url_for('edit_transaction', id=transaction.id) }}"
+                                class="btn btn-sm btn-warning"
+                            >
+                                Edit
+                            </a>
+
+                            <a
+                                href="{{ url_for('delete_transaction', id=transaction.id) }}"
+                                class="btn btn-sm btn-danger"
+                                onclick="return confirm('Delete this transaction?');"
+                            >
+                                Delete
+                            </a>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            {% else %}
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    💳
+                </div>
+
+                <h4>
+                    No Transactions Found
+                </h4>
+
+                <p class="text-muted">
+                    Start tracking your finances by adding a transaction.
+                </p>
+
+                <a
+                    href="{{ url_for('add_transaction') }}"
+                    class="btn btn-primary"
+                >
+                    Add Transaction
+                </a>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================
+     Expense Breakdown
+========================= -->
+
+<div class="col-lg-4">
+
+    <div class="card shadow-sm">
+
+        <div class="card-body">
+
+            <h4 class="fw-bold mb-4">
+                Expense Breakdown
+            </h4>
+
+
+            {% if expense_categories %}
+
+            {% for category, amount in expense_categories %}
+
+            <div class="category-row">
+
+                <div>
+
+                    <strong>
+                        {{ category }}
+                    </strong>
+
+                </div>
+
+                <div class="text-danger fw-bold">
+
+                    ${{ "%.2f"|format(amount) }}
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+            {% else %}
+
+            <p class="text-muted">
+                No expenses recorded yet.
+            </p>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</div>
+
+{% endblock %}
