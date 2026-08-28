@@ -1,0 +1,184 @@
+body {
+    background: #f8f9fa;
+    color: #212529;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+
+.navbar {
+    background: #3b2416;
+    padding: 15px 0;
+}
+
+
+.navbar-brand {
+    font-size: 1.4rem;
+}
+
+
+.hero {
+    background:
+        linear-gradient(
+            rgba(59, 36, 22, 0.9),
+            rgba(59, 36, 22, 0.9)
+        );
+
+    padding: 100px 20px;
+    color: white;
+}
+
+
+.hero-icon {
+    font-size: 70px;
+    margin-bottom: 20px;
+}
+
+
+.hero h1 {
+    font-size: 3.2rem;
+    font-weight: 700;
+}
+
+
+.hero p {
+    max-width: 650px;
+    margin: 20px auto 30px;
+    font-size: 1.15rem;
+    opacity: 0.9;
+}
+
+
+.hero-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+
+.cafe-card {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    height: 100%;
+    box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.07);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.cafe-card:hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+
+.coffee-icon {
+    font-size: 45px;
+    margin-bottom: 15px;
+}
+
+
+.coffee-icon.large {
+    font-size: 60px;
+}
+
+
+.feature {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+
+.feature:last-child {
+    border-bottom: none;
+}
+
+
+.cafe-table {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+        0 5px 20px rgba(0, 0, 0, 0.06);
+}
+
+
+.cafe-table thead {
+    background: #3b2416;
+    color: white;
+}
+
+
+.cafe-table th,
+.cafe-table td {
+    padding: 15px;
+    vertical-align: middle;
+}
+
+
+.form-container {
+    max-width: 850px;
+    margin: auto;
+    background: white;
+    padding: 40px;
+    border-radius: 18px;
+
+    box-shadow:
+        0 5px 25px rgba(0, 0, 0, 0.08);
+}
+
+
+.form-control,
+.form-select {
+    padding: 12px;
+    border-radius: 8px;
+}
+
+
+.btn {
+    border-radius: 8px;
+}
+
+
+.empty-state {
+    background: white;
+    text-align: center;
+    padding: 70px 20px;
+    border-radius: 15px;
+}
+
+
+footer {
+    text-align: center;
+    padding: 30px;
+    color: #777;
+    margin-top: 30px;
+}
+
+
+@media (max-width: 768px) {
+
+    .hero {
+        padding: 70px 20px;
+    }
+
+
+    .hero h1 {
+        font-size: 2.2rem;
+    }
+
+
+    .form-container {
+        padding: 25px;
+    }
+
+}

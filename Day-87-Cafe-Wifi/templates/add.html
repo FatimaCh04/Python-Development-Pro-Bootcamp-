@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+CafeFinder | Add Cafe
+{% endblock %}
+
+
+{% block content %}
+
+<section class="container py-5">
+
+    <div class="form-container">
+
+        <div class="text-center mb-4">
+
+            <div class="coffee-icon large">
+                ☕
+            </div>
+
+            <h1>
+                Add a New Cafe
+            </h1>
+
+            <p class="text-muted">
+                Share a great cafe with the community.
+            </p>
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="{{ url_for('add') }}"
+        >
+
+            <div class="row g-3">
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Cafe Name
+                    </label>
+
+                    <input
+                        type="text"
+                        name="cafe_name"
+                        class="form-control"
+                        placeholder="Enter cafe name"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Location
+                    </label>
+
+                    <input
+                        type="text"
+                        name="location"
+                        class="form-control"
+                        placeholder="e.g. Islamabad"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Opening Time
+                    </label>
+
+                    <input
+                        type="time"
+                        name="open"
+                        class="form-control"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Closing Time
+                    </label>
+
+                    <input
+                        type="time"
+                        name="close"
+                        class="form-control"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Coffee Rating
+                    </label>
+
+                    <select
+                        name="coffee"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            Select rating
+                        </option>
+
+                        <option>
+                            ☕
+                        </option>
+
+                        <option>
+                            ☕☕
+                        </option>
+
+                        <option>
+                            ☕☕☕
+                        </option>
+
+                        <option>
+                            ☕☕☕☕
+                        </option>
+
+                        <option>
+                            ☕☕☕☕☕
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        WiFi Rating
+                    </label>
+
+                    <select
+                        name="wifi"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            Select rating
+                        </option>
+
+                        <option>
+                            💪
+                        </option>
+
+                        <option>
+                            💪💪
+                        </option>
+
+                        <option>
+                            💪💪💪
+                        </option>
+
+                        <option>
+                            💪💪💪💪
+                        </option>
+
+                        <option>
+                            💪💪💪💪💪
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Power Availability
+                    </label>
+
+                    <select
+                        name="power"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            Select availability
+                        </option>
+
+                        <option>
+                            🔌
+                        </option>
+
+                        <option>
+                            🔌🔌
+                        </option>
+
+                        <option>
+                            🔌🔌🔌
+                        </option>
+
+                        <option>
+                            🔌🔌🔌🔌
+                        </option>
+
+                        <option>
+                            🔌🔌🔌🔌🔌
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Number of Seats
+                    </label>
+
+                    <input
+                        type="text"
+                        name="seats"
+                        class="form-control"
+                        placeholder="e.g. 20-30"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Coffee Price
+                    </label>
+
+                    <input
+                        type="text"
+                        name="price"
+                        class="form-control"
+                        placeholder="e.g. Rs. 500"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-md-6">
+
+                    <label class="form-label">
+                        Google Maps URL
+                    </label>
+
+                    <input
+                        type="url"
+                        name="map_url"
+                        class="form-control"
+                        placeholder="https://maps.google.com/..."
+                        required
+                    >
+
+                </div>
+
+
+                <div class="col-12 mt-4">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-lg w-100"
+                    >
+                        Add Cafe ☕
+                    </button>
+
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</section>
+
+{% endblock %}

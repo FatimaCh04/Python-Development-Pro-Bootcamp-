@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+CafeFinder | Home
+{% endblock %}
+
+
+{% block content %}
+
+<section class="hero">
+
+    <div class="container text-center">
+
+        <div class="hero-icon">
+            ☕
+        </div>
+
+        <h1>
+            Find Your Perfect Cafe
+        </h1>
+
+        <p>
+            Discover cafes with great coffee,
+            reliable WiFi, power outlets, and comfortable seating.
+        </p>
+
+        <div class="hero-buttons">
+
+            <a
+                href="{{ url_for('cafes') }}"
+                class="btn btn-light btn-lg"
+            >
+                Explore Cafes
+            </a>
+
+            <a
+                href="{{ url_for('add') }}"
+                class="btn btn-outline-light btn-lg"
+            >
+                Add a Cafe
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<section class="container py-5">
+
+    <div class="text-center mb-5">
+
+        <h2>
+            Featured Cafes
+        </h2>
+
+        <p class="text-muted">
+            Some of the best places to work and enjoy coffee.
+        </p>
+
+    </div>
+
+
+    <div class="row g-4">
+
+        {% for cafe in cafes[:3] %}
+
+        <div class="col-md-4">
+
+            <div class="cafe-card">
+
+                <div class="coffee-icon">
+                    ☕
+                </div>
+
+                <h4>
+                    {{ cafe["Cafe Name"] }}
+                </h4>
+
+                <p class="text-muted">
+                    📍 {{ cafe["Location"] }}
+                </p>
+
+                <hr>
+
+                <div class="feature">
+
+                    <span>
+                        ☕ Coffee
+                    </span>
+
+                    <span>
+                        {{ cafe["Coffee"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="feature">
+
+                    <span>
+                        📶 WiFi
+                    </span>
+
+                    <span>
+                        {{ cafe["Wifi"] }}
+                    </span>
+
+                </div>
+
+
+                <div class="feature">
+
+                    <span>
+                        🔌 Power
+                    </span>
+
+                    <span>
+                        {{ cafe["Power"] }}
+                    </span>
+
+                </div>
+
+
+                <a
+                    href="{{ cafe['Map URL'] }}"
+                    target="_blank"
+                    class="btn btn-primary w-100 mt-3"
+                >
+                    View Location
+                </a>
+
+            </div>
+
+        </div>
+
+        {% else %}
+
+        <div class="col-12 text-center">
+
+            <p>
+                No cafes available yet.
+            </p>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+
+    <div class="text-center mt-5">
+
+        <a
+            href="{{ url_for('cafes') }}"
+            class="btn btn-dark"
+        >
+            View All Cafes →
+        </a>
+
+    </div>
+
+</section>
+
+{% endblock %}
