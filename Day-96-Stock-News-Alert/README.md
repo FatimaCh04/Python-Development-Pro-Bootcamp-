@@ -1,311 +1,164 @@
-# 🚀 Day 94 — Space Invaders
+# 📈 Day 96 — Stock Trading News Alert
 
-A classic **Space Invaders-style arcade game** developed in Python using **Pygame** as part of Angela Yu's **100 Days of Code: The Complete Python Pro Bootcamp**.
+A Python automation project inspired by **Angela Yu's 100 Days of Code: The Complete Python Pro Bootcamp**.
 
-The project demonstrates object-oriented programming, game loops, keyboard controls, collision detection, enemy movement, shooting mechanics, scoring, lives, levels, and game-state management.
+This application monitors a stock's daily price movement and automatically checks for relevant news when a significant change is detected. It can also send the generated alert through SMS using Twilio.
 
----
+## 🎯 Project Objective
 
-## 🎮 Project Overview
+The goal of this project is to combine **stock market data, news APIs, and automated notifications** into a practical Python application.
 
-The player controls a spaceship at the bottom of the screen and must destroy waves of incoming enemies before they reach the player's position.
+The program:
 
-Each destroyed enemy increases the score. Once an entire wave has been cleared, a new level begins with more challenging gameplay.
-
----
+* Retrieves daily stock market data
+* Compares the latest and previous closing prices
+* Calculates the percentage change
+* Detects significant price movements
+* Fetches the latest company-related news
+* Generates a concise alert
+* Sends the alert through SMS when Twilio is configured
 
 ## ✨ Features
 
-* 🚀 Player spaceship
-* 👾 Multiple enemy formations
-* 🔫 Player shooting
-* 💥 Bullet collision detection
-* 👾 Enemy shooting
-* ❤️ Three-player-life system
-* 🏆 Score tracking
-* 📈 Level progression
-* ⏸️ Pause functionality
-* 🔄 Restart after Game Over
-* ⭐ Increasing difficulty
-* 🌌 Space-themed background
-* ⌨️ Keyboard controls
-* 🖥️ 60 FPS gameplay
-
----
+* 📊 Real-time stock data retrieval
+* 📈 Percentage change calculation
+* 🚨 Automatic price-movement detection
+* 📰 Latest relevant news retrieval
+* 📱 SMS notification support
+* 🔐 Secure API-key configuration using `.env`
+* 🧩 Modular Python architecture
+* ⚠️ API and exception handling
 
 ## 🛠️ Technologies Used
 
-| Technology     | Purpose                    |
-| -------------- | -------------------------- |
-| Python         | Core programming language  |
-| Pygame         | Game development framework |
-| OOP            | Game objects and structure |
-| Rect Collision | Collision detection        |
-
----
+* **Python**
+* **Requests**
+* **Alpha Vantage API**
+* **NewsAPI**
+* **Twilio**
+* **python-dotenv**
 
 ## 📂 Project Structure
 
 ```text
-Day-94-Space-Invaders/
+Day-96-Stock-News-Alert/
 │
 ├── main.py
-├── game.py
-├── player.py
-├── enemy.py
-├── bullet.py
+├── stock_checker.py
+├── news_checker.py
+├── sms_sender.py
 ├── requirements.txt
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 
----
+## ⚙️ Setup
 
-## ⚙️ Installation
+Create a virtual environment:
 
-### 1. Create a Virtual Environment
-
-Windows:
-
-```powershell
+```bash
 python -m venv venv
 ```
 
-### 2. Activate the Environment
+Activate it on Windows PowerShell:
 
 ```powershell
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
 
-### 3. Install Dependencies
+Install dependencies:
 
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
----
+## 🔑 Environment Variables
 
-## ▶️ Run the Game
+Create a `.env` file based on `.env.example`:
 
-```powershell
+```text
+STOCK_SYMBOL=TSLA
+COMPANY_NAME=Tesla
+
+STOCK_API_KEY=your_alpha_vantage_api_key
+NEWS_API_KEY=your_news_api_key
+
+CHANGE_THRESHOLD=5
+
+TWILIO_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_FROM=your_twilio_phone_number
+TWILIO_TO=your_phone_number
+```
+
+Never upload your actual `.env` file or API credentials to GitHub.
+
+## ▶️ Run the Application
+
+```bash
 python main.py
 ```
 
-The game window will open automatically.
-
----
-
-## 🎮 Controls
-
-| Key   | Action                  |
-| ----- | ----------------------- |
-| ←     | Move left               |
-| →     | Move right              |
-| Space | Shoot                   |
-| P     | Pause / Resume          |
-| R     | Restart after Game Over |
-| ESC   | Exit                    |
-
----
-
-## 🧠 Game Mechanics
-
-### Player Movement
-
-The player can move horizontally using the left and right arrow keys.
-
-The spaceship is restricted to the game window so it cannot move outside the screen.
-
-### Shooting
-
-Pressing **Space** launches a bullet from the player's spaceship.
-
-The game limits the number of active bullets to keep gameplay balanced.
-
-### Enemy Movement
-
-Enemies move horizontally across the screen.
-
-When they reach an edge, they reverse direction and move downward.
-
-### Collision Detection
-
-Pygame rectangles are used to detect collisions between bullets and enemies:
-
-```python
-if bullet.rect.colliderect(enemy.rect):
-    ...
-```
-
-When a bullet hits an enemy:
-
-* The enemy is removed.
-* The bullet is removed.
-* The player's score increases.
-
-### Lives
-
-The player starts with:
+Example output:
 
 ```text
-❤️ 3 Lives
+============================================================
+        STOCK TRADING NEWS ALERT
+============================================================
+
+📈 Stock: TSLA
+🏢 Company: Tesla
+
+Testing stock data...
+
+Today's change: -6.24%
+
+🚨 Significant stock movement detected!
+
+Headline: Tesla announces new updates
+Brief: Latest company news and market developments...
 ```
 
-When an enemy bullet hits the player, one life is lost.
+If Twilio is configured, the alert is also sent by SMS.
 
-The game ends when all lives are lost.
+## 🧠 Concepts Practiced
 
-### Levels
+This project strengthened my understanding of:
 
-After all enemies are destroyed, the next level begins.
-
-The game increases the enemy difficulty as the level increases.
-
----
-
-## 🧱 Object-Oriented Design
-
-The project is divided into separate classes.
-
-### `Player`
-
-Responsible for:
-
-* Player position
-* Player movement
-* Player lives
-* Player rendering
-
-### `Enemy`
-
-Responsible for:
-
-* Enemy position
-* Enemy movement
-* Enemy rendering
-
-### `Bullet`
-
-Responsible for:
-
-* Bullet position
-* Bullet movement
-* Bullet rendering
-* Screen-bound checking
-
-### `Game`
-
-Responsible for:
-
-* Game loop
-* Event handling
-* Collision detection
-* Score
-* Levels
-* Game states
-* Rendering
-
----
-
-## 📚 Learning Objectives
-
-This project helped strengthen my understanding of:
-
-* Python classes
-* Object-oriented programming
-* Constructors
-* Methods
-* Objects
-* Pygame
-* Game loops
-* Keyboard events
-* Collision detection
-* Rectangles
-* Lists of objects
-* Random number generation
-* Game states
-* Timers
-* Score systems
-* Level progression
+* REST APIs
+* HTTP requests
+* JSON data processing
+* API authentication
+* Environment variables
+* Object-Oriented Programming
+* Exception handling
+* Data comparison
+* Automated notifications
 * Modular Python development
-
----
-
-## 🔄 Game Flow
-
-```text
-Start Game
-    ↓
-Create Player
-    ↓
-Create Enemy Formation
-    ↓
-Start Game Loop
-    ↓
-Read Keyboard Input
-    ↓
-Move Player
-    ↓
-Fire Bullets
-    ↓
-Move Enemies
-    ↓
-Move Bullets
-    ↓
-Check Collisions
-    ↓
-Update Score / Lives
-    ↓
-Enemies Destroyed?
-   ↙       ↘
- YES       NO
- ↓          ↓
-New Level   Continue
- ↓
-Game Over?
- ↓
-Restart / Exit
-```
-
----
 
 ## 🚀 Future Improvements
 
-Possible future enhancements include:
-
-* 🔊 Sound effects
-* 🎵 Background music
-* 🏅 High-score system
-* 👾 Different enemy types
-* 🛡️ Player shields
-* 💥 Explosion animations
-* ❤️ More advanced health system
-* 🌟 Power-ups
-* 🎯 Boss enemies
-* 🥇 Persistent leaderboard
-* 🎨 Sprite-based graphics
-
----
-
-## 📌 Project Status
-
-**Completed ✅**
-
-The project is fully playable locally and requires only Python and Pygame.
-
----
+* Add email notifications
+* Support multiple stocks
+* Create a graphical dashboard
+* Store historical stock data
+* Add scheduled automatic checks
+* Add charts and analytics
+* Support Telegram notifications
 
 ## 📚 100 Days of Python
 
-**Day 94 / 100 ✅**
+**Day 96 / 100 ✅**
 
-This project is part of my ongoing **100 Days of Python** journey and focuses on game development and object-oriented programming with Pygame.
+This project provided hands-on experience with **APIs, financial data, news services, automation, and notification systems** while building a practical Python application.
 
 ---
 
-## 👩‍💻 Author
+### 👩‍💻 Author
 
 **Fatima Ch**
 
-**100 Days of Python — Day 94/100**
+**100 Days of Python — Day 96/100**
 
 > Learn • Build • Practice • Improve 🚀
