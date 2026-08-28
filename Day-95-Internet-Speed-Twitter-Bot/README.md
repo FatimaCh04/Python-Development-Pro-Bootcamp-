@@ -1,60 +1,64 @@
-# 🚀 Day 94 — Space Invaders
+# 🚀 Day 95 — Internet Speed Twitter Complaint Bot
 
-A classic **Space Invaders-style arcade game** developed in Python using **Pygame** as part of Angela Yu's **100 Days of Code: The Complete Python Pro Bootcamp**.
+A Python automation project inspired by **Angela Yu's 100 Days of Code: The Complete Python Pro Bootcamp**.
 
-The project demonstrates object-oriented programming, game loops, keyboard controls, collision detection, enemy movement, shooting mechanics, scoring, lives, levels, and game-state management.
+The application measures the user's internet download and upload speeds, compares them with the promised speeds, and automatically prepares a complaint. When credentials are configured, Selenium can be used to open X and post the complaint.
 
 ---
 
-## 🎮 Project Overview
+## 🎯 Project Objective
 
-The player controls a spaceship at the bottom of the screen and must destroy waves of incoming enemies before they reach the player's position.
+Internet service providers often advertise a specific download and upload speed.
 
-Each destroyed enemy increases the score. Once an entire wave has been cleared, a new level begins with more challenging gameplay.
+This project automates the process of:
+
+1. Testing the current internet speed.
+2. Comparing the actual speed with the promised speed.
+3. Detecting whether the service is underperforming.
+4. Generating a personalized complaint.
+5. Using Selenium browser automation to post the complaint on X.
 
 ---
 
 ## ✨ Features
 
-* 🚀 Player spaceship
-* 👾 Multiple enemy formations
-* 🔫 Player shooting
-* 💥 Bullet collision detection
-* 👾 Enemy shooting
-* ❤️ Three-player-life system
-* 🏆 Score tracking
-* 📈 Level progression
-* ⏸️ Pause functionality
-* 🔄 Restart after Game Over
-* ⭐ Increasing difficulty
-* 🌌 Space-themed background
-* ⌨️ Keyboard controls
-* 🖥️ 60 FPS gameplay
+* 🌐 Internet speed testing
+* 📥 Download speed measurement
+* 📤 Upload speed measurement
+* 📊 Promised vs actual speed comparison
+* ⚠️ Automatic detection of poor performance
+* 📝 Automatic complaint generation
+* 🤖 Selenium browser automation
+* 🔐 Environment-variable credential management
+* 🛡️ `.env` excluded from Git
+* ❌ Error handling for browser failures
+* 🧩 Modular project structure
 
 ---
 
-## 🛠️ Technologies Used
+## 🛠️ Technologies
 
-| Technology     | Purpose                    |
-| -------------- | -------------------------- |
-| Python         | Core programming language  |
-| Pygame         | Game development framework |
-| OOP            | Game objects and structure |
-| Rect Collision | Collision detection        |
+| Technology       | Purpose                    |
+| ---------------- | -------------------------- |
+| Python           | Main programming language  |
+| Speedtest CLI    | Internet speed measurement |
+| Selenium         | Browser automation         |
+| Chrome WebDriver | Browser control            |
+| python-dotenv    | Environment variables      |
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-Day-94-Space-Invaders/
+Day-95-Internet-Speed-Twitter-Bot/
 │
 ├── main.py
-├── game.py
-├── player.py
-├── enemy.py
-├── bullet.py
+├── internet_speed.py
+├── twitter_bot.py
 ├── requirements.txt
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 
@@ -62,7 +66,7 @@ Day-94-Space-Invaders/
 
 ## ⚙️ Installation
 
-### 1. Create a Virtual Environment
+### 1. Create Virtual Environment
 
 Windows:
 
@@ -70,235 +74,169 @@ Windows:
 python -m venv venv
 ```
 
-### 2. Activate the Environment
+### 2. Activate Virtual Environment
+
+PowerShell:
 
 ```powershell
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
 
 ### 3. Install Dependencies
 
 ```powershell
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ---
 
-## ▶️ Run the Game
+## 🔐 Environment Configuration
+
+Create a `.env` file in the project root.
+
+Example:
+
+```text
+PROMISED_DOWNLOAD=50
+PROMISED_UPLOAD=10
+
+TWITTER_USERNAME=your_username
+TWITTER_PASSWORD=your_password
+```
+
+Never commit your real `.env` file to GitHub.
+
+---
+
+## ▶️ Running the Project
+
+Run:
 
 ```powershell
 python main.py
 ```
 
-The game window will open automatically.
+The application will first test the internet connection.
 
----
-
-## 🎮 Controls
-
-| Key   | Action                  |
-| ----- | ----------------------- |
-| ←     | Move left               |
-| →     | Move right              |
-| Space | Shoot                   |
-| P     | Pause / Resume          |
-| R     | Restart after Game Over |
-| ESC   | Exit                    |
-
----
-
-## 🧠 Game Mechanics
-
-### Player Movement
-
-The player can move horizontally using the left and right arrow keys.
-
-The spaceship is restricted to the game window so it cannot move outside the screen.
-
-### Shooting
-
-Pressing **Space** launches a bullet from the player's spaceship.
-
-The game limits the number of active bullets to keep gameplay balanced.
-
-### Enemy Movement
-
-Enemies move horizontally across the screen.
-
-When they reach an edge, they reverse direction and move downward.
-
-### Collision Detection
-
-Pygame rectangles are used to detect collisions between bullets and enemies:
-
-```python
-if bullet.rect.colliderect(enemy.rect):
-    ...
-```
-
-When a bullet hits an enemy:
-
-* The enemy is removed.
-* The bullet is removed.
-* The player's score increases.
-
-### Lives
-
-The player starts with:
+Example:
 
 ```text
-❤️ 3 Lives
+============================================================
+        INTERNET SPEED TWITTER COMPLAINT BOT
+============================================================
+
+Promised Download Speed: 50 Mbps
+Promised Upload Speed: 10 Mbps
+
+Testing your internet speed...
+
+Finding the best speed test server...
+Testing download speed...
+Testing upload speed...
+
+Actual Download Speed: 32.45 Mbps
+Actual Upload Speed: 7.82 Mbps
+
+⚠️ Your internet speed is below the promised speed.
 ```
 
-When an enemy bullet hits the player, one life is lost.
-
-The game ends when all lives are lost.
-
-### Levels
-
-After all enemies are destroyed, the next level begins.
-
-The game increases the enemy difficulty as the level increases.
+The application then generates a personalized complaint.
 
 ---
 
-## 🧱 Object-Oriented Design
+## 🤖 Selenium Automation
 
-The project is divided into separate classes.
+When Twitter/X credentials are configured, Selenium:
 
-### `Player`
+```text
+Open X
+   ↓
+Open Login Page
+   ↓
+Enter Username
+   ↓
+Enter Password
+   ↓
+Open Post Composer
+   ↓
+Enter Complaint
+   ↓
+Submit Post
+```
 
-Responsible for:
-
-* Player position
-* Player movement
-* Player lives
-* Player rendering
-
-### `Enemy`
-
-Responsible for:
-
-* Enemy position
-* Enemy movement
-* Enemy rendering
-
-### `Bullet`
-
-Responsible for:
-
-* Bullet position
-* Bullet movement
-* Bullet rendering
-* Screen-bound checking
-
-### `Game`
-
-Responsible for:
-
-* Game loop
-* Event handling
-* Collision detection
-* Score
-* Levels
-* Game states
-* Rendering
+Modern websites can change their HTML structure and authentication process. If X changes its login or posting interface, the Selenium selectors may need to be updated.
 
 ---
 
-## 📚 Learning Objectives
+## 🧠 Key Concepts Learned
 
-This project helped strengthen my understanding of:
+This project demonstrates:
 
-* Python classes
+* Web automation
+* Selenium WebDriver
+* Browser interaction
+* Explicit waits
+* HTML element selection
+* Keyboard automation
+* Environment variables
+* `.env` configuration
+* Internet speed testing
 * Object-oriented programming
-* Constructors
-* Methods
-* Objects
-* Pygame
-* Game loops
-* Keyboard events
-* Collision detection
-* Rectangles
-* Lists of objects
-* Random number generation
-* Game states
-* Timers
-* Score systems
-* Level progression
+* Conditional logic
+* Exception handling
 * Modular Python development
 
 ---
 
-## 🔄 Game Flow
+## 🔒 Security
 
-```text
-Start Game
-    ↓
-Create Player
-    ↓
-Create Enemy Formation
-    ↓
-Start Game Loop
-    ↓
-Read Keyboard Input
-    ↓
-Move Player
-    ↓
-Fire Bullets
-    ↓
-Move Enemies
-    ↓
-Move Bullets
-    ↓
-Check Collisions
-    ↓
-Update Score / Lives
-    ↓
-Enemies Destroyed?
-   ↙       ↘
- YES       NO
- ↓          ↓
-New Level   Continue
- ↓
-Game Over?
- ↓
-Restart / Exit
+Credentials should never be hard-coded directly into Python files.
+
+Instead, the project uses environment variables:
+
+```python
+username = os.getenv("TWITTER_USERNAME")
+password = os.getenv("TWITTER_PASSWORD")
 ```
+
+The `.gitignore` file prevents `.env` from being committed.
+
+---
+
+## ⚠️ Important Notes
+
+The original course project was created for an older version of Twitter.
+
+X's website, authentication flow, and automation restrictions can change over time.
+
+Therefore, Selenium automation may require selector updates or manual verification.
+
+The internet-speed measurement and complaint-generation portions work independently from the X automation.
 
 ---
 
 ## 🚀 Future Improvements
 
-Possible future enhancements include:
+Possible improvements include:
 
-* 🔊 Sound effects
-* 🎵 Background music
-* 🏅 High-score system
-* 👾 Different enemy types
-* 🛡️ Player shields
-* 💥 Explosion animations
-* ❤️ More advanced health system
-* 🌟 Power-ups
-* 🎯 Boss enemies
-* 🥇 Persistent leaderboard
-* 🎨 Sprite-based graphics
-
----
-
-## 📌 Project Status
-
-**Completed ✅**
-
-The project is fully playable locally and requires only Python and Pygame.
+* Add graphical interface
+* Save speed-test history
+* Generate reports
+* Add email notifications
+* Add logging
+* Support multiple internet providers
+* Store results in SQLite
+* Add scheduled speed testing
+* Improve browser automation
+* Add configurable complaint templates
 
 ---
 
 ## 📚 100 Days of Python
 
-**Day 94 / 100 ✅**
+**Day 95 / 100 ✅**
 
-This project is part of my ongoing **100 Days of Python** journey and focuses on game development and object-oriented programming with Pygame.
+This project strengthened my understanding of **Selenium, browser automation, internet speed testing, environment variables, object-oriented programming, and automated workflows**.
 
 ---
 
@@ -306,6 +244,12 @@ This project is part of my ongoing **100 Days of Python** journey and focuses on
 
 **Fatima Ch**
 
-**100 Days of Python — Day 94/100**
+**100 Days of Python — Day 95/100**
 
 > Learn • Build • Practice • Improve 🚀
+
+---
+
+## 📌 Project Status
+
+**Completed ✅**
