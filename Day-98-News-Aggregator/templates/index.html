@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}
+NewsFlow — Automated News Aggregator
+{% endblock %}
+
+
+{% block content %}
+
+<section class="hero">
+
+    <div class="container">
+
+        <span class="badge">
+            DAY 98 PROJECT
+        </span>
+
+        <h1>
+            Stay Updated.<br>
+            <span>Stay Informed.</span>
+        </h1>
+
+        <p>
+            Discover the latest news from multiple sources
+            through one simple and organized dashboard.
+        </p>
+
+
+        <form
+            action="{{ url_for('search') }}"
+            method="GET"
+            class="search-box"
+        >
+
+            <input
+                type="text"
+                name="q"
+                placeholder="Search news..."
+                value="{{ query }}"
+                autocomplete="off"
+            >
+
+            <button type="submit">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
+
+<section class="categories">
+
+    <div class="container">
+
+        <div class="category-list">
+
+            {% for key, name in categories.items() %}
+
+                <a
+                    href="{{ url_for('index', category=key) }}"
+                    class="category {% if selected_category == key %}active{% endif %}"
+                >
+                    {{ name|capitalize }}
+                </a>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<section class="news-section">
+
+    <div class="container">
+
+        <div class="section-header">
+
+            <div>
+                <p class="eyebrow">
+                    Latest Stories
+                </p>
+
+                <h2>
+                    {{ selected_category|capitalize }} News
+                </h2>
+            </div>
+
+            <div class="article-count">
+                {{ articles|length }} Articles
+            </div>
+
+        </div>
+
+
+        {% if articles %}
+
+            <div class="news-grid">
+
+                {% for article in articles %}
+
+                    <article class="news-card">
+
+                        <div class="card-top">
+
+                            <span class="category-tag">
+                                {{ article.category }}
+                            </span>
+
+                            <span class="date">
+                                {{ article.date }}
+                            </span>
+
+                        </div>
+
+
+                        <h3>
+                            {{ article.title }}
+                        </h3>
+
+
+                        <p>
+                            {{ article.description[:250] }}
+                            {% if article.description|length > 250 %}
+                                ...
+                            {% endif %}
+                        </p>
+
+
+                        <a
+                            href="{{ article.link }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="read-more"
+                        >
+                            Read Full Story →
+                        </a>
+
+                    </article>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    📰
+                </div>
+
+                <h3>
+                    No news found
+                </h3>
+
+                <p>
+                    We couldn't retrieve articles right now.
+                    Please try again or select another category.
+                </p>
+
+                <a
+                    href="{{ url_for('index') }}"
+                    class="retry-button"
+                >
+                    Refresh News
+                </a>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+{% endblock %}
