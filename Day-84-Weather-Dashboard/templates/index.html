@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}
+Weather Dashboard
+{% endblock %}
+
+
+{% block content %}
+
+<div class="hero text-center">
+
+    <div class="weather-icon-large">
+        🌤️
+    </div>
+
+    <h1>
+        Weather Dashboard
+    </h1>
+
+    <p>
+        Search for a city to get the latest weather information.
+    </p>
+
+</div>
+
+
+<!-- Search -->
+
+<div class="search-card">
+
+    <form
+        method="POST"
+        class="row g-2"
+    >
+
+        <div class="col-md-9">
+
+            <div class="input-group">
+
+                <span class="input-group-text">
+                    <i class="bi bi-geo-alt"></i>
+                </span>
+
+                <input
+                    type="text"
+                    name="city"
+                    value="{{ city }}"
+                    class="form-control"
+                    placeholder="Enter city name..."
+                    required
+                >
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <button
+                type="submit"
+                class="btn btn-primary w-100"
+            >
+
+                <i class="bi bi-search"></i>
+
+                Search Weather
+
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<!-- Error -->
+
+{% if error %}
+
+<div class="alert alert-danger error-box">
+
+    <i class="bi bi-exclamation-triangle"></i>
+
+    {{ error }}
+
+</div>
+
+{% endif %}
+
+
+<!-- Weather Result -->
+
+{% if weather %}
+
+<div class="weather-dashboard">
+
+    <!-- Main Weather Card -->
+
+    <div class="weather-main-card">
+
+        <div>
+
+            <h2>
+                {{ weather.city }}, {{ weather.country }}
+            </h2>
+
+            <p class="weather-description">
+                {{ weather.description }}
+            </p>
+
+        </div>
+
+
+        <div class="temperature-section">
+
+            <img
+                src="https://openweathermap.org/img/wn/{{ weather.icon }}@2x.png"
+                alt="{{ weather.description }}"
+            >
+
+            <span>
+                {{ weather.temperature }}°C
+            </span>
+
+        </div>
+
+
+        <p class="feels-like">
+
+            Feels like
+            <strong>
+                {{ weather.feels_like }}°C
+            </strong>
+
+        </p>
+
+    </div>
+
+
+    <!-- Weather Details -->
+
+    <div class="row g-3 mt-3">
+
+        <div class="col-md-6 col-lg-3">
+
+            <div class="weather-detail">
+
+                <i class="bi bi-droplet"></i>
+
+                <p>
+                    Humidity
+                </p>
+
+                <h4>
+                    {{ weather.humidity }}%
+                </h4>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-lg-3">
+
+            <div class="weather-detail">
+
+                <i class="bi bi-wind"></i>
+
+                <p>
+                    Wind Speed
+                </p>
+
+                <h4>
+                    {{ weather.wind_speed }} km/h
+                </h4>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-lg-3">
+
+            <div class="weather-detail">
+
+                <i class="bi bi-speedometer2"></i>
+
+                <p>
+                    Pressure
+                </p>
+
+                <h4>
+                    {{ weather.pressure }} hPa
+                </h4>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6 col-lg-3">
+
+            <div class="weather-detail">
+
+                <i class="bi bi-sunrise"></i>
+
+                <p>
+                    Sunrise
+                </p>
+
+                <h4>
+                    {{ weather.sunrise }}
+                </h4>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Sunrise / Sunset -->
+
+    <div class="row g-3 mt-1">
+
+        <div class="col-md-6">
+
+            <div class="sun-card">
+
+                <div class="sun-icon">
+                    🌅
+                </div>
+
+                <div>
+
+                    <p>
+                        Sunrise
+                    </p>
+
+                    <h4>
+                        {{ weather.sunrise }}
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6">
+
+            <div class="sun-card">
+
+                <div class="sun-icon">
+                    🌇
+                </div>
+
+                <div>
+
+                    <p>
+                        Sunset
+                    </p>
+
+                    <h4>
+                        {{ weather.sunset }}
+                    </h4>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% else %}
+
+
+<!-- Empty State -->
+
+<div class="empty-state">
+
+    <div class="empty-icon">
+        🌍
+    </div>
+
+    <h3>
+        Search for a City
+    </h3>
+
+    <p>
+        Enter any city name above to view its current weather.
+    </p>
+
+</div>
+
+{% endif %}
+
+{% endblock %}
