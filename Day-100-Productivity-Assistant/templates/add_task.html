@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}
+Create Task — Productivity Assistant
+{% endblock %}
+
+
+{% block content %}
+
+<section class="form-page">
+
+    <div class="container narrow">
+
+        <a
+            href="{{ url_for('index') }}"
+            class="back-link"
+        >
+            ← Back to Dashboard
+        </a>
+
+        <div class="form-card">
+
+            <span class="eyebrow">
+                TASK MANAGEMENT
+            </span>
+
+            <h1>
+                Create a New Task
+            </h1>
+
+            <p class="form-intro">
+                Turn your next goal into an actionable task.
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for('add_task') }}"
+            >
+
+                <div class="form-group">
+
+                    <label for="title">
+                        Task Title
+                    </label>
+
+                    <input
+                        id="title"
+                        name="title"
+                        type="text"
+                        placeholder="e.g. Complete project documentation"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="5"
+                        placeholder="Add useful details..."
+                    ></textarea>
+
+                </div>
+
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label for="priority">
+                            Priority
+                        </label>
+
+                        <select
+                            id="priority"
+                            name="priority"
+                        >
+
+                            <option value="High">
+                                High
+                            </option>
+
+                            <option
+                                value="Medium"
+                                selected
+                            >
+                                Medium
+                            </option>
+
+                            <option value="Low">
+                                Low
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="category">
+                            Category
+                        </label>
+
+                        <input
+                            id="category"
+                            name="category"
+                            type="text"
+                            value="General"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="due_date">
+                        Due Date
+                    </label>
+
+                    <input
+                        id="due_date"
+                        name="due_date"
+                        type="date"
+                    >
+
+                </div>
+
+
+                <div class="form-actions">
+
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="cancel-button"
+                    >
+                        Cancel
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Create Task
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

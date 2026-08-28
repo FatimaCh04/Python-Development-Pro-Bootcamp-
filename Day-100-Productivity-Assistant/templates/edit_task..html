@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit Task — Productivity Assistant
+{% endblock %}
+
+
+{% block content %}
+
+<section class="form-page">
+
+    <div class="container narrow">
+
+        <a
+            href="{{ url_for('index') }}"
+            class="back-link"
+        >
+            ← Back to Dashboard
+        </a>
+
+        <div class="form-card">
+
+            <span class="eyebrow">
+                TASK MANAGEMENT
+            </span>
+
+            <h1>
+                Edit Task
+            </h1>
+
+            <p class="form-intro">
+                Update your task details and keep your plan current.
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'edit_task',
+                    task_id=task.id
+                ) }}"
+            >
+
+                <div class="form-group">
+
+                    <label for="title">
+                        Task Title
+                    </label>
+
+                    <input
+                        id="title"
+                        name="title"
+                        type="text"
+                        value="{{ task.title }}"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="5"
+                    >{{ task.description or "" }}</textarea>
+
+                </div>
+
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label for="priority">
+                            Priority
+                        </label>
+
+                        <select
+                            id="priority"
+                            name="priority"
+                        >
+
+                            <option
+                                value="High"
+                                {% if task.priority == "High" %}
+                                selected
+                                {% endif %}
+                            >
+                                High
+                            </option>
+
+                            <option
+                                value="Medium"
+                                {% if task.priority == "Medium" %}
+                                selected
+                                {% endif %}
+                            >
+                                Medium
+                            </option>
+
+                            <option
+                                value="Low"
+                                {% if task.priority == "Low" %}
+                                selected
+                                {% endif %}
+                            >
+                                Low
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="category">
+                            Category
+                        </label>
+
+                        <input
+                            id="category"
+                            name="category"
+                            type="text"
+                            value="{{ task.category }}"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="due_date">
+                        Due Date
+                    </label>
+
+                    <input
+                        id="due_date"
+                        name="due_date"
+                        type="date"
+                        value="{{ task.due_date or '' }}"
+                    >
+
+                </div>
+
+
+                <div class="form-actions">
+
+                    <a
+                        href="{{ url_for('index') }}"
+                        class="cancel-button"
+                    >
+                        Cancel
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Save Changes
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

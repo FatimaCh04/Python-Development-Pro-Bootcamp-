@@ -1,0 +1,18 @@
+{
+    "tasks": [
+        {
+            "id": 1787924501208,
+            "title": "xyz",
+            "completed": false,
+            "created_at": "2026-08-28 18:41:41"
+        },
+        {
+            "id": 1787924531350,
+            "title": "Python Course",
+            "completed": true,
+            "created_at": "2026-08-28 18:42:11"
+        }
+    ],
+    "sessions": [],
+    "notes": []
+}

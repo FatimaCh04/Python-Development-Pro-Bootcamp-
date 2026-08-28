@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Analytics | Productivity Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: #111827;
+            color: #ffffff;
+            padding: 18px 7%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 22px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.75;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 35px auto;
+        }
+
+        .page-header {
+            margin-bottom: 25px;
+        }
+
+        .page-header h1 {
+            font-size: 32px;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card h3 {
+            color: #6b7280;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 30px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 25px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .card h2 {
+            font-size: 21px;
+            margin-bottom: 20px;
+            color: #111827;
+        }
+
+        .progress-section {
+            margin-bottom: 25px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .progress-label span:first-child {
+            font-weight: 600;
+        }
+
+        .progress-label span:last-child {
+            color: #6b7280;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 13px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0;
+            height: 100%;
+            background: #4f46e5;
+            border-radius: 20px;
+            transition: width 0.5s ease;
+        }
+
+        .metric-list {
+            list-style: none;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .metric-item:last-child {
+            border-bottom: none;
+        }
+
+        .metric-name {
+            color: #6b7280;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .summary {
+            background: #111827;
+            color: #ffffff;
+            border-radius: 15px;
+            padding: 24px;
+            line-height: 1.7;
+        }
+
+        .summary h3 {
+            margin-bottom: 10px;
+        }
+
+        .summary p {
+            color: #d1d5db;
+            font-size: 14px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 5px;
+            color: #4f46e5;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        @media (max-width: 900px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .navbar {
+                flex-direction: column;
+                gap: 13px;
+            }
+
+            .nav-links {
+                gap: 14px;
+            }
+
+            .container {
+                width: 94%;
+                margin-top: 22px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .page-header h1 {
+                font-size: 27px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+
+    <div class="brand">
+        Productivity Assistant
+    </div>
+
+    <div class="nav-links">
+
+        <a href="{{ url_for('index') }}">
+            Dashboard
+        </a>
+
+        <a href="{{ url_for('analytics') }}">
+            Analytics
+        </a>
+
+        {% if current_user.is_authenticated %}
+
+            <a href="{{ url_for('logout') }}">
+                Logout
+            </a>
+
+        {% else %}
+
+            <a href="{{ url_for('login') }}">
+                Login
+            </a>
+
+        {% endif %}
+
+    </div>
+
+</nav>
+
+
+<main class="container">
+
+    <section class="page-header">
+
+        <h1>
+            Productivity Analytics
+        </h1>
+
+        <p>
+            Review your task completion and productivity performance.
+        </p>
+
+        <a
+            href="{{ url_for('index') }}"
+            class="back-link"
+        >
+            ← Back to Dashboard
+        </a>
+
+    </section>
+
+
+    <section class="stats">
+
+        <div class="stat-card">
+
+            <h3>
+                Total Tasks
+            </h3>
+
+            <div class="stat-number">
+                {{ total_tasks }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>
+                Completed
+            </h3>
+
+            <div class="stat-number">
+                {{ completed_tasks }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>
+                Pending
+            </h3>
+
+            <div class="stat-number">
+                {{ pending_tasks }}
+            </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <h3>
+                Completion Rate
+            </h3>
+
+            <div class="stat-number">
+                {{ completion_rate }}%
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section class="content-grid">
+
+        <div>
+
+            <div class="card">
+
+                <h2>
+                    Completion Progress
+                </h2>
+
+                <div class="progress-section">
+
+                    <div class="progress-label">
+
+                        <span>
+                            Overall Completion
+                        </span>
+
+                        <span>
+                            {{ completion_rate }}%
+                        </span>
+
+                    </div>
+
+                    <div class="progress-bar">
+
+                        <div
+                            class="progress-fill"
+                            data-progress="{{ completion_rate }}"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h2>
+                    Task Overview
+                </h2>
+
+                <ul class="metric-list">
+
+                    <li class="metric-item">
+
+                        <span class="metric-name">
+                            Total Tasks
+                        </span>
+
+                        <span class="metric-value">
+                            {{ total_tasks }}
+                        </span>
+
+                    </li>
+
+
+                    <li class="metric-item">
+
+                        <span class="metric-name">
+                            Completed Tasks
+                        </span>
+
+                        <span class="metric-value">
+                            {{ completed_tasks }}
+                        </span>
+
+                    </li>
+
+
+                    <li class="metric-item">
+
+                        <span class="metric-name">
+                            Pending Tasks
+                        </span>
+
+                        <span class="metric-value">
+                            {{ pending_tasks }}
+                        </span>
+
+                    </li>
+
+
+                    <li class="metric-item">
+
+                        <span class="metric-name">
+                            Completion Rate
+                        </span>
+
+                        <span class="metric-value">
+                            {{ completion_rate }}%
+                        </span>
+
+                    </li>
+
+                </ul>
+
+            </div>
+
+        </div>
+
+
+        <div>
+
+            <div class="card">
+
+                <h2>
+                    Productivity Summary
+                </h2>
+
+                <div class="summary">
+
+                    <h3>
+                        Keep Going 🚀
+                    </h3>
+
+                    {% if completion_rate >= 80 %}
+
+                        <p>
+                            Excellent work! You have completed most
+                            of your tasks. Keep maintaining this
+                            productive momentum.
+                        </p>
+
+                    {% elif completion_rate >= 50 %}
+
+                        <p>
+                            Good progress! You are more than halfway
+                            there. Keep focusing on the remaining tasks.
+                        </p>
+
+                    {% elif total_tasks > 0 %}
+
+                        <p>
+                            You have started making progress.
+                            Focus on completing one task at a time
+                            to improve your productivity.
+                        </p>
+
+                    {% else %}
+
+                        <p>
+                            Start by adding a few tasks to your
+                            dashboard. Small consistent actions
+                            lead to meaningful progress.
+                        </p>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <h2>
+                    Productivity Goal
+                </h2>
+
+                <p
+                    style="color: #6b7280; line-height: 1.7;"
+                >
+                    Aim to complete your most important tasks first.
+                    Review your analytics regularly and use the
+                    information to improve your daily workflow.
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<footer class="footer">
+
+    Day 100 — Productivity Assistant
+    <br>
+    100 Days of Python
+
+</footer>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        var progressBars = document.querySelectorAll(".progress-fill");
+
+        progressBars.forEach(function (bar) {
+
+            var progress = parseFloat(
+                bar.getAttribute("data-progress")
+            );
+
+            if (isNaN(progress)) {
+                progress = 0;
+            }
+
+            if (progress < 0) {
+                progress = 0;
+            }
+
+            if (progress > 100) {
+                progress = 100;
+            }
+
+            bar.style.width = progress + "%";
+
+        });
+
+    });
+</script>
+
+</body>
+</html>
