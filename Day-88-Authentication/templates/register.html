@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}
+Register | SecureAuth
+{% endblock %}
+
+
+{% block content %}
+
+<div class="auth-card">
+
+    <div class="auth-icon">
+        👤
+    </div>
+
+    <h1>
+        Create Account
+    </h1>
+
+    <p>
+        Register to get started.
+    </p>
+
+
+    <form
+        method="POST"
+        action="{{ url_for('register') }}"
+    >
+
+        <div class="mb-3">
+
+            <label class="form-label">
+                Full Name
+            </label>
+
+            <input
+                type="text"
+                name="name"
+                class="form-control"
+                placeholder="Your name"
+                required
+            >
+
+        </div>
+
+
+        <div class="mb-3">
+
+            <label class="form-label">
+                Email
+            </label>
+
+            <input
+                type="email"
+                name="email"
+                class="form-control"
+                placeholder="you@example.com"
+                required
+            >
+
+        </div>
+
+
+        <div class="mb-4">
+
+            <label class="form-label">
+                Password
+            </label>
+
+            <input
+                type="password"
+                name="password"
+                class="form-control"
+                placeholder="Create a password"
+                required
+            >
+
+        </div>
+
+
+        <button
+            type="submit"
+            class="btn btn-primary w-100"
+        >
+            Create Account
+        </button>
+
+    </form>
+
+
+    <p class="auth-footer">
+
+        Already have an account?
+
+        <a href="{{ url_for('login') }}">
+            Login
+        </a>
+
+    </p>
+
+</div>
+
+{% endblock %}
