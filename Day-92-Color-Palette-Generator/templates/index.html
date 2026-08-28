@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Colour Palette Generator</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+    <header class="hero">
+
+        <nav class="navbar">
+
+            <div class="logo">
+                Palette<span>.</span>
+            </div>
+
+            <div class="day-badge">
+                Day 92 / 100
+            </div>
+
+        </nav>
+
+        <div class="hero-content">
+
+            <p class="eyebrow">
+                100 DAYS OF PYTHON
+            </p>
+
+            <h1>
+                Image Colour
+                <span>Palette</span>
+                Generator
+            </h1>
+
+            <p class="subtitle">
+                Upload an image and discover its dominant
+                colours instantly.
+            </p>
+
+        </div>
+
+    </header>
+
+
+    <main class="container">
+
+        <section class="upload-card">
+
+            <div class="upload-icon">
+                🎨
+            </div>
+
+            <h2>
+                Generate Your Palette
+            </h2>
+
+            <p>
+                Choose an image and we'll extract its
+                most prominent colours.
+            </p>
+
+
+            <form
+                action="/"
+                method="POST"
+                enctype="multipart/form-data"
+            >
+
+                <label
+                    for="image"
+                    class="file-label"
+                >
+                    📁 Choose Image
+                </label>
+
+                <input
+                    type="file"
+                    id="image"
+                    name="image"
+                    accept=".png,.jpg,.jpeg,.webp,.bmp"
+                    required
+                >
+
+                <p
+                    id="file-name"
+                    class="file-name"
+                >
+                    No image selected
+                </p>
+
+                <button
+                    type="submit"
+                    class="generate-button"
+                >
+                    Generate Palette →
+                </button>
+
+            </form>
+
+        </section>
+
+
+        {% if error %}
+
+        <div class="error-message">
+            ⚠️ {{ error }}
+        </div>
+
+        {% endif %}
+
+
+        {% if image_url %}
+
+        <section class="result-section">
+
+            <div class="section-heading">
+
+                <p>
+                    YOUR IMAGE
+                </p>
+
+                <h2>
+                    Colour Analysis
+                </h2>
+
+            </div>
+
+
+            <div class="image-card">
+
+                <img
+                    src="{{ image_url }}"
+                    alt="Uploaded image"
+                >
+
+            </div>
+
+
+            {% if palette %}
+
+            <div class="section-heading palette-heading">
+
+                <p>
+                    DOMINANT COLOURS
+                </p>
+
+                <h2>
+                    Your Colour Palette
+                </h2>
+
+            </div>
+
+
+            <div class="palette-grid">
+
+                {% for color in palette %}
+
+                <div
+                    class="color-card"
+                    onclick="copyColor('{{ color.hex }}')"
+                    title="Click to copy HEX value"
+                >
+
+                    <div
+                        class="color-preview"
+                        style="background-color: {{ color.hex }};"
+                    >
+                    </div>
+
+                    <div class="color-info">
+
+                        <h3>
+                            {{ color.hex }}
+                        </h3>
+
+                        <p>
+                            {{ color.rgb }}
+                        </p>
+
+                        <small>
+                            Click to copy
+                        </small>
+
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            {% endif %}
+
+        </section>
+
+        {% endif %}
+
+
+        {% if not image_url %}
+
+        <section class="features">
+
+            <div class="feature">
+
+                <div class="feature-icon">
+                    🖼️
+                </div>
+
+                <h3>
+                    Upload
+                </h3>
+
+                <p>
+                    Select any supported image
+                    from your computer.
+                </p>
+
+            </div>
+
+
+            <div class="feature">
+
+                <div class="feature-icon">
+                    🔍
+                </div>
+
+                <h3>
+                    Analyze
+                </h3>
+
+                <p>
+                    Python analyzes the image pixels
+                    to find dominant colours.
+                </p>
+
+            </div>
+
+
+            <div class="feature">
+
+                <div class="feature-icon">
+                    🎨
+                </div>
+
+                <h3>
+                    Discover
+                </h3>
+
+                <p>
+                    Get a beautiful palette with
+                    HEX and RGB values.
+                </p>
+
+            </div>
+
+        </section>
+
+        {% endif %}
+
+    </main>
+
+
+    <footer>
+
+        <p>
+            Built with Python, Flask & Pillow
+        </p>
+
+        <p>
+            Day 92 / 100 🐍
+        </p>
+
+    </footer>
+
+
+    <div
+        id="toast"
+        class="toast"
+    >
+        Colour copied!
+    </div>
+
+
+    <script>
+
+        const imageInput =
+            document.getElementById("image");
+
+        const fileName =
+            document.getElementById("file-name");
+
+
+        if (imageInput) {
+
+            imageInput.addEventListener(
+                "change",
+                function () {
+
+                    if (this.files.length > 0) {
+
+                        fileName.textContent =
+                            this.files[0].name;
+
+                    } else {
+
+                        fileName.textContent =
+                            "No image selected";
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        function copyColor(color) {
+
+            navigator.clipboard
+                .writeText(color)
+                .then(function () {
+
+                    const toast =
+                        document.getElementById("toast");
+
+                    toast.classList.add("show");
+
+                    setTimeout(
+                        function () {
+
+                            toast.classList.remove(
+                                "show"
+                            );
+
+                        },
+                        1800
+                    );
+
+                });
+
+        }
+
+    </script>
+
+</body>
+
+</html>
