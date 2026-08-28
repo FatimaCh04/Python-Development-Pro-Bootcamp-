@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ mission.name }} — Mission Control
+{% endblock %}
+
+
+{% block content %}
+
+<section class="detail-page">
+
+    <div class="container">
+
+        <a
+            href="{{ url_for('index') }}"
+            class="back-link"
+        >
+            ← Back to Missions
+        </a>
+
+
+        <div class="detail-card">
+
+            <div class="detail-icon">
+                🚀
+            </div>
+
+
+            <span class="agency">
+                {{ mission.agency }}
+            </span>
+
+
+            <h1>
+                {{ mission.name }}
+            </h1>
+
+
+            <span
+                class="status status-{{ mission.status|lower }}"
+            >
+                {{ mission.status }}
+            </span>
+
+
+            <p class="detail-description">
+                {{ mission.description }}
+            </p>
+
+
+            <div class="detail-grid">
+
+                <div>
+
+                    <span>
+                        Destination
+                    </span>
+
+                    <strong>
+                        🌍 {{ mission.destination }}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span>
+                        Launch Date
+                    </span>
+
+                    <strong>
+                        📅 {{ mission.launch_date }}
+                    </strong>
+
+                </div>
+
+
+                <div>
+
+                    <span>
+                        Mission ID
+                    </span>
+
+                    <strong>
+                        #{{ mission.id }}
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

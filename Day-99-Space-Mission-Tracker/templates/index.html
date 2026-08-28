@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}
+Mission Control — Space Mission Tracker
+{% endblock %}
+
+
+{% block content %}
+
+<section class="hero">
+
+    <div class="container">
+
+        <span class="badge">
+            DAY 99 PROJECT
+        </span>
+
+        <h1>
+            Explore the Future<br>
+            <span>of Space.</span>
+        </h1>
+
+        <p>
+            Track space missions, explore destinations,
+            monitor mission status, and manage your
+            personal mission database.
+        </p>
+
+    </div>
+
+</section>
+
+
+<section class="container dashboard">
+
+    <div class="stats">
+
+        <div class="stat-card">
+
+            <span>Total Missions</span>
+
+            <strong>
+                {{ total }}
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span>Completed</span>
+
+            <strong>
+                {{ successful }}
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span>Active</span>
+
+            <strong>
+                {{ active }}
+            </strong>
+
+        </div>
+
+
+        <div class="stat-card">
+
+            <span>Upcoming</span>
+
+            <strong>
+                {{ upcoming }}
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <div class="toolbar">
+
+        <form
+            action="{{ url_for('index') }}"
+            method="GET"
+            class="search-form"
+        >
+
+            <input
+                type="text"
+                name="search"
+                value="{{ search }}"
+                placeholder="Search missions..."
+            >
+
+            <select name="status">
+
+                <option
+                    value="All"
+                    {% if selected_status == "All" %}
+                    selected
+                    {% endif %}
+                >
+                    All Status
+                </option>
+
+                <option
+                    value="Completed"
+                    {% if selected_status == "Completed" %}
+                    selected
+                    {% endif %}
+                >
+                    Completed
+                </option>
+
+                <option
+                    value="Active"
+                    {% if selected_status == "Active" %}
+                    selected
+                    {% endif %}
+                >
+                    Active
+                </option>
+
+                <option
+                    value="Upcoming"
+                    {% if selected_status == "Upcoming" %}
+                    selected
+                    {% endif %}
+                >
+                    Upcoming
+                </option>
+
+            </select>
+
+            <button type="submit">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <div class="section-heading">
+
+        <div>
+
+            <span class="eyebrow">
+                Mission Database
+            </span>
+
+            <h2>
+                Space Missions
+            </h2>
+
+        </div>
+
+        <span class="result-count">
+            {{ missions|length }} results
+        </span>
+
+    </div>
+
+
+    {% if missions %}
+
+        <div class="mission-grid">
+
+            {% for mission in missions %}
+
+                <article class="mission-card">
+
+                    <div class="mission-icon">
+                        🚀
+                    </div>
+
+
+                    <div class="mission-header">
+
+                        <div>
+
+                            <span class="agency">
+                                {{ mission.agency }}
+                            </span>
+
+                            <h3>
+                                {{ mission.name }}
+                            </h3>
+
+                        </div>
+
+
+                        <span
+                            class="status status-{{ mission.status|lower }}"
+                        >
+                            {{ mission.status }}
+                        </span>
+
+                    </div>
+
+
+                    <p class="description">
+
+                        {{ mission.description }}
+
+                    </p>
+
+
+                    <div class="mission-info">
+
+                        <div>
+
+                            <span>
+                                Destination
+                            </span>
+
+                            <strong>
+                                🌍 {{ mission.destination }}
+                            </strong>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Launch Date
+                            </span>
+
+                            <strong>
+                                📅 {{ mission.launch_date }}
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="card-actions">
+
+                        <a
+                            href="{{ url_for(
+                                'mission_details',
+                                mission_id=mission.id
+                            ) }}"
+                            class="view-button"
+                        >
+                            View Details →
+                        </a>
+
+
+                        <form
+                            action="{{ url_for(
+                                'delete_mission',
+                                mission_id=mission.id
+                            ) }}"
+                            method="POST"
+                            onsubmit="return confirm(
+                                'Delete this mission?'
+                            );"
+                        >
+
+                            <button
+                                type="submit"
+                                class="delete-button"
+                            >
+                                Delete
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </article>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty">
+
+            <div>
+                🚀
+            </div>
+
+            <h3>
+                No missions found
+            </h3>
+
+            <p>
+                Try another search term or status filter.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+    <section class="add-section">
+
+        <div class="section-heading">
+
+            <div>
+
+                <span class="eyebrow">
+                    Mission Management
+                </span>
+
+                <h2>
+                    Add New Mission
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <form
+            action="{{ url_for('add_mission') }}"
+            method="POST"
+            class="mission-form"
+        >
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label>
+                        Mission Name
+                    </label>
+
+                    <input
+                        type="text"
+                        name="name"
+                        placeholder="e.g. Lunar Explorer"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Space Agency
+                    </label>
+
+                    <input
+                        type="text"
+                        name="agency"
+                        placeholder="e.g. NASA"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Destination
+                    </label>
+
+                    <input
+                        type="text"
+                        name="destination"
+                        placeholder="e.g. Mars"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Launch Date
+                    </label>
+
+                    <input
+                        type="date"
+                        name="launch_date"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Status
+                    </label>
+
+                    <select name="status">
+
+                        <option value="Upcoming">
+                            Upcoming
+                        </option>
+
+                        <option value="Active">
+                            Active
+                        </option>
+
+                        <option value="Completed">
+                            Completed
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group full">
+
+                    <label>
+                        Description
+                    </label>
+
+                    <textarea
+                        name="description"
+                        rows="4"
+                        placeholder="Describe the mission..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                + Add Mission
+            </button>
+
+        </form>
+
+    </section>
+
+</section>
+
+{% endblock %}
