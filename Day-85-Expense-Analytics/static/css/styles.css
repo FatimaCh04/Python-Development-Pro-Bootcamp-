@@ -1,0 +1,101 @@
+body {
+    background: #f5f7fb;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+
+.navbar {
+    padding: 15px 0;
+}
+
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+
+.stat-card span {
+    color: #6c757d;
+    font-size: 15px;
+}
+
+
+.stat-card h2 {
+    margin-top: 10px;
+    font-weight: 700;
+}
+
+
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+
+.chart-card {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+
+.chart-card h4 {
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+
+.chart-card img {
+    width: 100%;
+}
+
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid #eeeeee;
+}
+
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+
+.form-control,
+.form-select {
+    padding: 11px;
+    border-radius: 8px;
+}
+
+
+.btn {
+    border-radius: 8px;
+}
+
+
+.table {
+    vertical-align: middle;
+}
+
+
+footer {
+    margin-top: 30px;
+}
+
+
+@media (max-width: 768px) {
+
+    .table {
+        font-size: 14px;
+    }
+
+}
