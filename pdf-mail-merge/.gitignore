@@ -1,0 +1,38 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Mail merge generated output
+output/word/*.docx
+output/pdf/*.pdf
+!output/word/.gitkeep
+!output/pdf/.gitkeep
+
+# Processed intermediate data files
+data/*.csv
+data/*.xlsx
+!data/.gitkeep
+
+# Real input PDF (keep folder tracked, ignore user data)
+input/*.pdf
+!input/.gitkeep
+
+# Operating System & IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
