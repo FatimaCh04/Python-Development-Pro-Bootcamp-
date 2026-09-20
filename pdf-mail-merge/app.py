@@ -4,6 +4,9 @@ from pathlib import Path
 import time, zipfile, io, importlib
 from datetime import datetime
 
+st.set_page_config(page_title="PDF Mail Merge Pro", layout="centered", initial_sidebar_state="collapsed")
+
+
 # ── Backend Modules ───────────────────────────────────────────────────────────
 from core.pdf_extractor import extract_pdf_data, ExtractionError
 from core.data_cleaner   import normalize_column_names, clean_data
@@ -32,11 +35,7 @@ for _d in [INPUT_DIR, DATA_DIR, TEMPLATE_DIR, WORD_DIR, PDF_DIR]:
 
 
 # ── Page Config ───────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="PDF Mail Merge Pro",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+
 
 # ── Session State ─────────────────────────────────────────────────────────────
 def _init(key, val): 

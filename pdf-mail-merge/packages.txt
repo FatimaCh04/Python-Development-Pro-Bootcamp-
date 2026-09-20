@@ -1,0 +1,4 @@
+libreoffice
+libreoffice-java-common
+default-jre
+fonts-liberation
