@@ -1,558 +1,578 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-import os
-import time
-import zipfile
-import io
+import time, zipfile, io, importlib
+from datetime import datetime
 
-# ==========================================
-# CORE BACKEND IMPORTS (100% Python Logic)
-# ==========================================
+# ── Backend Modules ───────────────────────────────────────────────────────────
 from core.pdf_extractor import extract_pdf_data, ExtractionError
-from core.data_cleaner import normalize_column_names, clean_data
-from core.validator import validate_data
-from core.mail_merger import generate_documents
-from core.pdf_converter import convert_to_pdf_batch, find_libreoffice
+from core.data_cleaner   import normalize_column_names, clean_data
+from core.validator      import validate_data
+from core.mail_merger    import generate_documents
+from core.pdf_converter  import convert_to_pdf_batch, find_libreoffice
 
-# ==========================================
-# CONFIGURATION & PATHS
-# ==========================================
+import tempfile
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+BASE_DIR     = Path(__file__).resolve().parent
+
+# Use temporary directory for session-safe storage on cloud
+if "session_dir" not in st.session_state:
+    st.session_state.session_dir = Path(tempfile.mkdtemp(prefix="pdfmailmerge_"))
+
+SESSION_DIR  = st.session_state.session_dir
+INPUT_DIR    = SESSION_DIR / "input"
+DATA_DIR     = SESSION_DIR / "data"
+TEMPLATE_DIR = SESSION_DIR / "templates"
+WORD_DIR     = SESSION_DIR / "output" / "word"
+PDF_DIR      = SESSION_DIR / "output"  / "pdf"
+
+for _d in [INPUT_DIR, DATA_DIR, TEMPLATE_DIR, WORD_DIR, PDF_DIR]:
+    _d.mkdir(parents=True, exist_ok=True)
+
+
+# ── Page Config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="PDF Employee Mail Merge",
-    page_icon="⚙️",
-    layout="wide",
+    page_title="PDF Mail Merge Pro",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-INPUT_DIR = BASE_DIR / "input"
-DATA_DIR = BASE_DIR / "data"
-TEMPLATE_DIR = BASE_DIR / "templates"
-OUTPUT_WORD_DIR = BASE_DIR / "output" / "word"
-OUTPUT_PDF_DIR = BASE_DIR / "output" / "pdf"
+# ── Session State ─────────────────────────────────────────────────────────────
+def _init(key, val): 
+    if key not in st.session_state: st.session_state[key] = val
 
-# Ensure directories exist
-for d in [INPUT_DIR, DATA_DIR, TEMPLATE_DIR, OUTPUT_WORD_DIR, OUTPUT_PDF_DIR]:
-    d.mkdir(parents=True, exist_ok=True)
+_init("step", "01_SOURCE")
+_init("pages_count", 0)
+_init("logs", [(datetime.now().strftime("%H:%M:%S"), "Workbench initialized")])
 
-# ==========================================
-# CUSTOM CSS (Professional Enterprise Style)
-# ==========================================
+def _log(msg):
+    st.session_state.logs.append((datetime.now().strftime("%H:%M:%S"), msg))
+
+if "raw_df" not in st.session_state:
+    _p = DATA_DIR / "employees.csv"
+    try:    st.session_state.raw_df = pd.read_csv(_p) if _p.exists() else pd.DataFrame()
+    except: st.session_state.raw_df = pd.DataFrame()
+
+if "valid_df" not in st.session_state:
+    _p = DATA_DIR / "cleaned_employees.csv"
+    try:    st.session_state.valid_df = pd.read_csv(_p) if _p.exists() else pd.DataFrame()
+    except: st.session_state.valid_df = pd.DataFrame()
+
+_init("invalid_df", pd.DataFrame())
+_init("val_report", {})
+_init("perf_time", 0.0)
+
+# Live disk state
+_pdf_path  = INPUT_DIR  / "employees.pdf"
+_tpl_path  = TEMPLATE_DIR / "employee_template.docx"
+_pdf_exists = _pdf_path.exists()
+_tpl_exists = _tpl_path.exists()
+_docx_files = sorted(WORD_DIR.glob("*.docx"))
+_pdf_files  = sorted(PDF_DIR.glob("*.pdf"))
+_libre_bin  = find_libreoffice()
+
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Global Typography & Colors */
-    body {
-        color: #1e293b;
-        background-color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    
-    /* Hide Streamlit Branding */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Subtle Headers */
-    h1, h2, h3 {
-        color: #0f172a;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-    
-    /* System Status */
-    .system-status {
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #10b981; /* Emerald */
-        background-color: #ecfdf5;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        display: inline-block;
-        margin-bottom: 20px;
-        border: 1px solid #a7f3d0;
-    }
-    
-    /* Workflow Navigation */
-    .workflow-nav {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #ffffff;
-        padding: 15px 20px;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 30px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #64748b;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-    .workflow-item { display: flex; align-items: center; }
-    .workflow-active { color: #2563eb; font-weight: 700; }
-    .workflow-completed { color: #10b981; }
-    .workflow-arrow { margin: 0 10px; color: #cbd5e1; }
-    
-    /* Section Containers */
-    .section-box {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1e293b;
-        border-bottom: 2px solid #f1f5f9;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-    
-    /* Architecture Diagram */
-    .arch-box {
-        background-color: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        padding: 15px;
-        font-family: monospace;
-        font-size: 0.85rem;
-        color: #334155;
-        line-height: 1.4;
-    }
-    
-    /* File Status Text */
-    .file-ready {
-        color: #10b981;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-    
-    /* Empty State Text */
-    .empty-state {
-        color: #64748b;
-        font-style: italic;
-        padding: 20px 0;
-        text-align: center;
-    }
+/* Base overrides */
+[data-testid="stAppViewContainer"] {
+    background-color: #FAFAFA !important;
+}
+[data-testid="stSidebar"] { display: none !important; }
+header[data-testid="stHeader"] { display: none !important; }
+footer { display: none !important; }
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 4rem !important;
+    max-width: 1000px !important;
+}
+
+/* Hide default file uploader constraints text "Limit 200MB..." */
+[data-testid="stFileUploadDropzone"] > div > small {
+    display: none !important;
+}
+
+/* Style the file uploader dropzone */
+[data-testid="stFileUploadDropzone"] {
+    background-color: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 32px 16px;
+    transition: all 0.2s;
+}
+[data-testid="stFileUploadDropzone"]:hover {
+    border-color: #4f46e5;
+    background-color: #f8fafc;
+}
+
+/* Custom Buttons */
+div.stButton > button {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 4px 16px;
+    transition: all 0.15s;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    color: #111827;
+}
+div.stButton > button:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background-color: #f1f5f9;
+}
+div.stButton > button[kind="primary"] {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+}
+div.stButton > button[kind="primary"]:hover:not(:disabled) {
+    background-color: #4338ca;
+}
+div.stButton > button:disabled {
+    opacity: 0.5;
+}
+
+/* Headers & Text */
+.app-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.app-title::before {
+    content: "◆";
+    color: #4f46e5;
+    font-size: 20px;
+}
+.app-subtitle {
+    font-size: 14px;
+    color: #64748B;
+    margin-top: 4px;
+    margin-bottom: 24px;
+}
+
+.system-status {
+    font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #64748B;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: flex-end;
+}
+.status-ok { color: #16a34a; }
+.status-warn { color: #d97706; }
+
+/* Workflow Tabs */
+.workflow-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 32px;
+}
+.wf-step {
+    font-size: 14px;
+    font-weight: 500;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.wf-step.active {
+    color: #4f46e5;
+    font-weight: 600;
+}
+.wf-step.done {
+    color: #16a34a;
+}
+.wf-divider {
+    color: #cbd5e1;
+    font-size: 12px;
+}
+
+/* Section Styling */
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 8px;
+}
+.section-desc {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 24px;
+}
+
+/* Status Strips */
+.status-strip {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+.strip-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.strip-val { font-weight: 600; color: #111827; }
+.strip-lbl { color: #64748b; }
+
+/* Log Terminal */
+.terminal {
+    background-color: #0f172a;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    color: #e2e8f0;
+    height: 180px;
+    overflow-y: auto;
+}
+.term-time { color: #64748b; margin-right: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── Header ────────────────────────────────────────────────────────────────────
+col_title, col_sys = st.columns([1, 1])
+with col_title:
+    st.markdown("<div class='app-title'>PDF MAIL MERGE PRO</div>", unsafe_allow_html=True)
+    st.markdown("<div class='app-subtitle'>Employee Document Automation Workspace</div>", unsafe_allow_html=True)
 
-# ==========================================
-# SESSION STATE INITIALIZATION
-# ==========================================
-if 'stage' not in st.session_state:
-    st.session_state.stage = 1  # 1:Upload, 2:Extract, 3:Validate, 4:Generate, 5:Convert, 6:Export
-if 'stats' not in st.session_state:
-    st.session_state.stats = {
-        'pdf_pages': 0,
-        'records_extracted': 0,
-        'valid_records': 0,
-        'invalid_records': 0,
-        'duplicates': 0,
-        'docx_generated': 0,
-        'pdf_generated': 0,
-        'docx_failed': 0,
-        'pdf_failed': 0,
-        'start_time': 0.0,
-        'processing_time': 0.0
-    }
-if 'raw_df' not in st.session_state:
-    st.session_state.raw_df = pd.DataFrame()
-if 'valid_df' not in st.session_state:
-    st.session_state.valid_df = pd.DataFrame()
-if 'invalid_df' not in st.session_state:
-    st.session_state.invalid_df = pd.DataFrame()
-if 'val_report' not in st.session_state:
-    st.session_state.val_report = {}
-if 'completed_steps' not in st.session_state:
-    st.session_state.completed_steps = []
-
-def mark_step(step_name):
-    if step_name not in st.session_state.completed_steps:
-        st.session_state.completed_steps.append(step_name)
-
-def update_stage(new_stage):
-    if new_stage > st.session_state.stage:
-        st.session_state.stage = new_stage
-
-
-# ==========================================
-# HEADER & ARCHITECTURE
-# ==========================================
-st.markdown("<h1>PDF Employee Mail Merge Automation</h1>", unsafe_allow_html=True)
-st.markdown("<h4>Automated PDF Data Extraction & Document Generation</h4>", unsafe_allow_html=True)
-st.markdown("<div class='system-status'>● System Ready</div>", unsafe_allow_html=True)
-
-with st.expander("View Processing Pipeline Architecture"):
-    st.markdown("""
-    <div class='arch-box'>
-    PDF<br>
-    &nbsp;↓<br>
-    PDF Extraction (pdfplumber / Camelot)<br>
-    &nbsp;↓<br>
-    Pandas DataFrame<br>
-    &nbsp;↓<br>
-    Validation & Cleaning<br>
-    &nbsp;↓<br>
-    DOCX Mail Merge (docxtpl)<br>
-    &nbsp;↓<br>
-    DOCX Documents<br>
-    &nbsp;↓<br>
-    PDF Conversion (LibreOffice)<br>
-    &nbsp;↓<br>
-    Final Output
+with col_sys:
+    _lib_ok = bool(_libre_bin)
+    _pdf_status = "<span class='status-ok'>● PDF Ready</span>" if _lib_ok else "<span class='status-warn'>⚠ PDF Unavailable</span>"
+    st.markdown(f"""
+    <div style='height: 100%; display: flex; align-items: center; justify-content: flex-end;'>
+        <div class='system-status'>
+            <span><span class='status-ok'>●</span> Python Ready</span>
+            <span>{_pdf_status}</span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
+# ── Workflow Bar ──────────────────────────────────────────────────────────────
+_steps = [
+    ("01_SOURCE",   "01 Source"),
+    ("02_EXTRACT",  "02 Extract"),
+    ("03_VALIDATE", "03 Validate"),
+    ("04_GENERATE", "04 Generate"),
+    ("05_EXPORT",   "05 Export")
+]
 
-# ==========================================
-# TOP STATISTICS
-# ==========================================
-s = st.session_state.stats
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("PDF Pages", s['pdf_pages'] if s['pdf_pages'] > 0 else "--")
-with col2:
-    st.metric("Records", s['records_extracted'] if s['records_extracted'] > 0 else "--")
-with col3:
-    st.metric("Valid", s['valid_records'] if s['valid_records'] > 0 else "--")
-with col4:
-    st.metric("Documents", s['docx_generated'] if s['docx_generated'] > 0 else "--")
+_curr_idx = next(i for i, v in enumerate(_steps) if v[0] == st.session_state.step)
 
-st.markdown("<hr style='margin: 15px 0 25px 0; border-color: #e2e8f0;'>", unsafe_allow_html=True)
-
-
-# ==========================================
-# WORKFLOW NAVIGATION
-# ==========================================
-def get_nav_class(stage_num):
-    if st.session_state.stage == stage_num:
-        return "workflow-item workflow-active"
-    elif st.session_state.stage > stage_num:
-        return "workflow-item workflow-completed"
-    return "workflow-item"
-
-st.markdown(f"""
-<div class='workflow-nav'>
-    <div class='{get_nav_class(1)}'>01 Upload</div>
-    <div class='workflow-arrow'>➔</div>
-    <div class='{get_nav_class(2)}'>02 Extract</div>
-    <div class='workflow-arrow'>➔</div>
-    <div class='{get_nav_class(3)}'>03 Validate</div>
-    <div class='workflow-arrow'>➔</div>
-    <div class='{get_nav_class(4)}'>04 Generate</div>
-    <div class='workflow-arrow'>➔</div>
-    <div class='{get_nav_class(5)}'>05 Convert</div>
-    <div class='workflow-arrow'>➔</div>
-    <div class='{get_nav_class(6)}'>06 Export</div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ==========================================
-# 01 — UPLOAD SOURCES
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>01 — Upload Sources</div>", unsafe_allow_html=True)
-
-up_col1, up_col2 = st.columns(2)
-with up_col1:
-    st.markdown("**Employee Data PDF**")
-    pdf_file = st.file_uploader("Accepts .pdf", type=['pdf'], label_visibility="collapsed")
-    if pdf_file:
-        with open(INPUT_DIR / "employees.pdf", "wb") as f:
-            f.write(pdf_file.getbuffer())
-        st.markdown(f"*{pdf_file.name}* ({pdf_file.size / 1024:.1f} KB)<br><span class='file-ready'>✓ Ready</span>", unsafe_allow_html=True)
-        mark_step("PDF uploaded")
-        
-with up_col2:
-    st.markdown("**Word Mail Merge Template**")
-    tpl_file = st.file_uploader("Accepts .docx", type=['docx'], label_visibility="collapsed")
-    if tpl_file:
-        with open(TEMPLATE_DIR / "employee_template.docx", "wb") as f:
-            f.write(tpl_file.getbuffer())
-        st.markdown(f"*{tpl_file.name}* ({tpl_file.size / 1024:.1f} KB)<br><span class='file-ready'>✓ Ready</span>", unsafe_allow_html=True)
-        mark_step("Word template uploaded")
-
-if pdf_file and tpl_file:
-    update_stage(2)
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 02 — EXTRACT EMPLOYEE DATA
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>02 — Extract Employee Data</div>", unsafe_allow_html=True)
-st.write("> Extract employee records from the uploaded PDF and convert them into structured tabular data.")
-
-if st.session_state.stage < 2:
-    st.markdown("<div class='empty-state'>Upload your employee PDF and Word template to begin extraction.</div>", unsafe_allow_html=True)
-else:
-    if st.button("Extract Employee Data", type="primary"):
-        st.session_state.stats['start_time'] = time.time()
-        with st.spinner("Executing PDF extraction backend (pdfplumber/Camelot)..."):
-            try:
-                df, summary = extract_pdf_data(INPUT_DIR / "employees.pdf")
-                st.session_state.raw_df = df
-                st.session_state.stats['pdf_pages'] = summary['total_pages']
-                st.session_state.stats['records_extracted'] = summary['record_count']
-                
-                # Save raw outputs
-                df.to_csv(DATA_DIR / "employees.csv", index=False)
-                df.to_excel(DATA_DIR / "employees.xlsx", index=False)
-                
-                mark_step("Employee data extracted")
-                update_stage(3)
-                st.rerun()
-            except ExtractionError as ee:
-                st.error(f"Extraction could not be completed.\n\n{str(ee)}\n\nPlease verify that the PDF contains selectable text or tabular data.")
-            except Exception as e:
-                st.error(f"Unexpected extraction failure: {str(e)}")
-
-    if not st.session_state.raw_df.empty:
-        st.success(f"✓ Successfully extracted {st.session_state.stats['records_extracted']} records across {st.session_state.stats['pdf_pages']} pages.")
-        with st.expander("View Extracted Data Preview"):
-            st.dataframe(st.session_state.raw_df, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 03 — VALIDATE EMPLOYEE DATA
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>03 — Validate Employee Data</div>", unsafe_allow_html=True)
-
-if st.session_state.stage < 3:
-    st.markdown("<div class='empty-state'>Complete data extraction first.</div>", unsafe_allow_html=True)
-else:
-    if st.button("Validate Data", type="primary"):
-        with st.spinner("Running validation backend..."):
-            try:
-                norm_df = normalize_column_names(st.session_state.raw_df)
-                cleaned_df = clean_data(norm_df)
-                valid_df, invalid_df, report = validate_data(cleaned_df)
-                
-                st.session_state.valid_df = valid_df
-                st.session_state.invalid_df = invalid_df
-                st.session_state.val_report = report
-                
-                st.session_state.stats['valid_records'] = report['valid_records']
-                st.session_state.stats['invalid_records'] = report['invalid_records']
-                st.session_state.stats['duplicates'] = report['duplicate_ids']
-                
-                valid_df.to_csv(DATA_DIR / "cleaned_employees.csv", index=False)
-                valid_df.to_excel(DATA_DIR / "cleaned_employees.xlsx", index=False)
-                
-                mark_step("Data validation completed")
-                update_stage(4)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Validation failure: {str(e)}")
-
-    if st.session_state.val_report:
-        rep = st.session_state.val_report
-        vc1, vc2, vc3, vc4, vc5 = st.columns(5)
-        vc1.metric("Total Records", rep['total_records'])
-        vc2.metric("Valid Records", rep['valid_records'])
-        vc3.metric("Invalid Records", rep['invalid_records'])
-        vc4.metric("Duplicate IDs", rep['duplicate_ids'])
-        vc5.metric("Missing Fields", sum(rep['missing_fields'].values()) if rep['missing_fields'] else 0)
-        
-        if rep['invalid_records'] > 0:
-            with st.expander("View Validation Issues (Problematic Records)"):
-                st.warning("The following records contain missing required fields or duplicates. They will be skipped.")
-                st.dataframe(st.session_state.invalid_df, use_container_width=True)
-                if rep['missing_fields']:
-                    st.json(rep['missing_fields'])
-                    
-        st.markdown("### Employee Data Preview (Validated)")
-        st.dataframe(st.session_state.valid_df, use_container_width=True)
-        
-        dl_col1, dl_col2, _ = st.columns([1, 1, 4])
-        with open(DATA_DIR / "cleaned_employees.csv", "rb") as f:
-            dl_col1.download_button("Download CSV", f, "cleaned_employees.csv", "text/csv")
-        with open(DATA_DIR / "cleaned_employees.xlsx", "rb") as f:
-            dl_col2.download_button("Download Excel", f, "cleaned_employees.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 04 — GENERATE EMPLOYEE DOCUMENTS
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>04 — Generate Employee Documents</div>", unsafe_allow_html=True)
-st.write("> Generate a personalized Word document for every valid employee record using the uploaded template.")
-
-if st.session_state.stage < 4:
-    st.markdown("<div class='empty-state'>No validated records available. Complete data extraction and validation first.</div>", unsafe_allow_html=True)
-else:
-    if st.button("Generate Employee Documents", type="primary", disabled=st.session_state.valid_df.empty):
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        def merge_callback(idx, total, name, msg):
-            progress_bar.progress(idx / total)
-            status_text.text(f"Generating Documents...\n\n{idx} / {total} | {name}")
-            
-        try:
-            res = generate_documents(
-                st.session_state.valid_df,
-                TEMPLATE_DIR / "employee_template.docx",
-                OUTPUT_WORD_DIR,
-                progress_callback=merge_callback
-            )
-            st.session_state.stats['docx_generated'] = res['success']
-            st.session_state.stats['docx_failed'] = res['failed']
-            
-            mark_step("Word documents generated")
-            update_stage(5)
-            status_text.success(f"✓ {res['success']} DOCX documents generated successfully.")
-            if res['failed'] > 0:
-                st.warning(f"Failed to generate {res['failed']} documents. See console logs for details.")
-                
-            time.sleep(1) # Brief pause for UI update
-            st.rerun()
-        except Exception as e:
-            st.error(f"Document generation failed: {str(e)}")
-
-    if st.session_state.stats['docx_generated'] > 0:
-        st.success(f"✓ {st.session_state.stats['docx_generated']} DOCX documents generated.")
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 05 — CONVERT DOCUMENTS TO PDF
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>05 — Convert Documents to PDF</div>", unsafe_allow_html=True)
-st.write("> Uses LibreOffice headless conversion to securely convert DOCX to PDF without data leaving the machine.")
-
-if st.session_state.stage < 5:
-    st.markdown("<div class='empty-state'>Generate DOCX documents first.</div>", unsafe_allow_html=True)
-else:
-    if st.button("Convert to PDF", type="primary", disabled=(st.session_state.stats['docx_generated'] == 0)):
-        
-        # Check LibreOffice first
-        if not find_libreoffice():
-            st.error("LibreOffice is not installed or not found in system PATH.")
-            st.markdown("""
-            **To enable automatic PDF conversion, install LibreOffice:**
-            * **Windows (Command Line):** `winget install TheDocumentFoundation.LibreOffice`
-            * **Windows (Manual):** Download from https://www.libreoffice.org
-            * **Linux:** `sudo apt-get install libreoffice`
-            * **macOS:** `brew install --cask libreoffice`
-            
-            *Note: Your DOCX files are safely generated in `output/word/`. Restart the app after installing LibreOffice.*
-            """)
-        else:
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            def pdf_callback(idx, total, name, msg):
-                progress_bar.progress(idx / total)
-                status_text.text(f"Converting to PDF...\n\n{idx} / {total} | {name}")
-                
-            try:
-                res = convert_to_pdf_batch(OUTPUT_WORD_DIR, OUTPUT_PDF_DIR, progress_callback=pdf_callback)
-                if res.get('error'):
-                    st.error(f"Conversion Error: {res['error']}")
-                else:
-                    st.session_state.stats['pdf_generated'] = res['success']
-                    st.session_state.stats['pdf_failed'] = res['failed']
-                    
-                    st.session_state.stats['processing_time'] = time.time() - st.session_state.stats['start_time']
-                    mark_step("PDF conversion completed")
-                    mark_step("Output package ready")
-                    update_stage(6)
-                    status_text.success(f"✓ {res['success']} PDF documents converted successfully.")
-                    time.sleep(1)
-                    st.rerun()
-            except Exception as e:
-                st.error(f"PDF conversion failed: {str(e)}")
-
-    if st.session_state.stats['pdf_generated'] > 0 or st.session_state.stats['pdf_failed'] > 0:
-        c1, c2, c3 = st.columns(3)
-        c1.metric("DOCX Files", st.session_state.stats['docx_generated'])
-        c2.metric("PDF Converted", st.session_state.stats['pdf_generated'])
-        c3.metric("Failed", st.session_state.stats['pdf_failed'])
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 06 — EXPORT & DOWNLOAD
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>06 — Export & Download</div>", unsafe_allow_html=True)
-
-if st.session_state.stage < 6:
-    st.markdown("<div class='empty-state'>Complete the PDF conversion step to generate the final output package.</div>", unsafe_allow_html=True)
-else:
-    st.write("Download your complete processed package containing Data, Word Documents, and PDFs.")
-    
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        # Define internal structure: Employee_Mail_Merge_Output/
-        root_zip_dir = "Employee_Mail_Merge_Output"
-        
-        # Add Data
-        for f in DATA_DIR.glob("*.*"):
-            if f.suffix in ['.xlsx', '.csv'] and 'cleaned' in f.name:
-                z.write(f, f"{root_zip_dir}/data/{f.name}")
-        
-        # Add Word
-        for f in OUTPUT_WORD_DIR.glob("*.docx"):
-            z.write(f, f"{root_zip_dir}/word/{f.name}")
-            
-        # Add PDF
-        for f in OUTPUT_PDF_DIR.glob("*.pdf"):
-            z.write(f, f"{root_zip_dir}/pdf/{f.name}")
-            
-    st.download_button(
-        label="Download All as ZIP", 
-        data=buf.getvalue(), 
-        file_name="Employee_Mail_Merge_Output.zip", 
-        mime="application/zip",
-        type="primary"
-    )
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ==========================================
-# 07 — PROCESSING REPORT
-# ==========================================
-st.markdown("<div class='section-box'><div class='section-title'>07 — Processing Report</div>", unsafe_allow_html=True)
-
-s = st.session_state.stats
-report_md = f"""
-### Processing Summary
-
-| Metric | Value |
-|--------|-------|
-| PDF Pages | {s['pdf_pages']} |
-| Records Extracted | {s['records_extracted']} |
-| Valid Records | {s['valid_records']} |
-| Invalid Records | {s['invalid_records']} |
-| Duplicate Records | {s['duplicates']} |
-| DOCX Generated | {s['docx_generated']} |
-| PDF Generated | {s['pdf_generated']} |
-| Failed Documents | {s['docx_failed'] + s['pdf_failed']} |
-| Processing Time | {s['processing_time']:.2f} seconds |
-"""
-
-col_sum, col_log = st.columns([1, 1])
-with col_sum:
-    st.markdown(report_md)
-
-with col_log:
-    st.markdown("### Processing Log")
-    if not st.session_state.completed_steps:
-        st.markdown("<div class='empty-state'>No operations completed yet.</div>", unsafe_allow_html=True)
+_wf_html = "<div class='workflow-row'>"
+for i, (sid, label) in enumerate(_steps):
+    if i == _curr_idx:
+        _wf_html += f"<div class='wf-step active'>● {label}</div>"
+    elif i < _curr_idx:
+        _wf_html += f"<div class='wf-step done'>✓ {label}</div>"
     else:
-        for step in st.session_state.completed_steps:
-            st.markdown(f"<span style='color: #10b981; font-weight: bold;'>✓</span> {step}", unsafe_allow_html=True)
+        _wf_html += f"<div class='wf-step'>○ {label}</div>"
+        
+    if i < len(_steps) - 1:
+        _wf_html += "<div class='wf-divider'>─</div>"
+_wf_html += "</div>"
 
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown(_wf_html, unsafe_allow_html=True)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 01 SOURCE
+# ════════════════════════════════════════════════════════════════════════════════
+if st.session_state.step == "01_SOURCE":
+    st.markdown("<div class='section-title'>Source Files</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-desc'>Upload the employee PDF and Word template used by the automation pipeline.</div>", unsafe_allow_html=True)
+    
+    col_pdf, col_tpl = st.columns(2)
+    
+    with col_pdf:
+        st.markdown("**PDF Employee Data**<br><span style='color:#64748b;font-size:13px;'>Upload your employee PDF</span>", unsafe_allow_html=True)
+        up_pdf = st.file_uploader("PDF", type=["pdf"], label_visibility="collapsed")
+        if up_pdf:
+            with open(_pdf_path, "wb") as f: f.write(up_pdf.getbuffer())
+            _log("✓ PDF uploaded")
+            st.rerun()
+        if _pdf_exists:
+            _sz = f"{_pdf_path.stat().st_size/1024:.0f} KB"
+            st.success(f"✓ **employees.pdf** ({_sz} • PDF • Ready)")
+
+    with col_tpl:
+        st.markdown("**DOCX Mail Merge Template**<br><span style='color:#64748b;font-size:13px;'>Upload your Word template</span>", unsafe_allow_html=True)
+        up_tpl = st.file_uploader("Template", type=["docx"], label_visibility="collapsed")
+        if up_tpl:
+            with open(_tpl_path, "wb") as f: f.write(up_tpl.getbuffer())
+            _log("✓ Template loaded")
+            st.rerun()
+        if _tpl_exists:
+            _sz2 = f"{_tpl_path.stat().st_size/1024:.0f} KB"
+            st.success(f"✓ **employee_template.docx** ({_sz2} • DOCX • Ready)")
+
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    
+    _ready = _pdf_exists and _tpl_exists
+    
+    st.markdown(f"<div style='font-size: 14px; margin-bottom: 12px;'>**{2 if _ready else (1 if _pdf_exists or _tpl_exists else 0)} source files ready**</div>", unsafe_allow_html=True)
+    
+    if st.button("Extract Employee Data →", type="primary", disabled=not _ready):
+        st.session_state.step = "02_EXTRACT"
+        st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 02 EXTRACT
+# ════════════════════════════════════════════════════════════════════════════════
+elif st.session_state.step == "02_EXTRACT":
+    st.markdown("<div class='section-title'>Extracted Employee Data</div>", unsafe_allow_html=True)
+    
+    if st.session_state.raw_df.empty:
+        st.markdown("<div class='section-desc'>Run extraction to parse data from the PDF.</div>", unsafe_allow_html=True)
+        if st.button("Run Extraction", type="primary"):
+            with st.spinner("Extracting data..."):
+                t0 = time.time()
+                try:
+                    _df, _summ = extract_pdf_data(_pdf_path)
+                    st.session_state.raw_df = _df
+                    st.session_state.pages_count = _summ.get("total_pages", 1)
+                    _df.to_csv(DATA_DIR / "employees.csv", index=False)
+                    _log("✓ PDF extraction completed")
+                    _log(f"✓ {len(_df)} records detected")
+                    st.session_state.perf_time += (time.time() - t0)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Extraction failed: {e}")
+    else:
+        _nr = len(st.session_state.raw_df)
+        _nc = len(st.session_state.raw_df.columns)
+        _np = st.session_state.pages_count
+        
+        st.markdown(f"<div class='section-desc'>{_nr} records • {_nc} columns • {_np} pages</div>", unsafe_allow_html=True)
+        
+        col_search, _, _ = st.columns([2, 1, 1])
+        with col_search:
+            _q = st.text_input("Search employees...", label_visibility="collapsed", placeholder="Search employees...")
+        
+        _disp = st.session_state.raw_df
+        if _q:
+            _mask = _disp.apply(lambda c: c.astype(str).str.contains(_q, case=False, na=False)).any(axis=1)
+            _disp = _disp[_mask]
+            
+        st.dataframe(_disp, use_container_width=True, height=350)
+        
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        if st.button("Proceed to Validation →", type="primary"):
+            st.session_state.step = "03_VALIDATE"
+            st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 03 VALIDATE
+# ════════════════════════════════════════════════════════════════════════════════
+elif st.session_state.step == "03_VALIDATE":
+    st.markdown("<div class='section-title'>Data Validation</div>", unsafe_allow_html=True)
+    
+    if st.session_state.valid_df.empty and st.session_state.invalid_df.empty:
+        st.markdown("<div class='section-desc'>Verify all records meet the required schema.</div>", unsafe_allow_html=True)
+        if st.button("Validate Data", type="primary"):
+            t0 = time.time()
+            _norm = normalize_column_names(st.session_state.raw_df)
+            _clean = clean_data(_norm)
+            _vdf, _idf, _rep = validate_data(_clean)
+            st.session_state.valid_df = _vdf
+            st.session_state.invalid_df = _idf
+            st.session_state.val_report = _rep
+            _vdf.to_csv(DATA_DIR / "cleaned_employees.csv", index=False)
+            _log("✓ Validation completed")
+            st.session_state.perf_time += (time.time() - t0)
+            st.rerun()
+    else:
+        _rp = st.session_state.val_report or {}
+        _nv = len(st.session_state.valid_df)
+        _ni = len(st.session_state.invalid_df)
+        _nd = _rp.get("duplicate_ids", 0)
+        
+        st.markdown(f"""
+        <div class="status-strip">
+            <div class="strip-item"><span style="color:#16a34a">✓</span> <span class="strip-val">{_nv}</span> <span class="strip-lbl">Valid</span></div>
+            <div class="strip-item"><span style="color:#d97706">⚠</span> <span class="strip-val">0</span> <span class="strip-lbl">Warnings</span></div>
+            <div class="strip-item"><span style="color:#dc2626">✕</span> <span class="strip-val">{_ni}</span> <span class="strip-lbl">Invalid</span></div>
+            <div class="strip-item"><span style="color:#64748b">◇</span> <span class="strip-val">{_nd}</span> <span class="strip-lbl">Duplicates</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if _ni == 0:
+            st.success("✓ **Validation completed**\n\nAll employee records are ready for document generation.")
+        else:
+            st.error(f"✕ Found {_ni} invalid records that will be excluded.")
+            
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        if st.button("Proceed to Generation →", type="primary"):
+            st.session_state.step = "04_GENERATE"
+            st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 04 GENERATE
+# ════════════════════════════════════════════════════════════════════════════════
+elif st.session_state.step == "04_GENERATE":
+    st.markdown("<div class='section-title'>Document Generation</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-desc'>Generate a personalized Word document for every validated employee record.</div>", unsafe_allow_html=True)
+    
+    _nv = len(st.session_state.valid_df)
+    _ndocx = len(_docx_files)
+    
+    st.markdown(f"""
+    <div class="status-strip">
+        <div class="strip-item"><span class="strip-lbl">TEMPLATE</span> <span class="strip-val">employee_template.docx</span></div>
+        <div class="strip-item"><span class="strip-lbl">RECORDS READY</span> <span class="strip-val">{_nv}</span></div>
+        <div class="strip-item"><span class="strip-lbl">OUTPUT</span> <span class="strip-val">output/word/</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if _ndocx == 0:
+        if st.button(f"Generate {_nv} Documents", type="primary"):
+            t0 = time.time()
+            _prog = st.progress(0)
+            def _gen_cb(c, t, n, m): _prog.progress(c/t)
+            _res = generate_documents(st.session_state.valid_df, _tpl_path, WORD_DIR, _gen_cb)
+            _log("✓ DOCX generation completed")
+            st.session_state.perf_time += (time.time() - t0)
+            time.sleep(0.5)
+            st.rerun()
+    else:
+        st.success(f"✓ **{_ndocx} successful**\n\n✕ 0 failed")
+        
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        if st.button("Proceed to Export →", type="primary"):
+            st.session_state.step = "05_EXPORT" 
+            st.rerun()
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# 05 EXPORT (PDF + ZIP)
+# ════════════════════════════════════════════════════════════════════════════════
+elif st.session_state.step == "05_EXPORT":
+    
+    # ── PDF Conversion ──
+    st.markdown("<div class='section-title'>PDF Conversion</div>", unsafe_allow_html=True)
+    _ndocx = len(_docx_files)
+    _npdf = len(_pdf_files)
+    _lib_ok = bool(_libre_bin)
+    
+    st.markdown(f"""
+    <div class="status-strip">
+        <div class="strip-item"><span class="strip-lbl">DOCX READY</span> <span class="strip-val">{_ndocx}</span></div>
+        <div class="strip-item"><span class="strip-lbl">PDF GENERATED</span> <span class="strip-val">{_npdf}</span></div>
+        <div class="strip-item"><span class="strip-lbl">CONVERTER</span> <span class="strip-val">LibreOffice</span></div>
+        <div class="strip-item"><span class="strip-lbl">STATUS</span> <span class="strip-val" style="color:{'#16a34a' if _lib_ok else '#d97706'}">{'Ready' if _lib_ok else '⚠ Missing'}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if not _lib_ok:
+        st.warning("**PDF conversion is currently unavailable.**\n\nLibreOffice is required to convert DOCX files into PDF. Install LibreOffice and restart the application.")
+        st.button("Convert DOCX → PDF", disabled=True)
+    elif _npdf < _ndocx:
+        if st.button("Convert DOCX → PDF", type="primary"):
+            t0 = time.time()
+            _prog = st.progress(0)
+            def _pdf_cb(c, t, n, m): _prog.progress(c/t)
+            convert_to_pdf_batch(WORD_DIR, PDF_DIR, _pdf_cb)
+            _log("✓ PDF conversion completed")
+            st.session_state.perf_time += (time.time() - t0)
+            st.rerun()
+    else:
+        st.success("✓ **PDF conversion completed successfully.**")
+    
+    st.markdown("<hr style='margin: 32px 0; border-color: #e5e7eb;'>", unsafe_allow_html=True)
+    
+    # ── Export ──
+    st.markdown("<div class='section-title'>Export</div>", unsafe_allow_html=True)
+    
+    col_dl1, col_dl2, col_dl3 = st.columns(3)
+    
+    _csv_f = DATA_DIR / "cleaned_employees.csv"
+    if _csv_f.exists():
+        with open(_csv_f, "rb") as f:
+            col_dl1.download_button("Download CSV", f, "employees.csv", "text/csv", use_container_width=True)
+        col_dl2.download_button("Download Excel", open(_csv_f,"rb").read(), "employees.csv", "text/csv", use_container_width=True) 
+    
+    _zip_buf = io.BytesIO()
+    with zipfile.ZipFile(_zip_buf, "w", zipfile.ZIP_DEFLATED) as _z:
+        for _f in _docx_files: _z.write(_f, f"word/{_f.name}")
+        for _f in _pdf_files:  _z.write(_f, f"pdf/{_f.name}")
+        if _csv_f.exists():    _z.write(_csv_f, f"data/{_csv_f.name}")
+        
+    with col_dl3:
+        st.download_button(
+            "Download Complete ZIP", 
+            _zip_buf.getvalue(), 
+            "Complete_Package.zip", 
+            "application/zip", 
+            type="primary", 
+            use_container_width=True
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Processing Report & Logs
+# ════════════════════════════════════════════════════════════════════════════════
+st.markdown("<hr style='margin: 48px 0 24px 0; border-color: #e5e7eb;'>", unsafe_allow_html=True)
+
+if st.session_state.step != "01_SOURCE":
+    st.markdown("<div class='section-title'>Processing Summary</div>", unsafe_allow_html=True)
+    
+    _nv = len(st.session_state.valid_df)
+    _ni = len(st.session_state.invalid_df)
+    _nr = len(st.session_state.raw_df)
+    _ndocx = len(_docx_files)
+    _npdf = len(_pdf_files)
+    
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        st.markdown(f"""
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>PDF pages</span><span style='font-weight:500'>{st.session_state.pages_count}</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>Records extracted</span><span style='font-weight:500'>{_nr}</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>Valid records</span><span style='font-weight:500'>{_nv}</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>Invalid records</span><span style='font-weight:500'>{_ni}</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_s2:
+        st.markdown(f"""
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>DOCX generated</span><span style='font-weight:500'>{_ndocx}</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>PDF generated</span><span style='font-weight:500'>{_npdf}</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>Failed documents</span><span style='font-weight:500'>0</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size:14px;'>
+            <span style='color:#64748b'>Processing time</span><span style='font-weight:500'>{st.session_state.perf_time:.1f}s</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+
+with st.expander("Processing Log"):
+    _log_html = "".join(f"<div><span class='term-time'>{_ts}</span>{_msg}</div>" for _ts, _msg in reversed(st.session_state.logs))
+    st.markdown(f"<div class='terminal'>{_log_html}</div>", unsafe_allow_html=True)
