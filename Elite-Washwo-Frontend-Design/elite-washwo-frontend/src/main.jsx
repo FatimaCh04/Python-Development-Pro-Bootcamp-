@@ -283,6 +283,16 @@ function OverviewPage({ navigate, searchTerm = '' }) {
 
   if (sl || cl) return <Spinner/>;
   const s = stats || {};
+  const q = (searchTerm || '').trim().toLowerCase();
+  const filteredLogs = (logs || []).filter(l =>
+    !q ||
+    (l.table_name || '').toLowerCase().includes(q) ||
+    (l.action || '').toLowerCase().includes(q) ||
+    (l.profiles?.full_name || '').toLowerCase().includes(q)
+  );
+  const filteredSnap = (snap || []).filter(sm =>
+    !q || (sm.name || '').toLowerCase().includes(q)
+  );
 
   return (
     <>
@@ -370,6 +380,7 @@ function OverviewPage({ navigate, searchTerm = '' }) {
 function SalesmanPage({ searchTerm = '' }) {
   const { role, user } = useAuth();
   const [selectedId, setSelectedId] = useState(null);
+  const [activeTab, setActiveTab] = useState('stockLedger');
   const { data: salesmen, loading: sl } = useAsync(fetchSalesmen);
   
   const selected = (salesmen||[]).find(s => s.id === selectedId) || (salesmen||[])[0];
@@ -392,6 +403,26 @@ function SalesmanPage({ searchTerm = '' }) {
 
   if (sl) return <Spinner/>;
   const st = stats || {};
+  const query = (searchTerm || '').trim().toLowerCase();
+  const isFiltered = !!query;
+  const paginatedStock = (stock || []).filter(r =>
+    !query ||
+    (r.transaction_type || '').toLowerCase().includes(query) ||
+    (r.reference_number || '').toLowerCase().includes(query) ||
+    (r.status || '').toLowerCase().includes(query)
+  );
+  const paginatedFin = (fin || []).filter(r =>
+    !query ||
+    (r.type || '').toLowerCase().includes(query) ||
+    (r.ref || '').toLowerCase().includes(query) ||
+    (r.status || '').toLowerCase().includes(query)
+  );
+  const paginatedExp = (exp || []).filter(r =>
+    !query ||
+    (r.category || '').toLowerCase().includes(query) ||
+    (r.description || '').toLowerCase().includes(query) ||
+    (r.status || '').toLowerCase().includes(query)
+  );
 
   return (
     <>
@@ -882,6 +913,24 @@ function CustomersPage({ searchTerm = '' }) {
     } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
   };
 
+  const query = (searchTerm || '').trim().toLowerCase();
+  const isCustFiltered = !!query;
+  const paginatedCustomers = (customers || []).filter(c =>
+    !query ||
+    (c.name || '').toLowerCase().includes(query) ||
+    (c.code || '').toLowerCase().includes(query) ||
+    (c.address || '').toLowerCase().includes(query) ||
+    (c.salesmen?.profiles?.full_name || '').toLowerCase().includes(query)
+  );
+  const retQuery = query;
+  const paginatedReturns = (cReturns || []).filter(r =>
+    !retQuery ||
+    (r.reference_number || '').toLowerCase().includes(retQuery) ||
+    (r.customers?.name || '').toLowerCase().includes(retQuery) ||
+    (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(retQuery) ||
+    (r.status || '').toLowerCase().includes(retQuery)
+  );
+
   return (
     <>
       <div className="panel">
@@ -1142,6 +1191,14 @@ function ReportsPage() {
 
 function AuditPage({ searchTerm = '' }) {
   const { data: logs, loading: ll } = useAsync(fetchAuditLogs);
+  const query = (searchTerm || '').trim().toLowerCase();
+  const isFiltered = !!query;
+  const paginatedLogs = (logs || []).filter(l =>
+    !query ||
+    (l.table_name || '').toLowerCase().includes(query) ||
+    (l.action || '').toLowerCase().includes(query) ||
+    (l.profiles?.full_name || '').toLowerCase().includes(query)
+  );
   return (
     <div className="panel">
       <div className="section-head"><h2>Audit trail</h2></div>
