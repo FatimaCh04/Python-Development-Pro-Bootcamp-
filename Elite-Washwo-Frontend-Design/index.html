@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elite Washwo — Ledger & Stock Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --ink:#0F1B2B;
+  --ink-soft:#1B2A3F;
+  --paper:#F5F3ED;
+  --panel:#FFFFFF;
+  --line:#DEDACD;
+  --teal:#0E7C86;
+  --teal-deep:#0A5960;
+  --amber:#E0932E;
+  --amber-soft:#FBEBD3;
+  --green:#2F9E63;
+  --green-soft:#E1F3E9;
+  --red:#C1483C;
+  --red-soft:#FBE6E3;
+  --text:#1B2230;
+  --text-dim:#6B7280;
+  --radius-sm:4px;
+  --radius-md:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--paper);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.num,.brand-name{font-family:'Space Grotesk',sans-serif;}
+
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh;}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  background:var(--ink);
+  color:#CBD5D8;
+  padding:22px 16px 16px;
+  position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:18px;}
+.brand-mark{width:34px;height:34px;border-radius:6px;background:linear-gradient(135deg,var(--teal),var(--teal-deep));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:16px;flex-shrink:0;}
+.brand-name{color:#fff;font-size:15px;font-weight:600;line-height:1.2;}
+.brand-sub{font-size:10.5px;color:#7C8AA0;letter-spacing:.03em;}
+
+.nav-group-label{font-size:10.5px;color:#5C6B80;text-transform:uppercase;letter-spacing:.08em;padding:14px 10px 6px;}
+.nav{list-style:none;display:flex;flex-direction:column;gap:2px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:6px;
+  font-size:13.5px;font-weight:500;color:#AAB6C4;
+  cursor:pointer;transition:background .15s ease,color .15s ease;
+  border-left:2px solid transparent;
+}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:.85;}
+.nav-item:hover{background:rgba(255,255,255,.05);color:#fff;}
+.nav-item.active{background:rgba(14,124,134,.18);color:#fff;border-left:2px solid var(--teal);}
+.sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;color:#5C6B80;}
+
+/* ---------- main ---------- */
+.main{display:flex;flex-direction:column;min-height:100vh;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 30px;background:var(--panel);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:5;
+}
+.page-title{font-size:18px;font-weight:600;}
+.page-sub{font-size:12.5px;color:var(--text-dim);margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:18px;}
+.search-box{
+  display:flex;align-items:center;gap:8px;background:var(--paper);
+  border:1px solid var(--line);border-radius:6px;padding:7px 12px;font-size:13px;color:var(--text-dim);width:230px;
+}
+.search-box svg{width:14px;height:14px;opacity:.6;}
+.bell{position:relative;width:34px;height:34px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.bell svg{width:16px;height:16px;color:var(--text-dim);}
+.bell .dot{position:absolute;top:6px;right:7px;width:6px;height:6px;background:var(--red);border-radius:50%;}
+.user-chip{display:flex;align-items:center;gap:10px;}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--amber),#c76f16);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
+.user-meta{line-height:1.2;}
+.user-meta .name{font-size:13px;font-weight:600;}
+.user-meta .role{font-size:11px;color:var(--text-dim);}
+
+.content{padding:26px 30px 60px;flex:1;}
+.page{display:none;animation:pageIn .35s ease;}
+.page.active{display:block;}
+@keyframes pageIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- shared bits ---------- */
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
+.section-head h2{font-size:15px;font-weight:600;}
+.section-head .link{font-size:12.5px;color:var(--teal-deep);font-weight:600;cursor:pointer;}
+.grid{display:grid;gap:16px;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g2{grid-template-columns:1.4fr 1fr;}
+@media(max-width:1100px){.g4{grid-template-columns:repeat(2,1fr);}.g3{grid-template-columns:1fr;}.g2{grid-template-columns:1fr;}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-md);padding:20px;}
+.panel-flat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:18px;}
+
+.tile{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:16px 18px;position:relative;overflow:hidden;
+}
+.tile .label{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+.tile .num{font-size:26px;font-weight:700;color:var(--ink);}
+.tile .delta{font-size:11.5px;margin-top:6px;font-weight:600;}
+.tile .delta.up{color:var(--green);}
+.tile .delta.down{color:var(--red);}
+.tile .bar{position:absolute;left:0;top:0;bottom:0;width:3px;}
+.tile.teal .bar{background:var(--teal);}
+.tile.amber .bar{background:var(--amber);}
+.tile.green .bar{background:var(--green);}
+.tile.red .bar{background:var(--red);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;
+  color:var(--text-dim);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);
+}
+td{padding:10px 10px;border-bottom:1px solid #EFEBE0;color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#FAF9F5;}
+.num-cell{font-family:'Space Grotesk',sans-serif;font-weight:600;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;}
+.badge.green{background:var(--green-soft);color:var(--green);}
+.badge.amber{background:var(--amber-soft);color:#95611A;}
+.badge.red{background:var(--red-soft);color:var(--red);}
+.badge.gray{background:#EDEBE3;color:#6B6B60;}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;
+  padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel);
+  cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;color:var(--text);
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(0,0,0,.06);}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+.btn.primary:hover{background:var(--teal-deep);}
+.btn.ghost{background:transparent;}
+.btn-row{display:flex;gap:10px;}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;}
+.tab{padding:9px 16px;font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;}
+.tab.active{color:var(--ink);border-bottom-color:var(--teal);}
+
+.progress{height:6px;border-radius:4px;background:#EAE7DC;overflow:hidden;}
+.progress > div{height:100%;background:var(--teal);border-radius:4px;}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px;}
+.field input,.field select,.field textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font-size:13px;
+  font-family:'Inter',sans-serif;background:#FCFBF8;
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);}
+
+.timeline{display:flex;flex-direction:column;gap:0;}
+.tl-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #EFEBE0;}
+.tl-item:last-child{border-bottom:none;}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);margin-top:5px;flex-shrink:0;}
+.tl-body .t{font-size:13px;font-weight:600;}
+.tl-body .d{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
+.ledger-hero{
+  background:linear-gradient(120deg,var(--ink) 0%, var(--ink-soft) 100%);
+  border-radius:10px;padding:26px 28px;color:#fff;position:relative;overflow:hidden;margin-bottom:20px;
+}
+.ledger-hero::after{
+  content:'';position:absolute;right:-40px;top:-40px;width:220px;height:220px;
+  background:radial-gradient(circle,rgba(14,124,134,.35),transparent 70%);
+}
+.ledger-hero .top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;}
+.ledger-hero h1{font-size:20px;font-weight:600;}
+.ledger-hero .sub{font-size:12.5px;color:#9FB0C2;margin-top:4px;}
+.tally-row{display:flex;gap:34px;margin-top:20px;position:relative;z-index:1;}
+.tally{}
+.tally .num{font-size:30px;font-weight:700;color:#fff;}
+.tally .lbl{font-size:11.5px;color:#9FB0C2;margin-top:2px;}
+.tally .num span{color:var(--teal);}
+
+.chip-list{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:var(--panel);cursor:pointer;}
+.chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+.pdf-preview{border:1px dashed var(--line);border-radius:8px;padding:20px;background:#FCFBF8;text-align:center;}
+.pdf-preview .icon{width:48px;height:48px;margin:0 auto 10px;color:var(--teal-deep);}
+
+footer.note{font-size:11.5px;color:var(--text-dim);text-align:center;padding:18px 0 6px;}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;}
+  .sidebar{position:relative;height:auto;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">EW</div>
+      <div>
+        <div class="brand-name">Elite Washwo</div>
+        <div class="brand-sub">Surf Stock &amp; Ledger Control</div>
+      </div>
+    </div>
+
+    <div class="nav-group-label">Operations</div>
+    <ul class="nav">
+      <li class="nav-item active" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Overview</li>
+      <li class="nav-item" data-page="salesman"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>Salesman Ledger</li>
+      <li class="nav-item" data-page="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>Stock &amp; Returns</li>
+      <li class="nav-item" data-page="expenses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg>Expenses</li>
+      <li class="nav-item" data-page="customers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><circle cx="18" cy="8" r="2.3"/><path d="M15 13.5c2.4.4 4 1.8 4 4.5"/></svg>Customers</li>
+    </ul>
+
+    <div class="nav-group-label">Product &amp; Reports</div>
+    <ul class="nav">
+      <li class="nav-item" data-page="product"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>Surf Product</li>
+      <li class="nav-item" data-page="settlement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h4"/></svg>Settlement</li>
+      <li class="nav-item" data-page="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M10 19V9M16 19v-6M22 19H2"/></svg>Reports</li>
+      <li class="nav-item" data-page="audit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Audit Trail</li>
+    </ul>
+
+    <div class="sidebar-footer">Elite Washwo ERP · v0.1 frontend<br>Design preview — no backend connected</div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Overview</div>
+        <div class="page-sub" id="pageSub">Tuesday, 22 September 2026</div>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          Search salesman, invoice...
+        </div>
+        <div class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0112 0c0 4 1.5 5 1.5 6.5H4.5C4.5 13 6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 005 0"/></svg><div class="dot"></div></div>
+        <div class="user-chip">
+          <div class="avatar">SA</div>
+          <div class="user-meta"><div class="name">Super Admin</div><div class="role">Full access</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ================= OVERVIEW ================= -->
+      <div class="page active" id="page-overview">
+        <div class="ledger-hero">
+          <div class="top">
+            <div>
+              <h1>Today's tally — 22 September 2026</h1>
+              <div class="sub">Across 6 active salesmen · Surf packets only</div>
+            </div>
+            <button class="btn" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)">Close today's ledger</button>
+          </div>
+          <div class="tally-row">
+            <div class="tally"><div class="num" id="cAvail">1,330</div><div class="lbl">Sellable stock (pkts)</div></div>
+            <div class="tally"><div class="num">Rs. <span id="cSales">450,000</span></div><div class="lbl">Sales this month</div></div>
+            <div class="tally"><div class="num">Rs. <span id="cRecovery">17,000</span></div><div class="lbl">Recovery today</div></div>
+            <div class="tally"><div class="num">Rs. <span id="cOutstanding">5,000</span></div><div class="lbl">Outstanding</div></div>
+            <div class="tally"><div class="num" id="cDamaged">100</div><div class="lbl">Damaged (pkts)</div></div>
+          </div>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:20px;">
+          <div class="tile teal"><div class="bar"></div><div class="label">Company sellable stock</div><div class="num">1,330 pkts</div><div class="delta up">▲ 300 salesman returns</div></div>
+          <div class="tile amber"><div class="bar"></div><div class="label">Pending reimbursements</div><div class="num">Rs. 1,200</div><div class="delta down">3 expenses awaiting</div></div>
+          <div class="tile green"><div class="bar"></div><div class="label">Today's recovery</div><div class="num">Rs. 17,000</div><div class="delta up">▲ vs Rs. 15,200 yesterday</div></div>
+          <div class="tile red"><div class="bar"></div><div class="label">Open stock variance</div><div class="num">−1 pkt</div><div class="delta down">Ali — awaiting approval</div></div>
+        </div>
+
+        <div class="grid g2">
+          <div class="panel">
+            <div class="section-head"><h2>Sales &amp; recovery — last 7 days</h2><span class="link">View report</span></div>
+            <canvas id="salesChart" height="150"></canvas>
+          </div>
+          <div class="panel">
+            <div class="section-head"><h2>Surf — September movement</h2></div>
+            <canvas id="stockChart" height="150"></canvas>
+          </div>
+        </div>
+
+        <div class="grid g2" style="margin-top:20px;">
+          <div class="panel">
+            <div class="section-head"><h2>Recent activity</h2><span class="link">Full audit trail</span></div>
+            <div class="timeline">
+              <div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="t">Ali submitted a return — 20 good, 5 damaged Surf packets</div><div class="d">22 Sep, 18:32 · pending approval</div></div></div>
+              <div class="tl-item"><div class="tl-dot" style="background:var(--amber)"></div><div class="tl-body"><div class="t">Fuel expense Rs. 500 approved for Ali — paid by salesman</div><div class="d">22 Sep, 17:10 · Manager 01</div></div></div>
+              <div class="tl-item"><div class="tl-dot" style="background:var(--green)"></div><div class="tl-body"><div class="t">Recovery of Rs. 17,000 recorded against Ali's outstanding</div><div class="d">22 Sep, 16:45</div></div></div>
+              <div class="tl-item"><div class="tl-dot" style="background:var(--red)"></div><div class="tl-body"><div class="t">Stock variance flagged — expected 5, actual 4 (Ali)</div><div class="d">22 Sep, 19:00 · needs explanation</div></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="section-head"><h2>Salesmen snapshot</h2></div>
+            <table>
+              <thead><tr><th>Salesman</th><th>Stock</th><th>Outstanding</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Ali</td><td class="num-cell">5 pkts</td><td class="num-cell">Rs. 2,500</td><td><span class="badge amber">Variance</span></td></tr>
+                <tr><td>Bilal</td><td class="num-cell">18 pkts</td><td class="num-cell">Rs. 0</td><td><span class="badge green">Closed</span></td></tr>
+                <tr><td>Kamran</td><td class="num-cell">32 pkts</td><td class="num-cell">Rs. 4,200</td><td><span class="badge gray">Open</span></td></tr>
+                <tr><td>Rashid</td><td class="num-cell">9 pkts</td><td class="num-cell">Rs. 1,000</td><td><span class="badge green">Closed</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SALESMAN LEDGER ================= -->
+      <div class="page" id="page-salesman">
+        <div class="panel" style="margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div class="avatar" style="width:52px;height:52px;font-size:17px;">AL</div>
+              <div>
+                <div style="font-size:16px;font-weight:600;">Ali — Salesman #014</div>
+                <div style="font-size:12px;color:var(--text-dim);">Route: Township North · Assigned customers: 45</div>
+              </div>
+            </div>
+            <div class="chip-list">
+              <div class="chip active">Ali</div>
+              <div class="chip">Bilal</div>
+              <div class="chip">Kamran</div>
+              <div class="chip">Rashid</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid g4" style="margin-bottom:20px;">
+          <div class="tile teal"><div class="bar"></div><div class="label">Current stock</div><div class="num">5 pkts</div></div>
+          <div class="tile green"><div class="bar"></div><div class="label">Today's sales</div><div class="num">Rs. 20,000</div></div>
+          <div class="tile amber"><div class="bar"></div><div class="label">Outstanding</div><div class="num">Rs. 2,500</div></div>
+          <div class="tile red"><div class="bar"></div><div class="label">Pending reimbursement</div><div class="num">Rs. 500</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="tabs">
+            <div class="tab active" data-tab="stockLedger">Stock Ledger</div>
+            <div class="tab" data-tab="finLedger">Financial Ledger</div>
+            <div class="tab" data-tab="expLedger">Expense Ledger</div>
+            <div class="tab" data-tab="daily">Daily Statement</div>
+          </div>
+
+          <div class="tab-panel active" id="tab-stockLedger">
+            <table>
+              <thead><tr><th>Date</th><th>Transaction</th><th>In</th><th>Out</th><th>Balance</th></tr></thead>
+              <tbody>
+                <tr><td>22 Sep</td><td>Stock Issued</td><td class="num-cell">100</td><td class="num-cell">—</td><td class="num-cell">100</td></tr>
+                <tr><td>22 Sep</td><td>Sales</td><td class="num-cell">—</td><td class="num-cell">70</td><td class="num-cell">30</td></tr>
+                <tr><td>22 Sep</td><td>Good Return</td><td class="num-cell">—</td><td class="num-cell">20</td><td class="num-cell">10</td></tr>
+                <tr><td>22 Sep</td><td>Damaged Return</td><td class="num-cell">—</td><td class="num-cell">5</td><td class="num-cell">5</td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:14px;font-size:13px;color:var(--text-dim);">Closing stock: <strong style="color:var(--ink)">5 packets</strong> — reconciled, no variance carried forward.</div>
+          </div>
+
+          <div class="tab-panel" id="tab-finLedger" style="display:none;">
+            <table>
+              <thead><tr><th>Date</th><th>Type</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+              <tbody>
+                <tr><td>01 Sep</td><td>Opening Balance</td><td>—</td><td>—</td><td class="num-cell">Rs. 5,000</td></tr>
+                <tr><td>22 Sep</td><td>Sale (credit)</td><td class="num-cell">Rs. 20,000</td><td>—</td><td class="num-cell">Rs. 25,000</td></tr>
+                <tr><td>22 Sep</td><td>Recovery — Cash</td><td>—</td><td class="num-cell">Rs. 15,000</td><td class="num-cell">Rs. 10,000</td></tr>
+                <tr><td>22 Sep</td><td>Recovery — Bank</td><td>—</td><td class="num-cell">Rs. 2,000</td><td class="num-cell">Rs. 8,000</td></tr>
+                <tr><td>22 Sep</td><td>Advance adjustment</td><td>—</td><td class="num-cell">Rs. 1,000</td><td class="num-cell">Rs. 7,000</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="tab-panel" id="tab-expLedger" style="display:none;">
+            <table>
+              <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Paid by</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>22 Sep</td><td>Fuel</td><td class="num-cell">Rs. 500</td><td>Salesman</td><td><span class="badge green">Approved</span></td></tr>
+                <tr><td>22 Sep</td><td>Loading</td><td class="num-cell">Rs. 200</td><td>Company</td><td><span class="badge green">Approved</span></td></tr>
+                <tr><td>22 Sep</td><td>Mobile</td><td class="num-cell">Rs. 100</td><td>Salesman</td><td><span class="badge amber">Pending</span></td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:14px;font-size:13px;">Reimbursement payable to Ali: <strong style="color:var(--red)">Rs. 500</strong></div>
+          </div>
+
+          <div class="tab-panel" id="tab-daily" style="display:none;">
+            <div class="grid g3">
+              <div class="panel-flat">
+                <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">STOCK</div>
+                <div style="font-size:13px;line-height:1.9;">Opening 10 · Received 100<br>Sold 80 · Good Return 20<br>Damaged 5 · Closing <strong>5</strong></div>
+              </div>
+              <div class="panel-flat">
+                <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">SALES</div>
+                <div style="font-size:13px;line-height:1.9;">Gross Rs. 20,000<br>Discount Rs. 500<br>Net <strong>Rs. 19,500</strong></div>
+              </div>
+              <div class="panel-flat">
+                <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">RECOVERY</div>
+                <div style="font-size:13px;line-height:1.9;">Cash Rs. 15,000 · Bank Rs. 2,000<br>Total <strong>Rs. 17,000</strong><br>Outstanding Rs. 2,500</div>
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:16px;">
+              <button class="btn primary">Generate PDF statement</button>
+              <button class="btn">Send on WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= STOCK & RETURNS ================= -->
+      <div class="page" id="page-stock">
+        <div class="grid g2">
+          <div class="panel">
+            <div class="section-head"><h2>New stock return</h2></div>
+            <div class="form-grid">
+              <div class="field"><label>Salesman</label><select><option>Ali</option><option>Bilal</option><option>Kamran</option></select></div>
+              <div class="field"><label>Product</label><select><option>Surf — Packet</option></select></div>
+              <div class="field"><label>Return type</label><select><option>Unsold Return</option><option>Damaged Return</option><option>Expired Return</option><option>Defective Return</option></select></div>
+              <div class="field"><label>Condition</label><select><option>Good</option><option>Damaged</option><option>Unsellable</option></select></div>
+              <div class="field"><label>Quantity</label><input type="number" placeholder="e.g. 20"></div>
+              <div class="field"><label>Reason</label><input type="text" placeholder="Unsold at end of route"></div>
+              <div class="field" style="grid-column:1/-1;"><label>Notes</label><textarea rows="2" placeholder="Optional notes"></textarea></div>
+            </div>
+            <div class="btn-row" style="margin-top:16px;">
+              <button class="btn primary">Submit for approval</button>
+              <button class="btn ghost">Save as draft</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-head"><h2>Daily reconciliation — Ali</h2></div>
+            <table>
+              <tbody>
+                <tr><td>Opening stock</td><td class="num-cell" style="text-align:right;">0</td></tr>
+                <tr><td>Stock received</td><td class="num-cell" style="text-align:right;">100</td></tr>
+                <tr><td>Sold</td><td class="num-cell" style="text-align:right;">70</td></tr>
+                <tr><td>Good returns</td><td class="num-cell" style="text-align:right;">20</td></tr>
+                <tr><td>Damaged returns</td><td class="num-cell" style="text-align:right;">5</td></tr>
+                <tr><td><strong>Expected closing</strong></td><td class="num-cell" style="text-align:right;"><strong>5</strong></td></tr>
+                <tr><td>Actual counted</td><td class="num-cell" style="text-align:right;">4</td></tr>
+                <tr><td style="color:var(--red);font-weight:600;">Variance</td><td class="num-cell" style="text-align:right;color:var(--red);font-weight:700;">−1</td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:12px;">
+              <label style="font-size:12px;font-weight:600;color:var(--text-dim);">Explanation required</label>
+              <textarea rows="2" placeholder="e.g. one packet torn in transit, disposed on route" style="width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;"></textarea>
+              <button class="btn primary" style="margin-top:10px;">Submit variance for approval</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="section-head"><h2>Return transactions</h2><span class="link">Export CSV</span></div>
+          <table>
+            <thead><tr><th>Return #</th><th>Date</th><th>Salesman</th><th>Type</th><th>Qty</th><th>Condition</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>RTN-1042</td><td>22 Sep</td><td>Ali</td><td>Unsold Return</td><td class="num-cell">20</td><td><span class="badge green">Good</span></td><td><span class="badge amber">Pending</span></td></tr>
+              <tr><td>RTN-1041</td><td>22 Sep</td><td>Ali</td><td>Damaged Return</td><td class="num-cell">5</td><td><span class="badge red">Damaged</span></td><td><span class="badge amber">Pending</span></td></tr>
+              <tr><td>RTN-1039</td><td>21 Sep</td><td>Bilal</td><td>Unsold Return</td><td class="num-cell">12</td><td><span class="badge green">Good</span></td><td><span class="badge green">Approved</span></td></tr>
+              <tr><td>RTN-1035</td><td>20 Sep</td><td>Kamran</td><td>Expired Return</td><td class="num-cell">8</td><td><span class="badge red">Unsellable</span></td><td><span class="badge green">Approved</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= EXPENSES ================= -->
+      <div class="page" id="page-expenses">
+        <div class="grid g2">
+          <div class="panel">
+            <div class="section-head"><h2>Submit expense</h2></div>
+            <div class="form-grid">
+              <div class="field"><label>Salesman</label><select><option>Ali</option><option>Bilal</option></select></div>
+              <div class="field"><label>Category</label><select><option>Fuel</option><option>Transport</option><option>Loading</option><option>Unloading</option><option>Food</option><option>Mobile/Communication</option><option>Repair</option><option>Other</option></select></div>
+              <div class="field"><label>Amount (Rs.)</label><input type="number" placeholder="500"></div>
+              <div class="field"><label>Paid by</label><select><option>Salesman</option><option>Company</option></select></div>
+              <div class="field"><label>Payment method</label><select><option>Cash</option><option>Bank</option></select></div>
+              <div class="field"><label>Receipt</label><input type="file"></div>
+              <div class="field" style="grid-column:1/-1;"><label>Description</label><textarea rows="2" placeholder="Fuel for route delivery"></textarea></div>
+            </div>
+            <div class="btn-row" style="margin-top:16px;">
+              <button class="btn primary">Submit expense</button>
+              <button class="btn ghost">Save draft</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-head"><h2>Expense summary — this month</h2></div>
+            <div class="grid g2" style="margin-bottom:16px;">
+              <div class="tile amber"><div class="bar"></div><div class="label">Total expenses</div><div class="num">Rs. 18,400</div></div>
+              <div class="tile red"><div class="bar"></div><div class="label">Pending reimbursement</div><div class="num">Rs. 1,200</div></div>
+            </div>
+            <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">Company-paid vs salesman-paid</div>
+            <div class="progress" style="margin-bottom:6px;"><div style="width:62%"></div></div>
+            <div style="font-size:11.5px;color:var(--text-dim);">Company Rs. 11,400 (62%) · Salesman Rs. 7,000 (38%)</div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="section-head"><h2>Expense approvals</h2><span class="link">Filter</span></div>
+          <table>
+            <thead><tr><th>Exp #</th><th>Date</th><th>Salesman</th><th>Category</th><th>Amount</th><th>Paid by</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>EXP-0231</td><td>22 Sep</td><td>Ali</td><td>Fuel</td><td class="num-cell">Rs. 500</td><td>Salesman</td><td><span class="badge green">Approved</span></td><td><span class="link">View</span></td></tr>
+              <tr><td>EXP-0230</td><td>22 Sep</td><td>Ali</td><td>Loading</td><td class="num-cell">Rs. 200</td><td>Company</td><td><span class="badge green">Approved</span></td><td><span class="link">View</span></td></tr>
+              <tr><td>EXP-0229</td><td>22 Sep</td><td>Rashid</td><td>Mobile</td><td class="num-cell">Rs. 100</td><td>Salesman</td><td><span class="badge amber">Submitted</span></td><td><span class="link">Review</span></td></tr>
+              <tr><td>EXP-0227</td><td>21 Sep</td><td>Kamran</td><td>Repair</td><td class="num-cell">Rs. 1,500</td><td>Company</td><td><span class="badge red">Rejected</span></td><td><span class="link">View</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= CUSTOMERS ================= -->
+      <div class="page" id="page-customers">
+        <div class="panel">
+          <div class="section-head"><h2>Customer directory</h2><span class="link">Add customer</span></div>
+          <table>
+            <thead><tr><th>Customer</th><th>Area</th><th>Salesman</th><th>Outstanding</th><th>Last order</th></tr></thead>
+            <tbody>
+              <tr><td>Nawab General Store</td><td>Township North</td><td>Ali</td><td class="num-cell">Rs. 1,200</td><td>22 Sep</td></tr>
+              <tr><td>Faisal Kiryana</td><td>Township North</td><td>Ali</td><td class="num-cell">Rs. 0</td><td>21 Sep</td></tr>
+              <tr><td>Al-Madina Mart</td><td>Model Town</td><td>Bilal</td><td class="num-cell">Rs. 3,000</td><td>20 Sep</td></tr>
+              <tr><td>City Traders</td><td>Gulberg</td><td>Kamran</td><td class="num-cell">Rs. 800</td><td>19 Sep</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="section-head"><h2>Customer returns</h2></div>
+          <table>
+            <thead><tr><th>Return #</th><th>Customer</th><th>Salesman</th><th>Qty</th><th>Condition</th><th>Refund/Credit</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>CRT-0091</td><td>Nawab General Store</td><td>Ali</td><td class="num-cell">2</td><td><span class="badge green">Good</span></td><td class="num-cell">Rs. 240</td><td><span class="badge green">Approved</span></td></tr>
+              <tr><td>CRT-0090</td><td>Al-Madina Mart</td><td>Bilal</td><td class="num-cell">1</td><td><span class="badge red">Damaged</span></td><td class="num-cell">Credit note</td><td><span class="badge amber">Pending</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ================= PRODUCT ================= -->
+      <div class="page" id="page-product">
+        <div class="grid g4" style="margin-bottom:20px;">
+          <div class="tile teal"><div class="bar"></div><div class="label">Opening stock</div><div class="num">500</div></div>
+          <div class="tile green"><div class="bar"></div><div class="label">Production</div><div class="num">3,000</div></div>
+          <div class="tile amber"><div class="bar"></div><div class="label">Damaged / adjustments</div><div class="num">120</div></div>
+          <div class="tile red"><div class="bar"></div><div class="label">Closing stock</div><div class="num">1,330</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-head"><h2>Surf — September movement report</h2><span class="link">Export PDF</span></div>
+          <table>
+            <tbody>
+              <tr><td>Opening stock</td><td class="num-cell" style="text-align:right;">500</td></tr>
+              <tr><td>Production</td><td class="num-cell" style="text-align:right;">3,000</td></tr>
+              <tr><td>Total available</td><td class="num-cell" style="text-align:right;">3,500</td></tr>
+              <tr><td>Sales</td><td class="num-cell" style="text-align:right;">2,400</td></tr>
+              <tr><td>Salesman returns</td><td class="num-cell" style="text-align:right;">300</td></tr>
+              <tr><td>Customer returns</td><td class="num-cell" style="text-align:right;">50</td></tr>
+              <tr><td>Damaged</td><td class="num-cell" style="text-align:right;">100</td></tr>
+              <tr><td>Adjustments</td><td class="num-cell" style="text-align:right;">−20</td></tr>
+              <tr><td><strong>Closing stock</strong></td><td class="num-cell" style="text-align:right;"><strong>1,330</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid g2" style="margin-top:20px;">
+          <div class="panel">
+            <div class="section-head"><h2>Pricing</h2></div>
+            <table>
+              <thead><tr><th>Tier</th><th>Rate / packet</th></tr></thead>
+              <tbody>
+                <tr><td>Cost price</td><td class="num-cell">Rs. 92</td></tr>
+                <tr><td>Wholesale</td><td class="num-cell">Rs. 105</td></tr>
+                <tr><td>Retail</td><td class="num-cell">Rs. 120</td></tr>
+                <tr><td>Salesman rate</td><td class="num-cell">Rs. 100</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="section-head"><h2>Profitability (est.)</h2></div>
+            <table>
+              <tbody>
+                <tr><td>Revenue</td><td class="num-cell" style="text-align:right;">Rs. 288,000</td></tr>
+                <tr><td>COGS</td><td class="num-cell" style="text-align:right;">Rs. 220,800</td></tr>
+                <tr><td>Gross profit</td><td class="num-cell" style="text-align:right;">Rs. 67,200</td></tr>
+                <tr><td>Approved expenses</td><td class="num-cell" style="text-align:right;">Rs. 18,400</td></tr>
+                <tr><td><strong>Net profit (est.)</strong></td><td class="num-cell" style="text-align:right;"><strong style="color:var(--green)">Rs. 48,800</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SETTLEMENT ================= -->
+      <div class="page" id="page-settlement">
+        <div class="panel">
+          <div class="section-head"><h2>Salesman settlement — Ali · 01–22 Sep 2026</h2></div>
+          <div class="grid g3" style="margin-bottom:18px;">
+            <div class="panel-flat"><div style="font-size:12px;color:var(--text-dim);">Net sales</div><div class="num" style="font-size:20px;">Rs. 19,500</div></div>
+            <div class="panel-flat"><div style="font-size:12px;color:var(--text-dim);">Recovery</div><div class="num" style="font-size:20px;">Rs. 17,000</div></div>
+            <div class="panel-flat"><div style="font-size:12px;color:var(--text-dim);">Outstanding</div><div class="num" style="font-size:20px;">Rs. 2,500</div></div>
+          </div>
+          <table>
+            <tbody>
+              <tr><td>Sales (net)</td><td class="num-cell" style="text-align:right;">+ Rs. 19,500</td></tr>
+              <tr><td>Recovery received</td><td class="num-cell" style="text-align:right;">− Rs. 17,000</td></tr>
+              <tr><td>Advance outstanding</td><td class="num-cell" style="text-align:right;">− Rs. 4,000</td></tr>
+              <tr><td>Reimbursement payable (expenses)</td><td class="num-cell" style="text-align:right;">+ Rs. 500</td></tr>
+              <tr><td>Approved adjustments</td><td class="num-cell" style="text-align:right;">Rs. 0</td></tr>
+              <tr><td><strong>Net settlement position</strong></td><td class="num-cell" style="text-align:right;"><strong style="color:var(--red)">Rs. 1,000 payable by Ali</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="btn-row" style="margin-top:16px;">
+            <button class="btn primary">Approve settlement</button>
+            <button class="btn">Generate settlement PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= REPORTS ================= -->
+      <div class="page" id="page-reports">
+        <div class="grid g3">
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Daily closing report</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">Stock + cash + expense reconciliation for all salesmen, per day.</p><button class="btn">Open</button></div>
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Product movement report</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">Opening, production, sales, returns, damages, closing — by product.</p><button class="btn">Open</button></div>
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Expense report</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">Filter by salesman, category, paid-by and status. Export PDF/CSV.</p><button class="btn">Open</button></div>
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Salesman statement (PDF)</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">Stock, sales, recovery, returns, damages, expenses, outstanding.</p><button class="btn">Generate</button></div>
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Profitability report</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">Revenue, COGS, gross profit, expenses, net profit — by period.</p><button class="btn">Open</button></div>
+          <div class="panel-flat"><h3 style="font-size:14px;margin-bottom:6px;">Variance report</h3><p style="font-size:12.5px;color:var(--text-dim);margin-bottom:14px;">All stock/cash shortages &amp; excesses with reasons and approvals.</p><button class="btn">Open</button></div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="pdf-preview">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Sample PDF layout — Elite Washwo letterhead</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Logo · return / expense / statement number · signatures · View, Download, Print &amp; WhatsApp actions</div>
+            <div class="btn-row" style="justify-content:center;">
+              <button class="btn">View PDF</button>
+              <button class="btn">Download</button>
+              <button class="btn">Print</button>
+              <button class="btn primary">WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= AUDIT ================= -->
+      <div class="page" id="page-audit">
+        <div class="panel">
+          <div class="section-head"><h2>Audit trail</h2><span class="link">Export</span></div>
+          <table>
+            <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Reference</th></tr></thead>
+            <tbody>
+              <tr><td>22 Sep, 19:00</td><td>System</td><td>Flagged stock variance −1 pkt</td><td>Ali / RTN-1042</td></tr>
+              <tr><td>22 Sep, 18:32</td><td>Ali</td><td>Submitted stock return (20 good, 5 damaged)</td><td>RTN-1042 / RTN-1041</td></tr>
+              <tr><td>22 Sep, 17:10</td><td>Manager 01</td><td>Approved fuel expense Rs. 500</td><td>EXP-0231</td></tr>
+              <tr><td>22 Sep, 16:45</td><td>Ali</td><td>Recorded recovery Rs. 17,000</td><td>REC-3390</td></tr>
+              <tr><td>22 Sep, 09:02</td><td>Super Admin</td><td>Issued 100 Surf packets to Ali</td><td>ISS-2210</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer class="note">Frontend design preview for Elite Washwo — build with Supabase backend per project prompts.</footer>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- sidebar navigation ----
+const navItems = document.querySelectorAll('.nav-item');
+const pages = document.querySelectorAll('.page');
+const titles = {
+  overview:['Overview','Tuesday, 22 September 2026'],
+  salesman:['Salesman Ledger','Complete stock, financial &amp; expense ledger per salesman'],
+  stock:['Stock & Returns','Salesman returns, condition tracking &amp; daily reconciliation'],
+  expenses:['Expenses','Submission, approval &amp; reimbursement tracking'],
+  customers:['Customers','Directory, ledgers &amp; customer returns'],
+  product:['Surf Product','Stock, pricing, movement &amp; profitability'],
+  settlement:['Settlement','Periodic salesman settlement statement'],
+  reports:['Reports','Daily closing, movement, expense &amp; profitability reports'],
+  audit:['Audit Trail','Immutable history of every transaction']
+};
+navItems.forEach(item=>{
+  item.addEventListener('click',()=>{
+    navItems.forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    pages.forEach(p=>p.classList.remove('active'));
+    const key = item.dataset.page;
+    document.getElementById('page-'+key).classList.add('active');
+    document.getElementById('pageTitle').innerHTML = titles[key][0];
+    document.getElementById('pageSub').innerHTML = titles[key][1];
+  });
+});
+
+// ---- tabs inside salesman ledger ----
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    const parent = tab.closest('.panel');
+    parent.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    parent.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+    document.getElementById('tab-'+tab.dataset.tab).style.display='block';
+  });
+});
+
+// ---- chip selector (cosmetic) ----
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    chip.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+// ---- one-time animated tally counters ----
+function animateCount(el,end,prefix='',suffix=''){
+  const start=0,duration=900,startTime=performance.now();
+  function step(now){
+    const p=Math.min((now-startTime)/duration,1);
+    const val=Math.floor(start+(end-start)*(1-Math.pow(1-p,3)));
+    el.textContent = prefix + val.toLocaleString() + suffix;
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  animateCount(document.getElementById('cAvail'),1330);
+  animateCount(document.getElementById('cSales'),450000);
+  animateCount(document.getElementById('cRecovery'),17000);
+  animateCount(document.getElementById('cOutstanding'),5000);
+  animateCount(document.getElementById('cDamaged'),100);
+});
+
+// ---- charts ----
+window.addEventListener('load',()=>{
+  const ctx1=document.getElementById('salesChart');
+  new Chart(ctx1,{
+    type:'line',
+    data:{
+      labels:['16 Sep','17 Sep','18 Sep','19 Sep','20 Sep','21 Sep','22 Sep'],
+      datasets:[
+        {label:'Sales',data:[15000,18000,16500,21000,19500,23000,20000],borderColor:'#0E7C86',backgroundColor:'rgba(14,124,134,.08)',tension:.35,fill:true,pointRadius:3},
+        {label:'Recovery',data:[12000,14500,13000,17000,15500,15200,17000],borderColor:'#E0932E',backgroundColor:'rgba(224,147,46,.08)',tension:.35,fill:true,pointRadius:3}
+      ]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{y:{grid:{color:'#EFEBE0'}},x:{grid:{display:false}}}}
+  });
+
+  const ctx2=document.getElementById('stockChart');
+  new Chart(ctx2,{
+    type:'doughnut',
+    data:{
+      labels:['Sold','Salesman Returns','Customer Returns','Damaged','Closing'],
+      datasets:[{data:[2400,300,50,100,1330],backgroundColor:['#0E7C86','#2F9E63','#7FB3AE','#C1483C','#E0932E'],borderWidth:0}]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},cutout:'62%'}
+  });
+});
+</script>
+</body>
+</html>
