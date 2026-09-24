@@ -25,7 +25,7 @@ export default function Login() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-mark">EW</div>
+          <img src="/elitewash-logo.jpg" className="brand-mark" alt="Logo" style={{objectFit: "cover"}} />
           <div>
             <div className="brand-name">Elite Washwo</div>
             <div className="brand-sub">Surf Stock &amp; Ledger Control</div>
