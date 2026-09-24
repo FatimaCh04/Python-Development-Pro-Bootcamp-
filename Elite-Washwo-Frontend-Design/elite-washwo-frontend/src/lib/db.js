@@ -1,5 +1,5 @@
 /**
- * Elite Washwo — Database Service Layer
+ * Elite Washwo  Database Service Layer
  * All Supabase queries centralized here.
  */
 import { supabase } from './supabase';
@@ -109,7 +109,7 @@ export async function fetchSalesmanFinLedger(salesmanId) {
   const {data:recs}=await supabase.from('recoveries').select('reference_number,recovery_date,amount,payment_method,status').eq('salesman_id',salesmanId).order('recovery_date',{ascending:false});
   const rows=[];
   (sales||[]).forEach(r=>rows.push({date:r.sale_date,type:'Sale (credit)',ref:r.reference_number,debit:r.total_amount,credit:null,status:r.status}));
-  (recs||[]).forEach(r=>rows.push({date:r.recovery_date,type:`Recovery — ${r.payment_method}`,ref:r.reference_number,debit:null,credit:r.amount,status:r.status}));
+  (recs||[]).forEach(r=>rows.push({date:r.recovery_date,type:`Recovery  ${r.payment_method}`,ref:r.reference_number,debit:null,credit:r.amount,status:r.status}));
   rows.sort((a,b)=>new Date(a.date)-new Date(b.date));
   let bal=0;
   const withBal=rows.map(r=>{if(r.debit)bal+=Number(r.debit);if(r.credit)bal-=Number(r.credit);return{...r,balance:bal};});
@@ -374,4 +374,91 @@ export async function approveSettlement(salesmanId) {
   });
   if (error) console.warn('Settlement audit error:', error);
   return { success: true };
+}
+
+export async function submitSale({ salesmanId, customerId, items, totalAmount }) {
+  const { data: user } = await supabase.auth.getUser();
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.user?.id).single();
+  const created_by = profile?.full_name || 'System';
+
+  const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
+    salesman_id: salesmanId,
+    customer_id: customerId,
+    total_amount: totalAmount,
+    sale_date: new Date().toISOString(),
+    status: 'Approved',
+    created_by
+  }).select().single();
+  
+  if (orderErr) throw orderErr;
+
+  const saleItems = items.map(item => ({
+    sales_order_id: order.id,
+    product_packaging_id: item.packagingId,
+    quantity: item.quantity,
+    unit_price: item.price
+  }));
+
+  const { error: itemsErr } = await supabase.from('sale_items').insert(saleItems);
+  if (itemsErr) throw itemsErr;
+
+  return order;
+}
+
+export async function addProduct({ name, code, packagingName, unitCost, salesPrice }) {
+  // 1. Insert/find product
+  let productId;
+  const { data: existingProduct } = await supabase.from("products")
+    .select("id").eq("code", code).maybeSingle();
+
+  if (existingProduct) {
+    productId = existingProduct.id;
+  } else {
+    const { data: newProd, error: prodErr } = await supabase.from("products")
+      .insert({ name: name.trim(), code: code.trim() }).select("id").single();
+    if (prodErr) throw prodErr;
+    productId = newProd.id;
+  }
+
+  // 2. Insert product_packaging (variant/packaging)
+  const { data: pkg, error: pkgErr } = await supabase.from("product_packaging")
+    .insert({ product_id: productId, name: packagingName.trim() }).select("id").single();
+  if (pkgErr) throw pkgErr;
+
+  // 3. Insert product_prices
+  const { error: priceErr } = await supabase.from("product_prices")
+    .insert({ packaging_id: pkg.id, unit_cost: Number(unitCost), sales_price: Number(salesPrice) });
+  if (priceErr) throw priceErr;
+
+  return pkg;
+}
+
+export async function updateProduct({ pkgId, productId, priceId, name, code, packagingName, unitCost, salesPrice }) {
+  const { error: e1 } = await supabase.from('products').update({ name, code }).eq('id', productId);
+  if (e1) throw e1;
+  
+  const { error: e2 } = await supabase.from('product_packaging').update({ name: packagingName }).eq('id', pkgId);
+  if (e2) throw e2;
+  
+  if (priceId) {
+    const { error: e3 } = await supabase.from('product_prices').update({ unit_cost: Number(unitCost), sales_price: Number(salesPrice) }).eq('id', priceId);
+    if (e3) throw e3;
+  }
+  return true;
+}
+
+export async function deleteProduct(pkgId, productId) {
+  // Try deleting the packaging variant first
+  const { error: e1 } = await supabase.from('product_packaging').delete().eq('id', pkgId);
+  if (e1) {
+    if (e1.code === '23503') throw new Error('Cannot delete: Product is being used in transactions.');
+    throw e1;
+  }
+  
+  // Clean up parent product if no variants left
+  const { count } = await supabase.from('product_packaging').select('id', { count: 'exact', head: true }).eq('product_id', productId);
+  if (count === 0) {
+    await supabase.from('products').delete().eq('id', productId);
+  }
+  return true;
 }

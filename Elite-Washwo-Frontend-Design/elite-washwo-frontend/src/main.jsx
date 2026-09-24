@@ -1,10 +1,9 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import SettingsPage from './components/SettingsPage';
-import { exportToCsv, generatePdf, printReport, shareOnWhatsApp } from './lib/exportUtils';
 import {
   fetchOverviewStats, fetchRecentAuditLogs, fetchSalesmenSnapshot, fetchChartData,
   fetchSalesmen, fetchSalesmanStats, fetchSalesmanStockLedger, fetchSalesmanFinLedger, fetchSalesmanExpLedger,
@@ -13,7 +12,7 @@ import {
   fetchCustomers, addCustomer, fetchCustomerReturns,
   fetchProducts, fetchProductMovement, fetchPackagings,
   fetchSalesmanSettlement, fetchAuditLogs,
-  closeTodayLedger, fetchDailyClosingReport, fetchProfitabilityReport, fetchVarianceReport, approveSettlement
+  submitSale, addProduct, updateProduct, deleteProduct
 } from './lib/db';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('en-PK');
@@ -46,13 +45,15 @@ function Msg({ msg }) {
   return <div style={{ padding: '8px 12px', marginBottom: 12, borderRadius: 4, fontSize: 12, background: isErr ? 'var(--red-soft)' : 'var(--green-soft)', color: isErr ? 'var(--red)' : 'var(--green)' }}>{msg.replace(/^(ok|err):/, '')}</div>;
 }
 
+
+
 function Root() { return <AuthProvider><AppRouter /></AuthProvider>; }
 
 function AppRouter() {
   const { session, loading } = useAuth();
   if (loading) return (
     <div className="splash-loader">
-      <div className="brand-mark">EW</div>
+      <img src="/elitewash-logo.jpg" className="brand-mark" style={{objectFit:"cover", background:"none"}} alt="EW" />
       <p>Loading Elite Washwo...</p>
     </div>
   );
@@ -109,9 +110,11 @@ function App() {
   const defaultPage = role === 'Salesman' ? 'salesman' : 'overview';
   const [activePage, setActivePage] = useState(defaultPage);
   const [globalSearch, setGlobalSearch] = useState('');
+
   useEffect(() => {
     if (role === 'Salesman' && activePage === 'overview') setActivePage('salesman');
   }, [role, activePage]);
+
   const [title, subtitle] = PAGE_TITLES[activePage] || [activePage, ''];
   const handleLogout = async () => { try { await logout(); } catch(e) { console.error(e); } };
 
@@ -168,7 +171,7 @@ function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">EW</div>
+          <img src="/elitewash-logo.jpg" className="brand-mark" style={{objectFit:"cover", background:"none"}} alt="EW" />
           <div><div className="brand-name">Elite Washwo</div><div className="brand-sub">Surf Stock &amp; Ledger Control</div></div>
         </div>
         {visibleNav.map(section => (
@@ -204,7 +207,7 @@ function App() {
                 onChange={e => setGlobalSearch(e.target.value)} 
               />
               {globalSearch && (
-                <span onClick={() => setGlobalSearch('')} style={{cursor:'pointer',fontSize:12,color:'var(--text-dim)',padding:'0 4px',lineHeight:1}}>✕</span>
+                <span onClick={() => setGlobalSearch('')} style={{cursor:'pointer',fontSize:12,color:'var(--text-dim)',padding:'0 4px',lineHeight:1}}>âœ•</span>
               )}
             </div>
             <div className="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 0112 0c0 4 1.5 5 1.5 6.5H4.5C4.5 13 6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 005 0"/></svg></div>
@@ -224,25 +227,9 @@ function App() {
     </div>
   );
 }
-function OverviewPage({ navigate, searchTerm = '' }) {
-  const { data: stats, loading: sl, reload: reloadStats } = useAsync(fetchOverviewStats);
-  const [closing, setClosing] = useState(false);
-  const [closeMsg, setCloseMsg] = useState('');
 
-  const handleCloseLedger = async () => {
-    if (!window.confirm("Are you sure you want to close today's ledger for all active salesmen?")) return;
-    setClosing(true);
-    setCloseMsg('');
-    try {
-      const res = await closeTodayLedger();
-      setCloseMsg(`ok:Ledger closed successfully for ${res.count} salesmen.`);
-      reloadStats();
-    } catch (err) {
-      setCloseMsg('err:' + err.message);
-    } finally {
-      setClosing(false);
-    }
-  };
+function OverviewPage({ navigate, searchTerm = '' }) {
+  const { data: stats, loading: sl } = useAsync(fetchOverviewStats);
   const { data: logs,  loading: ll } = useAsync(fetchRecentAuditLogs);
   const { data: snap,  loading: nl } = useAsync(fetchSalesmenSnapshot);
   const { data: chart, loading: cl } = useAsync(fetchChartData);
@@ -283,29 +270,20 @@ function OverviewPage({ navigate, searchTerm = '' }) {
 
   if (sl || cl) return <Spinner/>;
   const s = stats || {};
-  const q = (searchTerm || '').trim().toLowerCase();
-  const filteredLogs = (logs || []).filter(l =>
-    !q ||
-    (l.table_name || '').toLowerCase().includes(q) ||
-    (l.action || '').toLowerCase().includes(q) ||
-    (l.profiles?.full_name || '').toLowerCase().includes(q)
-  );
-  const filteredSnap = (snap || []).filter(sm =>
-    !q || (sm.name || '').toLowerCase().includes(q)
-  );
+
+  const query = (searchTerm || '').trim().toLowerCase();
+  const filteredSnap = (snap || []).filter(sm => !query || (sm.name || '').toLowerCase().includes(query) || (sm.code || '').toLowerCase().includes(query));
+  const filteredLogs = (logs || []).filter(l => !query || (l.action || '').toLowerCase().includes(query) || (l.table_name || '').toLowerCase().includes(query) || (l.profiles?.full_name || '').toLowerCase().includes(query));
 
   return (
     <>
-      <Msg msg={closeMsg} />
       <div className="ledger-hero">
         <div className="top">
           <div>
-            <h1>Today's tally — {new Date().toLocaleDateString('en-PK',{day:'numeric',month:'long',year:'numeric'})}</h1>
-            <div className="sub">Across {snap?.length||0} active salesmen · Surf packets only</div>
+            <h1>Today's tally - {new Date().toLocaleDateString('en-PK',{day:'numeric',month:'long',year:'numeric'})}</h1>
+            <div className="sub">Across {snap?.length||0} active salesmen - Surf packets only</div>
           </div>
-          <button className="btn" onClick={handleCloseLedger} disabled={closing} style={{background:'rgba(255,255,255,.1)',color:'#fff',borderColor:'rgba(255,255,255,.2)'}}>
-            {closing ? "Closing ledger..." : "Close today's ledger"}
-          </button>
+          <button className="btn" style={{background:'rgba(255,255,255,.1)',color:'#fff',borderColor:'rgba(255,255,255,.2)'}}>Close today's ledger</button>
         </div>
         <div className="tally-row">
           <div className="tally"><div className="num">{fmtNum(s.sellable)}</div><div className="lbl">Sellable stock (pkts)</div></div>
@@ -325,11 +303,11 @@ function OverviewPage({ navigate, searchTerm = '' }) {
 
       <div className="grid g2">
         <div className="panel">
-          <div className="section-head"><h2>Sales &amp; recovery — last 7 days</h2><span className="link" onClick={() => navigate('reports')}>View report</span></div>
+          <div className="section-head"><h2>Sales &amp; recovery - last 7 days</h2><span className="link" onClick={() => navigate('reports')}>View report</span></div>
           <canvas id="salesChart" height="150"/>
         </div>
         <div className="panel">
-          <div className="section-head"><h2>Surf — movement breakdown</h2></div>
+          <div className="section-head"><h2>Surf - movement breakdown</h2></div>
           <canvas id="stockChart" height="150"/>
         </div>
       </div>
@@ -358,7 +336,7 @@ function OverviewPage({ navigate, searchTerm = '' }) {
             <table>
               <thead><tr><th>Salesman</th><th>Stock</th><th>Outstanding</th><th>Status</th></tr></thead>
               <tbody>
-                {(snap||[]).length===0 ? <Empty msg="No salesmen found. Add salesmen to Supabase."/> :
+                {filteredSnap.length===0 ? <Empty msg="No matching salesmen found."/> :
                   filteredSnap.map(sm => (
                     <tr key={sm.id}>
                       <td>{sm.name}</td>
@@ -379,8 +357,13 @@ function OverviewPage({ navigate, searchTerm = '' }) {
 
 function SalesmanPage({ searchTerm = '' }) {
   const { role, user } = useAuth();
-  const [selectedId, setSelectedId] = useState(null);
   const [activeTab, setActiveTab] = useState('stockLedger');
+  const [selectedId, setSelectedId] = useState(null);
+  const [localSearch, setLocalSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+
   const { data: salesmen, loading: sl } = useAsync(fetchSalesmen);
   
   const selected = (salesmen||[]).find(s => s.id === selectedId) || (salesmen||[])[0];
@@ -394,35 +377,59 @@ function SalesmanPage({ searchTerm = '' }) {
     } else if (!selectedId) {
       setSelectedId(salesmen[0].id);
     }
-  }, [salesmen, role]);
+  }, [salesmen, role, user]);
 
   const { data: stats, loading: tl } = useAsync(() => sid ? fetchSalesmanStats(sid) : Promise.resolve(null), [sid]);
   const { data: stock, loading: stL } = useAsync(() => sid ? fetchSalesmanStockLedger(sid) : Promise.resolve([]), [sid, activeTab]);
   const { data: fin,   loading: fL } = useAsync(() => sid ? fetchSalesmanFinLedger(sid) : Promise.resolve([]), [sid, activeTab]);
   const { data: exp,   loading: eL } = useAsync(() => sid ? fetchSalesmanExpLedger(sid) : Promise.resolve([]), [sid, activeTab]);
 
+  useEffect(() => { setPage(1); }, [activeTab, statusFilter, localSearch, searchTerm]);
+
   if (sl) return <Spinner/>;
   const st = stats || {};
-  const query = (searchTerm || '').trim().toLowerCase();
-  const isFiltered = !!query;
-  const paginatedStock = (stock || []).filter(r =>
-    !query ||
-    (r.transaction_type || '').toLowerCase().includes(query) ||
-    (r.reference_number || '').toLowerCase().includes(query) ||
-    (r.status || '').toLowerCase().includes(query)
-  );
-  const paginatedFin = (fin || []).filter(r =>
-    !query ||
-    (r.type || '').toLowerCase().includes(query) ||
-    (r.ref || '').toLowerCase().includes(query) ||
-    (r.status || '').toLowerCase().includes(query)
-  );
-  const paginatedExp = (exp || []).filter(r =>
-    !query ||
-    (r.category || '').toLowerCase().includes(query) ||
-    (r.description || '').toLowerCase().includes(query) ||
-    (r.status || '').toLowerCase().includes(query)
-  );
+
+  const query = (localSearch || searchTerm).trim().toLowerCase();
+
+  const filteredStock = (stock || []).filter(r => {
+    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
+    if (!query) return true;
+    return (
+      (r.reference_number || '').toLowerCase().includes(query) ||
+      (r.transaction_type || '').toLowerCase().includes(query) ||
+      (r.status || '').toLowerCase().includes(query) ||
+      fmtDate(r.transaction_date).toLowerCase().includes(query)
+    );
+  });
+
+  const filteredFin = (fin || []).filter(r => {
+    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
+    if (!query) return true;
+    return (
+      (r.ref || '').toLowerCase().includes(query) ||
+      (r.type || '').toLowerCase().includes(query) ||
+      (r.status || '').toLowerCase().includes(query) ||
+      fmtDate(r.date).toLowerCase().includes(query)
+    );
+  });
+
+  const filteredExp = (exp || []).filter(r => {
+    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
+    if (!query) return true;
+    return (
+      (r.category || '').toLowerCase().includes(query) ||
+      (r.description || '').toLowerCase().includes(query) ||
+      (r.status || '').toLowerCase().includes(query) ||
+      fmtDate(r.expense_date).toLowerCase().includes(query)
+    );
+  });
+
+  const paginatedStock = filteredStock.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedFin = filteredFin.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedExp = filteredExp.slice((page - 1) * pageSize, page * pageSize);
+
+  const isFiltered = localSearch || statusFilter !== 'All';
+  const resetFilters = () => { setLocalSearch(''); setStatusFilter('All'); setPage(1); };
 
   return (
     <>
@@ -431,8 +438,8 @@ function SalesmanPage({ searchTerm = '' }) {
           <div style={{display:'flex',alignItems:'center',gap:14}}>
             <div className="avatar" style={{width:52,height:52,fontSize:17}}>{selected?.profiles?.full_name?.substring(0,2)?.toUpperCase()||'--'}</div>
             <div>
-              <div style={{fontSize:16,fontWeight:600}}>{selected?.profiles?.full_name||'—'} · #{selected?.code||'—'}</div>
-              <div style={{fontSize:12,color:'var(--text-dim)'}}>Route: {selected?.route||'—'}</div>
+              <div style={{fontSize:16,fontWeight:600}}>{selected?.profiles?.full_name||'-'} - #{selected?.code||'-'}</div>
+              <div style={{fontSize:12,color:'var(--text-dim)'}}>Route: {selected?.route||'-'}</div>
             </div>
           </div>
           <div className="chip-list">
@@ -449,7 +456,6 @@ function SalesmanPage({ searchTerm = '' }) {
         </div>
       </div>
 
-        
       {tl ? <Spinner/> : (
         <div className="grid g4" style={{marginBottom:20}}>
           <div className="tile teal"><div className="bar"/><div className="label">Current stock</div><div className="num">{fmtNum(st.stock)} pkts</div></div>
@@ -460,10 +466,32 @@ function SalesmanPage({ searchTerm = '' }) {
       )}
 
       <div className="panel">
-        <div className="tabs">
-          {[['stockLedger','Stock Ledger'],['finLedger','Financial Ledger'],['expLedger','Expense Ledger']].map(([k,l]) => (
-            <div key={k} className={`tab${activeTab===k?' active':''}`} onClick={() => setActiveTab(k)}>{l}</div>
-          ))}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,borderBottom:'1px solid var(--line)',paddingBottom:12,marginBottom:16}}>
+          <div className="tabs" style={{margin:0,border:0}}>
+            {[['stockLedger','Stock Ledger'],['finLedger','Financial Ledger'],['expLedger','Expense Ledger']].map(([k,l]) => (
+              <div key={k} className={`tab${activeTab===k?' active':''}`} onClick={() => setActiveTab(k)}>{l}</div>
+            ))}
+          </div>
+
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <input 
+              type="text" 
+              placeholder="Filter by ref, type, date..." 
+              value={localSearch} 
+              onChange={e => setLocalSearch(e.target.value)} 
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+            />
+            <div className="chip-list" style={{gap:4}}>
+              {['All', 'Approved', 'Pending'].map(st => (
+                <div key={st} className={`chip${statusFilter===st?' active':''}`} onClick={() => setStatusFilter(st)} style={{padding:'4px 10px',fontSize:11}}>
+                  {st}
+                </div>
+              ))}
+            </div>
+            {isFiltered && (
+              <span className="link" onClick={resetFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+          </div>
         </div>
 
         {activeTab === 'stockLedger' && (
@@ -478,38 +506,42 @@ function SalesmanPage({ searchTerm = '' }) {
                         <td>{fmtDate(r.transaction_date)}</td>
                         <td>{r.transaction_type?.replace(/_/g,' ')}</td>
                         <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.reference_number}</td>
-                        <td className="num-cell">{r.transaction_type==='Salesman_Issue'?r.quantity:'—'}</td>
-                        <td className="num-cell">{['Sale','Salesman_Good_Return','Salesman_Damaged_Return'].includes(r.transaction_type)?r.quantity:'—'}</td>
+                        <td className="num-cell">{r.transaction_type==='Salesman_Issue'?r.quantity:'-'}</td>
+                        <td className="num-cell">{['Sale','Salesman_Good_Return','Salesman_Damaged_Return'].includes(r.transaction_type)?r.quantity:'-'}</td>
                         <td>{statusBadge(r.status)}</td>
                       </tr>
                     ))
                   }
                 </tbody>
               </table>
+              <Pagination page={page} pageSize={pageSize} total={filteredStock.length} onPageChange={setPage} />
             </div>
           )
         )}
 
         {activeTab === 'finLedger' && (
           fL ? <Spinner/> : (
-            <table>
-              <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th><th>Status</th></tr></thead>
-              <tbody>
-                {paginatedFin.length===0 ? <Empty msg={isFiltered || query ? "No matching financial records found." : "No financial transactions yet."}/> :
-                  paginatedFin.map((r,i) => (
-                    <tr key={i}>
-                      <td>{fmtDate(r.date)}</td>
-                      <td>{r.type}</td>
-                      <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.ref}</td>
-                      <td className="num-cell">{r.debit?`Rs. ${fmtNum(r.debit)}`:'—'}</td>
-                      <td className="num-cell">{r.credit?`Rs. ${fmtNum(r.credit)}`:'—'}</td>
-                      <td className="num-cell" style={{color:r.balance>0?'var(--red)':'var(--green)'}}>Rs. {fmtNum(Math.abs(r.balance))}</td>
-                      <td>{statusBadge(r.status)}</td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
+            <div>
+              <table>
+                <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th><th>Status</th></tr></thead>
+                <tbody>
+                  {paginatedFin.length===0 ? <Empty msg={isFiltered || query ? "No matching financial records found." : "No financial transactions yet."}/> :
+                    paginatedFin.map((r,i) => (
+                      <tr key={i}>
+                        <td>{fmtDate(r.date)}</td>
+                        <td>{r.type}</td>
+                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.ref}</td>
+                        <td className="num-cell">{r.debit?`Rs. ${fmtNum(r.debit)}`:'-'}</td>
+                        <td className="num-cell">{r.credit?`Rs. ${fmtNum(r.credit)}`:'-'}</td>
+                        <td className="num-cell" style={{color:r.balance>0?'var(--red)':'var(--green)'}}>Rs. {fmtNum(Math.abs(r.balance))}</td>
+                        <td>{statusBadge(r.status)}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+              <Pagination page={page} pageSize={pageSize} total={filteredFin.length} onPageChange={setPage} />
+            </div>
           )
         )}
 
@@ -525,13 +557,14 @@ function SalesmanPage({ searchTerm = '' }) {
                         <td>{fmtDate(r.expense_date)}</td>
                         <td>{r.category}</td>
                         <td className="num-cell">Rs. {fmtNum(r.amount)}</td>
-                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.description||'—'}</td>
+                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.description||'-'}</td>
                         <td>{statusBadge(r.status)}</td>
                       </tr>
                     ))
                   }
                 </tbody>
               </table>
+              <Pagination page={page} pageSize={pageSize} total={filteredExp.length} onPageChange={setPage} />
             </div>
           )
         )}
@@ -539,20 +572,6 @@ function SalesmanPage({ searchTerm = '' }) {
     </>
   );
 }
-function StockPage({ searchTerm = '' }) {
-  const { data: salesmen }   = useAsync(fetchSalesmen);
-  const { data: packagings } = useAsync(fetchPackagings);
-  const { role, hasPermission } = useAuth();
-
-
-  const [form, setForm] = useState({ salesmanId:'', packagingId:'', returnType:'Salesman_Good_Return', quantity:'', notes:'' });
-  useEffect(() => {
-    if (role === 'Salesman' && salesmen?.length) {
-      const own = salesmen.find(s => s.profile_id === user?.id);
-      if (own && !form.salesmanId) {
-        setForm(f => ({ ...f, salesmanId: own.id }));
-      }
-
 
 function Pagination({ page, pageSize, total, onPageChange }) {
   if (total <= pageSize) return null;
@@ -562,7 +581,7 @@ function Pagination({ page, pageSize, total, onPageChange }) {
 
   return (
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:14,paddingTop:12,borderTop:'1px solid var(--line)',fontSize:12,color:'var(--text-dim)'}}>
-      <div>Showing {start + 1}–{end} of {total} records</div>
+      <div>Showing {start + 1}â€"{end} of {total} records</div>
       <div style={{display:'flex',gap:6,alignItems:'center'}}>
         <button className="btn" disabled={page <= 1} onClick={() => onPageChange(page - 1)} style={{padding:'4px 10px',fontSize:12}}>Previous</button>
         <span style={{fontSize:12,color:'var(--text)'}}>Page {page} of {totalPages}</span>
@@ -571,14 +590,38 @@ function Pagination({ page, pageSize, total, onPageChange }) {
     </div>
   );
 }
+function StockPage({ searchTerm = '' }) {
+  const { data: salesmen }   = useAsync(fetchSalesmen);
+  const { data: packagings } = useAsync(fetchPackagings);
+  const { data: txns, loading: tl, reload } = useAsync(fetchInventoryTransactions);
+  const { role, user, hasPermission } = useAuth();
 
+  const [form, setForm] = useState({ salesmanId:'', packagingId:'', returnType:'Salesman_Good_Return', quantity:'', notes:'' });
+  useEffect(() => {
+    if (role === 'Salesman' && salesmen?.length) {
+      const own = salesmen.find(s => s.profile_id === user?.id);
+      if (own && !form.salesmanId) {
+        setForm(f => ({ ...f, salesmanId: own.id }));
+      }
     }
   }, [role, salesmen, user]);
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
+  // Search & Filter state for returns
+  const [localSearch, setLocalSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (role === 'Manager' && !hasPermission('inventory.create') && !hasPermission('returns.create')) {
+      setMsg("err:Permission denied: You do not have permission to submit returns ('returns.create').");
+      return;
+    }
     if (!form.salesmanId || !form.packagingId || !form.quantity) { setMsg('err:Please fill all required fields.'); return; }
     setSaving(true); setMsg('');
     try {
@@ -586,20 +629,18 @@ function Pagination({ page, pageSize, total, onPageChange }) {
       const unit_cost = pkg?.product_prices?.[0]?.unit_cost || 0;
       await submitStockReturn({ salesmanId:form.salesmanId, packagingId:form.packagingId, transaction_type:form.returnType, quantity:form.quantity, notes:form.notes, unit_cost });
       setMsg('ok:Return submitted for approval.');
-      setForm({salesmanId:'',packagingId:'',returnType:'Salesman_Good_Return',quantity:'',notes:''});
+      setForm({salesmanId:role==='Salesman'?form.salesmanId:'',packagingId:'',returnType:'Salesman_Good_Return',quantity:'',notes:''});
       reload();
     } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
   };
 
   const handleApprove = async (id) => {
+    if (!hasPermission('inventory.approve') && !hasPermission('returns.approve')) {
+      alert("Permission denied: You do not have permission to approve returns ('returns.approve').");
+      return;
+    }
     try { await approveTransaction(id); reload(); } catch(e) { alert(e.message); }
   };
-
-  const [localSearch, setLocalSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All');
-  const [page, setPage] = useState(1);
-  const pageSize = 15;
 
   const returns = (txns||[]).filter(t => ['Salesman_Good_Return','Salesman_Damaged_Return','Customer_Good_Return','Customer_Damaged_Return'].includes(t.transaction_type));
 
@@ -624,20 +665,6 @@ function Pagination({ page, pageSize, total, onPageChange }) {
   const isFiltered = localSearch || statusFilter !== 'All' || typeFilter !== 'All';
   const resetFilters = () => { setLocalSearch(''); setStatusFilter('All'); setTypeFilter('All'); setPage(1); };
 
-  const handleExportReturnsCsv = () => {
-    const headers = ['Reference', 'Date', 'Salesman', 'Type', 'Quantity', 'Status', 'Notes'];
-    const rows = filteredReturns.map(r => [
-      r.reference_number,
-      fmtDate(r.transaction_date),
-      r.salesmen?.profiles?.full_name || '—',
-      r.transaction_type,
-      r.quantity,
-      r.status,
-      r.notes || ''
-    ]);
-    exportToCsv('Stock_Returns', headers, rows);
-  };
-
   return (
     <>
       <div className="grid g2">
@@ -648,16 +675,22 @@ function Pagination({ page, pageSize, total, onPageChange }) {
             <div className="form-grid">
               <div className="field">
                 <label>Salesman *</label>
-                <select value={form.salesmanId} onChange={e=>setForm(f=>({...f,salesmanId:e.target.value}))}>
-                  <option value="">— Select —</option>
-                  {filteredSalesmen.map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
-                </select>
+                {role === 'Salesman' ? (
+                  <select value={form.salesmanId} disabled style={{background:'var(--paper)'}}>
+                    {(salesmen||[]).filter(s => s.profile_id === user?.id).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+                  </select>
+                ) : (
+                  <select value={form.salesmanId} onChange={e=>setForm(f=>({...f,salesmanId:e.target.value}))}>
+                    <option value="">-- Select --</option>
+                    {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+                  </select>
+                )}
               </div>
               <div className="field">
                 <label>Product *</label>
                 <select value={form.packagingId} onChange={e=>setForm(f=>({...f,packagingId:e.target.value}))}>
-                  <option value="">— Select —</option>
-                  {(packagings||[]).map(p=><option key={p.id} value={p.id}>{p.products?.name} — {p.name}</option>)}
+                  <option value="">-- Select --</option>
+                  {(packagings||[]).map(p=><option key={p.id} value={p.id}>{p.products?.name} - {p.name}</option>)}
                 </select>
               </div>
               <div className="field">
@@ -699,26 +732,56 @@ function Pagination({ page, pageSize, total, onPageChange }) {
       </div>
 
       <div className="panel" style={{marginTop:20}}>
-        <div className="section-head"><h2>Return transactions</h2></div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+          <div className="section-head" style={{margin:0}}><h2>Return transactions</h2></div>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <input 
+              type="text" 
+              placeholder="Filter by ref, salesman, notes..." 
+              value={localSearch} 
+              onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+            />
+            <div className="chip-list" style={{gap:4}}>
+              {['All', 'Pending', 'Approved'].map(st => (
+                <div key={st} className={`chip${statusFilter===st?' active':''}`} onClick={() => { setStatusFilter(st); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
+                  {st}
+                </div>
+              ))}
+              {['All Types', 'Good', 'Damaged'].map(tp => (
+                <div key={tp} className={`chip${typeFilter===(tp==='All Types'?'All':tp)?' active':''}`} onClick={() => { setTypeFilter(tp==='All Types'?'All':tp); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
+                  {tp}
+                </div>
+              ))}
+            </div>
+            {isFiltered && (
+              <span className="link" onClick={resetFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+          </div>
+        </div>
+
         {tl ? <Spinner/> : (
-          <table>
-            <thead><tr><th>Reference</th><th>Date</th><th>Salesman</th><th>Type</th><th>Qty</th><th>Status</th>{(hasPermission('inventory.approve'))&&<th></th>}</tr></thead>
-            <tbody>
-              {paginatedReturns.length===0 ? <Empty msg={isFiltered || query ? "No matching return transactions found." : "No return transactions yet."}/> :
-                paginatedReturns.map(r=>(
-                  <tr key={r.id}>
-                    <td style={{fontSize:11}}>{r.reference_number}</td>
-                    <td>{fmtDate(r.transaction_date)}</td>
-                    <td>{r.salesmen?.profiles?.full_name||'—'}</td>
-                    <td>{r.transaction_type?.replace(/_/g,' ')}</td>
-                    <td className="num-cell">{r.quantity}</td>
-                    <td>{statusBadge(r.status)}</td>
-                    {(hasPermission('inventory.approve'))&&<td>{r.status==='Pending'&&<span className="link" onClick={()=>handleApprove(r.id)}>Approve</span>}</td>}
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+          <div>
+            <table>
+              <thead><tr><th>Reference</th><th>Date</th><th>Salesman</th><th>Type</th><th>Qty</th><th>Status</th>{(hasPermission('inventory.approve'))&&<th></th>}</tr></thead>
+              <tbody>
+                {paginatedReturns.length===0 ? <Empty msg={isFiltered || query ? "No matching return transactions found." : "No return transactions yet."}/> :
+                  paginatedReturns.map(r=>(
+                    <tr key={r.id}>
+                      <td style={{fontSize:11}}>{r.reference_number}</td>
+                      <td>{fmtDate(r.transaction_date)}</td>
+                      <td>{r.salesmen?.profiles?.full_name||'-'}</td>
+                      <td>{r.transaction_type?.replace(/_/g,' ')}</td>
+                      <td className="num-cell">{r.quantity}</td>
+                      <td>{statusBadge(r.status)}</td>
+                      {(hasPermission('inventory.approve'))&&<td>{r.status==='Pending'&&<span className="link" onClick={()=>handleApprove(r.id)}>Approve</span>}</td>}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+            <Pagination page={page} pageSize={pageSize} total={filteredReturns.length} onPageChange={setPage} />
+          </div>
         )}
       </div>
     </>
@@ -729,8 +792,7 @@ function ExpensesPage({ searchTerm = '' }) {
   const { data: salesmen } = useAsync(fetchSalesmen);
   const { data: expenses, loading: el, reload } = useAsync(fetchExpenses);
   const { data: summary } = useAsync(fetchExpenseSummary);
-  const { role, hasPermission } = useAuth();
-
+  const { role, user, hasPermission } = useAuth();
 
   const [form, setForm] = useState({ salesmanId:'', category:'Fuel', amount:'', paid_by:'Salesman', payment_method:'Cash', description:'' });
   useEffect(() => {
@@ -741,32 +803,42 @@ function ExpensesPage({ searchTerm = '' }) {
       }
     }
   }, [role, salesmen, user]);
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.salesmanId || !form.amount) { setMsg('err:Please fill all required fields.'); return; }
-    setSaving(true); setMsg('');
-    try {
-      await submitExpense({ salesmanId:form.salesmanId, category:form.category, amount:form.amount, description:form.description, paid_by:form.paid_by, payment_method:form.payment_method });
-      setMsg('ok:Expense submitted.');
-      setForm({salesmanId:'',category:'Fuel',amount:'',paid_by:'Salesman',payment_method:'Cash',description:''});
-      reload();
-    } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
-  };
-
-  const handleStatus = async (id, status) => {
-    try { await updateExpenseStatus(id, status); reload(); } catch(e) { alert(e.message); }
-  };
-
-  const sm = summary||{};
+  // Search & Filter state
   const [localSearch, setLocalSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (role === 'Manager' && !hasPermission('expenses.create')) {
+      setMsg("err:Permission denied: You do not have 'expenses.create' permission.");
+      return;
+    }
+    if (!form.salesmanId || !form.amount) { setMsg('err:Please fill all required fields.'); return; }
+    setSaving(true); setMsg('');
+    try {
+      await submitExpense({ salesmanId:form.salesmanId, category:form.category, amount:form.amount, description:form.description, paid_by:form.paid_by, payment_method:form.payment_method });
+      setMsg('ok:Expense submitted.');
+      setForm({salesmanId:role==='Salesman'?form.salesmanId:'',category:'Fuel',amount:'',paid_by:'Salesman',payment_method:'Cash',description:''});
+      reload();
+    } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
+  };
+
+  const handleStatus = async (id, status) => {
+    if (status === 'Approved' && !hasPermission('expenses.approve')) {
+      alert("Permission denied: You do not have 'expenses.approve' permission.");
+      return;
+    }
+    try { await updateExpenseStatus(id, status); reload(); } catch(e) { alert(e.message); }
+  };
+
+  const sm = summary||{};
   const query = (localSearch || searchTerm).trim().toLowerCase();
 
   const filteredExpenses = (expenses || []).filter(r => {
@@ -788,21 +860,6 @@ function ExpensesPage({ searchTerm = '' }) {
   const isFiltered = localSearch || statusFilter !== 'All' || categoryFilter !== 'All';
   const resetFilters = () => { setLocalSearch(''); setStatusFilter('All'); setCategoryFilter('All'); setPage(1); };
 
-  const handleExportExpensesCsv = () => {
-    const headers = ['Reference', 'Date', 'Salesman', 'Category', 'Amount', 'Paid By', 'Status', 'Description'];
-    const rows = filteredExpenses.map(r => [
-      r.reference_number,
-      fmtDate(r.expense_date),
-      r.salesmen?.profiles?.full_name || '—',
-      r.category,
-      r.amount,
-      r.paid_by || '—',
-      r.status,
-      r.description || ''
-    ]);
-    exportToCsv('Expenses_Ledger', headers, rows);
-  };
-
   return (
     <>
       <div className="grid g2">
@@ -813,10 +870,16 @@ function ExpensesPage({ searchTerm = '' }) {
             <div className="form-grid">
               <div className="field">
                 <label>Salesman *</label>
-                <select value={form.salesmanId} onChange={e=>setForm(f=>({...f,salesmanId:e.target.value}))}>
-                  <option value="">— Select —</option>
-                  {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
-                </select>
+                {role === 'Salesman' ? (
+                  <select value={form.salesmanId} disabled style={{background:'var(--paper)'}}>
+                    {(salesmen||[]).filter(s => s.profile_id === user?.id).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+                  </select>
+                ) : (
+                  <select value={form.salesmanId} onChange={e=>setForm(f=>({...f,salesmanId:e.target.value}))}>
+                    <option value="">-- Select --</option>
+                    {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+                  </select>
+                )}
               </div>
               <div className="field">
                 <label>Category</label>
@@ -849,57 +912,272 @@ function ExpensesPage({ searchTerm = '' }) {
         </div>
 
         <div className="panel">
-          <div className="section-head"><h2>Expense summary — this month</h2></div>
+          <div className="section-head"><h2>Expense summary - this month</h2></div>
           <div className="grid g2" style={{marginBottom:16}}>
             <div className="tile amber"><div className="bar"/><div className="label">Total expenses</div><div className="num">Rs. {fmtNum(sm.total)}</div></div>
             <div className="tile red"><div className="bar"/><div className="label">Pending reimbursement</div><div className="num">Rs. {fmtNum(sm.pending)}</div></div>
           </div>
           <div style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:6}}>Company-paid vs salesman-paid</div>
           <div className="progress" style={{marginBottom:6}}><div style={{width:`${sm.companyPct||0}%`}}/></div>
-          <div style={{fontSize:11.5,color:'var(--text-dim)'}}>Company Rs. {fmtNum(sm.company)} ({sm.companyPct||0}%) · Salesman Rs. {fmtNum(sm.salesman)} ({100-(sm.companyPct||0)}%)</div>
+          <div style={{fontSize:11.5,color:'var(--text-dim)'}}>Company Rs. {fmtNum(sm.company)} ({sm.companyPct||0}%) - Salesman Rs. {fmtNum(sm.salesman)} ({100-(sm.companyPct||0)}%)</div>
         </div>
       </div>
 
       <div className="panel" style={{marginTop:20}}>
-        <div className="section-head"><h2>Expense approvals</h2></div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+          <div className="section-head" style={{margin:0}}><h2>Expense approvals</h2></div>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <input 
+              type="text" 
+              placeholder="Filter by ref, category, desc..." 
+              value={localSearch} 
+              onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+            />
+            <select 
+              value={categoryFilter} 
+              onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+              style={{padding:'4px 8px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none'}}
+            >
+              <option value="All">All Categories</option>
+              {['Fuel','Transport','Loading','Unloading','Food','Mobile/Communication','Repair','Other'].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <div className="chip-list" style={{gap:4}}>
+              {['All', 'Pending', 'Approved'].map(st => (
+                <div key={st} className={`chip${statusFilter===st?' active':''}`} onClick={() => { setStatusFilter(st); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
+                  {st}
+                </div>
+              ))}
+            </div>
+            {isFiltered && (
+              <span className="link" onClick={resetFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+          </div>
+        </div>
+
         {el ? <Spinner/> : (
-          <table>
-            <thead><tr><th>Reference</th><th>Date</th><th>Salesman</th><th>Category</th><th>Amount</th><th>Paid by</th><th>Status</th>{(hasPermission('expenses.approve'))&&<th></th>}</tr></thead>
-            <tbody>
-              {paginatedExpenses.length===0 ? <Empty msg={isFiltered || query ? "No matching expenses found." : "No expenses yet."}/> :
-                paginatedExpenses.map(r=>(
-                  <tr key={r.id}>
-                    <td style={{fontSize:11}}>{r.reference_number}</td>
-                    <td>{fmtDate(r.expense_date)}</td>
-                    <td>{r.salesmen?.profiles?.full_name||'—'}</td>
-                    <td>{r.category}</td>
-                    <td className="num-cell">Rs. {fmtNum(r.amount)}</td>
-                    <td>{r.paid_by||'—'}</td>
-                    <td>{statusBadge(r.status)}</td>
-                    {(hasPermission('expenses.approve'))&&<td>
-                      {r.status==='Pending'&&<>
-                        <span className="link" onClick={()=>handleStatus(r.id,'Approved')} style={{marginRight:8}}>Approve</span>
-                        <span className="link" style={{color:'var(--red)'}} onClick={()=>handleStatus(r.id,'Cancelled')}>Reject</span>
-                      </>}
-                    </td>}
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+          <div>
+            <table>
+              <thead><tr><th>Reference</th><th>Date</th><th>Salesman</th><th>Category</th><th>Amount</th><th>Paid by</th><th>Status</th>{(hasPermission('expenses.approve'))&&<th></th>}</tr></thead>
+              <tbody>
+                {paginatedExpenses.length===0 ? <Empty msg={isFiltered || query ? "No matching expenses found." : "No expenses yet."}/> :
+                  paginatedExpenses.map(r=>(
+                    <tr key={r.id}>
+                      <td style={{fontSize:11}}>{r.reference_number}</td>
+                      <td>{fmtDate(r.expense_date)}</td>
+                      <td>{r.salesmen?.profiles?.full_name||'-'}</td>
+                      <td>{r.category}</td>
+                      <td className="num-cell">Rs. {fmtNum(r.amount)}</td>
+                      <td>{r.paid_by||'-'}</td>
+                      <td>{statusBadge(r.status)}</td>
+                      {(hasPermission('expenses.approve'))&&<td>
+                        {r.status==='Pending'&&<>
+                          <span className="link" onClick={()=>handleStatus(r.id,'Approved')} style={{marginRight:8}}>Approve</span>
+                          <span className="link" style={{color:'var(--red)'}} onClick={()=>handleStatus(r.id,'Cancelled')}>Reject</span>
+                        </>}
+                      </td>}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+            <Pagination page={page} pageSize={pageSize} total={filteredExpenses.length} onPageChange={setPage} />
+          </div>
         )}
       </div>
     </>
   );
 }
+
+
+function SalesForm({ onCancel, onSuccess }) {
+  const { data: salesmen } = useAsync(fetchSalesmen);
+  const { data: customers } = useAsync(fetchCustomers);
+  const { data: products } = useAsync(fetchProducts);
+
+  const [salesmanId, setSalesmanId] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [items, setItems] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  // Item picker state
+  const [selProductId, setSelProductId] = useState('');
+  const [selPkgId, setSelPkgId] = useState('');
+  const [selQty, setSelQty] = useState('');
+
+  const selectedProduct = (products || []).find(p => p.id === selProductId);
+  const availablePackagings = selectedProduct?.product_packaging || [];
+  const selectedPkg = availablePackagings.find(pk => pk.id === selPkgId);
+  const autoPrice = selectedPkg?.product_prices?.[0]?.sales_price || 0;
+
+  const handleAddItem = () => {
+    if (!selProductId || !selPkgId || !selQty || Number(selQty) < 1) {
+      setMsg('err:Select a product, packaging, and enter a valid quantity.');
+      return;
+    }
+    const productName = selectedProduct?.name || '';
+    const pkgName = selectedPkg?.name || '';
+    const price = Number(autoPrice);
+    const qty = parseInt(selQty, 10);
+    setItems([...items, {
+      packagingId: selPkgId,
+      name: productName + (pkgName ? ' - ' + pkgName : ''),
+      price,
+      quantity: qty
+    }]);
+    setSelProductId('');
+    setSelPkgId('');
+    setSelQty('');
+    setMsg('');
+  };
+
+  const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+
+  const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!salesmanId || !customerId || items.length === 0) {
+      setMsg('err:Please select a salesman, customer, and add at least one product.');
+      return;
+    }
+    setSaving(true); setMsg('');
+    try {
+      await submitSale({ salesmanId, customerId, items, totalAmount });
+      setMsg('ok:Sale recorded successfully.');
+      setTimeout(onSuccess, 1500);
+    } catch (e) {
+      setMsg('err:' + e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{marginBottom:20,padding:16,background:'#FAFBF8',borderRadius:6,border:'1px solid var(--line)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:16}}>
+        <h3 style={{margin:0,fontSize:14}}>Create Sale</h3>
+        <span className="link" onClick={onCancel} style={{color:'var(--red)'}}>Cancel</span>
+      </div>
+      <Msg msg={msg} />
+      <div className="form-grid" style={{marginBottom:16}}>
+        <div className="field">
+          <label>Salesman *</label>
+          <select value={salesmanId} onChange={e=>setSalesmanId(e.target.value)}>
+            <option value="">-- Select --</option>
+            {(salesmen||[]).length === 0
+              ? <option disabled>No salesmen available</option>
+              : (salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)
+            }
+          </select>
+        </div>
+        <div className="field">
+          <label>Customer *</label>
+          <select value={customerId} onChange={e=>setCustomerId(e.target.value)}>
+            <option value="">-- Select --</option>
+            {(customers||[]).length === 0
+              ? <option disabled>No customers available</option>
+              : (customers||[]).map(c=><option key={c.id} value={c.id}>{c.name} ({c.code})</option>)
+            }
+          </select>
+        </div>
+      </div>
+
+      <div style={{border:'1px solid var(--line)',padding:12,borderRadius:4,background:'#fff',marginBottom:16}}>
+        <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>+ Add Product</div>
+        <div className="form-grid">
+          <div className="field">
+            <label>Product</label>
+            <select value={selProductId} onChange={e=>{setSelProductId(e.target.value);setSelPkgId('');}}>
+              <option value="">-- Select --</option>
+              {(products||[]).length === 0
+                ? <option disabled>No products available - add products in Products & Pricing</option>
+                : (products||[]).map(p=><option key={p.id} value={p.id}>{p.name} ({p.code})</option>)
+              }
+            </select>
+          </div>
+          <div className="field">
+            <label>Packaging / Variant</label>
+            <select value={selPkgId} onChange={e=>setSelPkgId(e.target.value)} disabled={!selProductId}>
+              <option value="">-- Select --</option>
+              {availablePackagings.map(pk=>(
+                <option key={pk.id} value={pk.id}>
+                  {pk.name} (Rs. {pk.product_prices?.[0]?.sales_price || 0})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Quantity</label>
+            <input type="number" min="1" value={selQty} onChange={e=>setSelQty(e.target.value)} placeholder="Qty" />
+          </div>
+          <div className="field" style={{display:'flex',alignItems:'flex-end'}}>
+            <button type="button" className="btn primary" onClick={handleAddItem} style={{width:'100%'}}>+ Add Item</button>
+          </div>
+        </div>
+
+        {selPkgId && (
+          <div style={{marginTop:8,fontSize:12,color:'var(--text-dim)'}}>
+            Price: Rs. {fmtNum(autoPrice)} per unit
+            {selQty > 0 && <> &nbsp;|&nbsp; Amount: Rs. {fmtNum(Number(autoPrice) * Number(selQty))}</>}
+          </div>
+        )}
+      </div>
+
+      {items.length > 0 && (
+        <div className="panel" style={{marginBottom:16,padding:12}}>
+          <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>Items Added</div>
+          <table>
+            <thead><tr><th>Product</th><th style={{textAlign:'center'}}>Qty</th><th style={{textAlign:'right'}}>Price</th><th style={{textAlign:'right'}}>Amount</th><th></th></tr></thead>
+            <tbody>
+              {items.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.name}</td>
+                  <td style={{textAlign:'center'}}>{item.quantity}</td>
+                  <td style={{textAlign:'right'}}>Rs. {fmtNum(item.price)}</td>
+                  <td style={{textAlign:'right'}}>Rs. {fmtNum(item.price * item.quantity)}</td>
+                  <td style={{textAlign:'center'}}><span className="link" style={{color:'var(--red)',fontSize:12}} onClick={()=>removeItem(i)}>Remove</span></td>
+                </tr>
+              ))}
+              <tr>
+                <td colSpan="3" style={{textAlign:'right',fontWeight:'bold',paddingTop:8}}>Total</td>
+                <td style={{textAlign:'right',fontWeight:'bold',paddingTop:8,color:'var(--teal)'}}>Rs. {fmtNum(totalAmount)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="btn-row">
+        <button className="btn primary" onClick={handleSubmit} disabled={saving || items.length === 0}>
+          {saving ? 'Saving...' : 'Submit Sale'}
+        </button>
+        <button className="btn" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function CustomersPage({ searchTerm = '' }) {
   const { data: customers, loading: cl, reload } = useAsync(fetchCustomers);
   const { data: salesmen } = useAsync(fetchSalesmen);
   const { data: cReturns, loading: rl } = useAsync(fetchCustomerReturns);
   const [showAdd, setShowAdd] = useState(false);
+  const [showSale, setShowSale] = useState(false);
   const [form, setForm] = useState({ code:'', name:'', phone:'', address:'', default_salesman_id:'' });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+
+  // Search & Filter state
+  const [localSearch, setLocalSearch] = useState('');
+  const [salesmanFilter, setSalesmanFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const [returnSearch, setReturnSearch] = useState('');
+  const [returnPage, setReturnPage] = useState(1);
+  const pageSize = 15;
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -913,33 +1191,74 @@ function CustomersPage({ searchTerm = '' }) {
     } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
   };
 
-  const query = (searchTerm || '').trim().toLowerCase();
-  const isCustFiltered = !!query;
-  const paginatedCustomers = (customers || []).filter(c =>
-    !query ||
-    (c.name || '').toLowerCase().includes(query) ||
-    (c.code || '').toLowerCase().includes(query) ||
-    (c.address || '').toLowerCase().includes(query) ||
-    (c.salesmen?.profiles?.full_name || '').toLowerCase().includes(query)
-  );
-  const retQuery = query;
-  const paginatedReturns = (cReturns || []).filter(r =>
-    !retQuery ||
-    (r.reference_number || '').toLowerCase().includes(retQuery) ||
-    (r.customers?.name || '').toLowerCase().includes(retQuery) ||
-    (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(retQuery) ||
-    (r.status || '').toLowerCase().includes(retQuery)
-  );
+  const query = (localSearch || searchTerm).trim().toLowerCase();
+
+  const filteredCustomers = (customers || []).filter(c => {
+    if (salesmanFilter !== 'All' && c.default_salesman_id !== salesmanFilter) return false;
+    if (!query) return true;
+    return (
+      (c.name || '').toLowerCase().includes(query) ||
+      (c.code || '').toLowerCase().includes(query) ||
+      (c.phone || '').toLowerCase().includes(query) ||
+      (c.address || '').toLowerCase().includes(query) ||
+      (c.salesmen?.profiles?.full_name || '').toLowerCase().includes(query)
+    );
+  });
+
+  const paginatedCustomers = filteredCustomers.slice((page - 1) * pageSize, page * pageSize);
+  const isCustFiltered = localSearch || salesmanFilter !== 'All';
+  const resetCustFilters = () => { setLocalSearch(''); setSalesmanFilter('All'); setPage(1); };
+
+  const retQuery = (returnSearch || searchTerm).trim().toLowerCase();
+  const filteredReturns = (cReturns || []).filter(r => {
+    if (!retQuery) return true;
+    return (
+      (r.reference_number || '').toLowerCase().includes(retQuery) ||
+      (r.customers?.name || '').toLowerCase().includes(retQuery) ||
+      (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(retQuery) ||
+      (r.transaction_type || '').toLowerCase().includes(retQuery) ||
+      (r.status || '').toLowerCase().includes(retQuery) ||
+      fmtDate(r.transaction_date).toLowerCase().includes(retQuery)
+    );
+  });
+  const paginatedReturns = filteredReturns.slice((returnPage - 1) * pageSize, returnPage * pageSize);
 
   return (
     <>
       <div className="panel">
-        <div className="section-head">
-          <h2>Customer directory</h2>
-          <span className="link" onClick={()=>setShowAdd(s=>!s)}>{showAdd?'Cancel':'Add customer'}</span>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+          <div className="section-head" style={{margin:0}}>
+            <h2>Customer directory</h2>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <input 
+              type="text" 
+              placeholder="Search name, code, phone..." 
+              value={localSearch} 
+              onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+            />
+            <select 
+              value={salesmanFilter} 
+              onChange={e => { setSalesmanFilter(e.target.value); setPage(1); }}
+              style={{padding:'4px 8px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none'}}
+            >
+              <option value="All">All Salesmen</option>
+              {(salesmen||[]).map(s => (
+                <option key={s.id} value={s.id}>{s.profiles?.full_name || s.code}</option>
+              ))}
+            </select>
+            {isCustFiltered && (
+              <span className="link" onClick={resetCustFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+            <button className={showSale ? 'btn ghost' : 'btn primary'} onClick={()=>setShowSale(s=>!s)}>{showSale?'Cancel Sale':'Create Sale'}</button>
+              <button className={showAdd ? 'btn ghost' : 'btn primary'} onClick={()=>setShowAdd(s=>!s)}>{showAdd?'Cancel':'Add customer'}</button>
+          </div>
         </div>
 
-        {showAdd && (
+        {showSale && <SalesForm onCancel={() => setShowSale(false)} onSuccess={() => {setShowSale(false); reload();}} />}
+
+          {showAdd && (
           <form onSubmit={handleAdd} style={{marginBottom:20,padding:16,background:'#FAFBF8',borderRadius:6,border:'1px solid var(--line)'}}>
             <Msg msg={msg} />
             <div className="form-grid">
@@ -949,7 +1268,7 @@ function CustomersPage({ searchTerm = '' }) {
               <div className="field">
                 <label>Default Salesman</label>
                 <select value={form.default_salesman_id} onChange={e=>setForm(f=>({...f,default_salesman_id:e.target.value}))}>
-                  <option value="">— None —</option>
+                  <option value="">-- None --</option>
                   {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
                 </select>
               </div>
@@ -960,63 +1279,66 @@ function CustomersPage({ searchTerm = '' }) {
         )}
 
         {cl ? <Spinner/> : (
-          <table>
-            <thead><tr><th>Customer</th><th>Area</th><th>Salesman</th><th>Outstanding</th></tr></thead>
-            <tbody>
-              {paginatedCustomers.length===0 ? <Empty msg={isCustFiltered || query ? "No customers found matching search criteria." : "No customers yet."}/> :
-                paginatedCustomers.map(c=>(
-                  <tr key={c.id}>
-                    <td>
-    <div style={{fontWeight:600}}>{c.name}</div>
-    <div style={{fontSize:11,color:'var(--text-dim)',display:'flex',alignItems:'center',gap:6}}>
-      <span>{c.code}</span>
-      {c.phone && (
-        <span 
-          className="link" 
-          onClick={() => shareOnWhatsApp({
-            title: 'Customer Balance Notice',
-            lines: [`*Customer:* ${c.name} (${c.code})`, `*Area:* ${c.address || '—'}`, `*Outstanding Balance:* Rs. ${fmtNum(c.outstanding)}`],
-            phone: c.phone
-          })}
-          style={{color:'var(--teal)',fontWeight:500}}
-        >
-          WhatsApp
-        </span>
-      )}
-    </div>
-  </td>
-                    <td>{c.address||'—'}</td>
-                    <td>{c.salesmen?.profiles?.full_name||'—'}</td>
-                    <td className="num-cell" style={{color:c.outstanding>0?'var(--red)':'inherit'}}>Rs. {fmtNum(c.outstanding)}</td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+          <div>
+            <table>
+              <thead><tr><th>Customer</th><th>Area</th><th>Salesman</th><th>Outstanding</th></tr></thead>
+              <tbody>
+                {paginatedCustomers.length===0 ? <Empty msg={isCustFiltered || query ? "No customers found matching search criteria." : "No customers yet."}/> :
+                  paginatedCustomers.map(c=>(
+                    <tr key={c.id}>
+                      <td><div style={{fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:'var(--text-dim)'}}>{c.code}</div></td>
+                      <td>{c.address||'-'}</td>
+                      <td>{c.salesmen?.profiles?.full_name||'-'}</td>
+                      <td className="num-cell" style={{color:c.outstanding>0?'var(--red)':'inherit'}}>Rs. {fmtNum(c.outstanding)}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+            <Pagination page={page} pageSize={pageSize} total={filteredCustomers.length} onPageChange={setPage} />
+          </div>
         )}
       </div>
 
       <div className="panel" style={{marginTop:20}}>
-        <div className="section-head"><h2>Customer returns</h2></div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+          <div className="section-head" style={{margin:0}}><h2>Customer returns</h2></div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input 
+              type="text" 
+              placeholder="Search returns..." 
+              value={returnSearch} 
+              onChange={e => { setReturnSearch(e.target.value); setReturnPage(1); }}
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+            />
+            {returnSearch && (
+              <span className="link" onClick={() => setReturnSearch('')} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+          </div>
+        </div>
+
         {rl ? <Spinner/> : (
-          <table>
-            <thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Salesman</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
-            <tbody>
-              {paginatedReturns.length===0 ? <Empty msg={retQuery ? "No matching customer returns found." : "No customer returns yet."}/> :
-                paginatedReturns.map(r=>(
-                  <tr key={r.id}>
-                    <td style={{fontSize:11}}>{r.reference_number}</td>
-                    <td>{fmtDate(r.transaction_date)}</td>
-                    <td>{r.customers?.name||'—'}</td>
-                    <td>{r.salesmen?.profiles?.full_name||'—'}</td>
-                    <td>{r.transaction_type?.replace(/_/g,' ')}</td>
-                    <td className="num-cell">{r.quantity}</td>
-                    <td>{statusBadge(r.status)}</td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
+          <div>
+            <table>
+              <thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Salesman</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
+              <tbody>
+                {paginatedReturns.length===0 ? <Empty msg={retQuery ? "No matching customer returns found." : "No customer returns yet."}/> :
+                  paginatedReturns.map(r=>(
+                    <tr key={r.id}>
+                      <td style={{fontSize:11}}>{r.reference_number}</td>
+                      <td>{fmtDate(r.transaction_date)}</td>
+                      <td>{r.customers?.name||'-'}</td>
+                      <td>{r.salesmen?.profiles?.full_name||'-'}</td>
+                      <td>{r.transaction_type?.replace(/_/g,' ')}</td>
+                      <td className="num-cell">{r.quantity}</td>
+                      <td>{statusBadge(r.status)}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+            <Pagination page={returnPage} pageSize={pageSize} total={filteredReturns.length} onPageChange={setReturnPage} />
+          </div>
         )}
       </div>
     </>
@@ -1024,19 +1346,86 @@ function CustomersPage({ searchTerm = '' }) {
 }
 
 function ProductPage({ searchTerm = '' }) {
-  const { data: products, loading: pl } = useAsync(fetchProducts);
+  const { role } = useAuth();
+  const { data: products, loading: pl, reload } = useAsync(fetchProducts);
   const { data: movement, loading: ml } = useAsync(fetchProductMovement);
-  const mv = movement||{};
+  const mv = movement || {};
+
   const [localSearch, setLocalSearch] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 15;
   const query = (localSearch || searchTerm).trim().toLowerCase();
+
+  // Add/Edit Product form state
+  const [showAdd, setShowAdd] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState({ name: '', code: '', packagingName: '', unitCost: '', salesPrice: '', pkgId: null, productId: null, priceId: null });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.code || !form.packagingName || !form.unitCost || !form.salesPrice) {
+      setMsg('err:All fields are required.');
+      return;
+    }
+    setSaving(true); setMsg('');
+    try {
+      if (editMode) {
+        await updateProduct(form);
+        setMsg('ok:Product updated successfully.');
+      } else {
+        await addProduct(form);
+        setMsg('ok:Product added successfully.');
+      }
+      setForm({ name: '', code: '', packagingName: '', unitCost: '', salesPrice: '', pkgId: null, productId: null, priceId: null });
+      setShowAdd(false);
+      setEditMode(false);
+      reload();
+    } catch (e) {
+      setMsg('err:' + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = (r) => {
+    setForm({
+      name: r.productName,
+      code: r.productCode || '',
+      packagingName: r.packagingName,
+      unitCost: r.unitCost || '',
+      salesPrice: r.salesPrice || '',
+      pkgId: r.id,
+      productId: r.productId,
+      priceId: r.priceId
+    });
+    setEditMode(true);
+    setShowAdd(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (r) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    setMsg('');
+    try {
+      await deleteProduct(r.id, r.productId);
+      setMsg('ok:Product deleted successfully.');
+      reload();
+    } catch (e) {
+      setMsg('err:' + e.message);
+    }
+  };
+
+  const canManage = role === 'Super_Admin' || role === 'Manager';
 
   const allPriceRows = (products || []).flatMap(p =>
     (p.product_packaging || []).map(pkg => {
       const price = pkg.product_prices?.[0];
       return {
         id: pkg.id,
+        productId: p.id,
+        priceId: price?.id,
         productName: p.name,
         productCode: p.code,
         packagingName: pkg.name,
@@ -1057,17 +1446,6 @@ function ProductPage({ searchTerm = '' }) {
 
   const paginatedPrices = filteredPrices.slice((page - 1) * pageSize, page * pageSize);
   const isFiltered = !!localSearch;
-
-  const handleExportProductsCsv = () => {
-    const headers = ['Product Name', 'Packaging', 'Unit Cost (PKR)', 'Sales Price (PKR)'];
-    const rows = filteredPrices.map(r => [
-      r.productName,
-      r.packagingName,
-      r.unitCost || 0,
-      r.salesPrice || 0
-    ]);
-    exportToCsv('Products_and_Pricing', headers, rows);
-  };
 
   return (
     <>
@@ -1096,28 +1474,94 @@ function ProductPage({ searchTerm = '' }) {
       </div>
 
       <div className="panel" style={{marginTop:20}}>
-        <div className="section-head"><h2>Products &amp; pricing</h2></div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+          <div className="section-head" style={{margin:0}}><h2>Products &amp; pricing</h2></div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input
+              type="text"
+              placeholder="Search product or packaging..."
+              value={localSearch}
+              onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
+              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:200}}
+            />
+            {isFiltered && (
+              <span className="link" onClick={() => { setLocalSearch(''); setPage(1); }} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+            )}
+            {canManage && (
+              <button className={showAdd ? 'btn ghost' : 'btn primary'} onClick={() => { 
+                if(showAdd) { setShowAdd(false); setEditMode(false); setForm({ name: '', code: '', packagingName: '', unitCost: '', salesPrice: '', pkgId: null, productId: null, priceId: null }); }
+                else { setShowAdd(true); } 
+              }}>
+                {showAdd ? 'Cancel' : '+ Add Product'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {canManage && showAdd && (
+          <form onSubmit={handleAddProduct} style={{marginBottom:20,padding:16,background:'#FAFBF8',borderRadius:6,border:'1px solid var(--line)'}}>
+            <div style={{fontWeight:600,fontSize:13,marginBottom:12}}>{editMode ? 'Edit Product' : 'Add New Product'}</div>
+            <Msg msg={msg} />
+            <div className="form-grid">
+              <div className="field">
+                <label>Product Name *</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Elite Wash" />
+              </div>
+              <div className="field">
+                <label>Product Code *</label>
+                <input value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="e.g. ELW-001" />
+              </div>
+              <div className="field">
+                <label>Packaging / Variant *</label>
+                <input value={form.packagingName} onChange={e=>setForm(f=>({...f,packagingName:e.target.value}))} placeholder="e.g. 1kg, 500g, Sachet" />
+              </div>
+              <div className="field">
+                <label>Cost Price (Rs.) *</label>
+                <input type="number" min="0" step="0.01" value={form.unitCost} onChange={e=>setForm(f=>({...f,unitCost:e.target.value}))} placeholder="e.g. 90" />
+              </div>
+              <div className="field">
+                <label>Sales Price (Rs.) *</label>
+                <input type="number" min="0" step="0.01" value={form.salesPrice} onChange={e=>setForm(f=>({...f,salesPrice:e.target.value}))} placeholder="e.g. 120" />
+              </div>
+            </div>
+            <button type="submit" className="btn primary" style={{marginTop:12}} disabled={saving}>{saving ? 'Saving...' : (editMode ? 'Update Product' : 'Save Product')}</button>
+          </form>
+        )}
+        {!showAdd && <Msg msg={msg} />}
+
         {pl ? <Spinner/> : (
-          <table>
-            <thead><tr><th>Product</th><th>Packaging</th><th>Cost price</th><th>Sales price</th></tr></thead>
-            <tbody>
-              {paginatedPrices.length===0 ? <Empty msg={isFiltered || query ? "No products found matching search criteria." : "No products found."}/> :
-                (products||[]).flatMap(p=>
-                  (p.product_packaging||[]).map(pkg=>{
-                    const price = pkg.product_prices?.[0];
-                    return (
-                      <tr key={pkg.id}>
-                        <td>{p.name}</td>
-                        <td>{pkg.name}</td>
-                        <td className="num-cell">Rs. {fmtNum(price?.unit_cost)}</td>
-                        <td className="num-cell">Rs. {fmtNum(price?.sales_price)}</td>
-                      </tr>
-                    );
-                  })
-                )
-              }
-            </tbody>
-          </table>
+          <div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Packaging</th>
+                  <th>Cost price</th>
+                  <th>Sales price</th>
+                  {canManage && <th>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedPrices.length===0 ? <Empty msg={isFiltered || query ? "No products found matching search criteria." : "No products found. Add your first product using the button above."}/> :
+                  paginatedPrices.map(r => (
+                    <tr key={r.id}>
+                      <td>{r.productName}</td>
+                      <td>{r.packagingName}</td>
+                      <td className="num-cell">Rs. {fmtNum(r.unitCost)}</td>
+                      <td className="num-cell">Rs. {fmtNum(r.salesPrice)}</td>
+                      {canManage && (
+                        <td>
+                          <span className="link" onClick={() => handleEdit(r)}>Edit</span>
+                          <span className="link" onClick={() => handleDelete(r)} style={{color:'var(--red)', marginLeft: 8}}>Delete</span>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+            <Pagination page={page} pageSize={pageSize} total={filteredPrices.length} onPageChange={setPage} />
+          </div>
         )}
       </div>
     </>
@@ -1128,8 +1572,10 @@ function SettlementPage({ searchTerm = '' }) {
   const { data: salesmen } = useAsync(fetchSalesmen);
   const [selectedId, setSelectedId] = useState('');
   const { data: settlement, loading: sl } = useAsync(() => selectedId ? fetchSalesmanSettlement(selectedId) : Promise.resolve(null), [selectedId]);
+  
   const query = (searchTerm || '').trim().toLowerCase();
   const filteredSalesmen = (salesmen || []).filter(s => !query || (s.profiles?.full_name || '').toLowerCase().includes(query) || (s.code || '').toLowerCase().includes(query));
+  
   const selected = (salesmen||[]).find(s=>s.id===selectedId);
   const sv = settlement||{};
 
@@ -1139,8 +1585,8 @@ function SettlementPage({ searchTerm = '' }) {
       <div className="field" style={{marginBottom:20,maxWidth:300}}>
         <label>Select Salesman</label>
         <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
-          <option value="">— Select salesman —</option>
-          {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+          <option value="">-- Select --</option>
+          {filteredSalesmen.map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
         </select>
       </div>
 
@@ -1154,7 +1600,7 @@ function SettlementPage({ searchTerm = '' }) {
           <table>
             <tbody>
               <tr><td>Sales (net)</td><td className="num-cell" style={{textAlign:'right'}}>+ Rs. {fmtNum(sv.netSales)}</td></tr>
-              <tr><td>Recovery received</td><td className="num-cell" style={{textAlign:'right'}}>− Rs. {fmtNum(sv.recovery)}</td></tr>
+              <tr><td>Recovery received</td><td className="num-cell" style={{textAlign:'right'}}>âˆ' Rs. {fmtNum(sv.recovery)}</td></tr>
               <tr><td>Reimbursement payable (approved expenses)</td><td className="num-cell" style={{textAlign:'right'}}>+ Rs. {fmtNum(sv.reimbursable)}</td></tr>
               <tr><td><strong>Net settlement position</strong></td><td className="num-cell" style={{textAlign:'right'}}>
                 <strong style={{color:sv.net>0?'var(--red)':'var(--green)'}}>
@@ -1179,9 +1625,10 @@ function ReportsPage() {
     <>
       <div className="grid g3">
         <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Daily closing report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Stock + cash + expense reconciliation for all salesmen, per day.</p><button className="btn">Open</button></div>
-        <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Product movement report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Opening, production, sales, returns, damages, closing — by product.</p><button className="btn">Open</button></div>
+        <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Product movement report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Opening, production, sales, returns, damages, closing - by product.</p><button className="btn">Open</button></div>
         <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Expense report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Filter by salesman, category, paid-by and status.</p><button className="btn">Open</button></div>
         <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Salesman statement (PDF)</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Stock, sales, recovery, returns, damages, expenses.</p><button className="btn">Generate</button></div>
+        <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Print Sale Receipt</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Test customer sale receipt layout.</p><button className="btn" onClick={() => import('./lib/exportUtils').then(m => m.printSaleReceipt({ billNo: 'ELW-9912', date: new Date().toLocaleDateString('en-PK'), customerName: 'Al-Madina Mart (Test)', totalAmount: 18450, items: [{ description: 'Elite Wash 1kg', quantity: 10, unit_price: 150 }, { description: 'Elite Wash 500g', quantity: 25, unit_price: 80 }, { description: 'Elite Wash 250g', quantity: 50, unit_price: 45 }] }))}>Print Receipt</button></div>
         <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Profitability report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>Revenue, COGS, gross profit, expenses, net profit.</p><button className="btn">Open</button></div>
         <div className="panel-flat"><h3 style={{fontSize:14,marginBottom:6}}>Variance report</h3><p style={{fontSize:12.5,color:'var(--text-dim)',marginBottom:14}}>All stock/cash shortages &amp; excesses.</p><button className="btn">Open</button></div>
       </div>
@@ -1191,37 +1638,77 @@ function ReportsPage() {
 
 function AuditPage({ searchTerm = '' }) {
   const { data: logs, loading: ll } = useAsync(fetchAuditLogs);
-  const query = (searchTerm || '').trim().toLowerCase();
-  const isFiltered = !!query;
-  const paginatedLogs = (logs || []).filter(l =>
-    !query ||
-    (l.table_name || '').toLowerCase().includes(query) ||
-    (l.action || '').toLowerCase().includes(query) ||
-    (l.profiles?.full_name || '').toLowerCase().includes(query)
-  );
+
+  const [localSearch, setLocalSearch] = useState('');
+  const [actionFilter, setActionFilter] = useState('All');
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
+
+  const query = (localSearch || searchTerm).trim().toLowerCase();
+
+  const filteredLogs = (logs || []).filter(l => {
+    if (actionFilter !== 'All' && l.action !== actionFilter) return false;
+    if (!query) return true;
+    return (
+      (l.table_name || '').toLowerCase().includes(query) ||
+      (l.profiles?.full_name || '').toLowerCase().includes(query) ||
+      (l.action || '').toLowerCase().includes(query) ||
+      (l.record_id || '').toLowerCase().includes(query) ||
+      fmtTime(l.created_at).toLowerCase().includes(query)
+    );
+  });
+
+  const paginatedLogs = filteredLogs.slice((page - 1) * pageSize, page * pageSize);
+  const isFiltered = localSearch || actionFilter !== 'All';
+  const resetFilters = () => { setLocalSearch(''); setActionFilter('All'); setPage(1); };
+
   return (
     <div className="panel">
-      <div className="section-head"><h2>Audit trail</h2></div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
+        <div className="section-head" style={{margin:0}}><h2>Audit trail</h2></div>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          <input 
+            type="text" 
+            placeholder="Search action, table, user..." 
+            value={localSearch} 
+            onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
+            style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
+          />
+          <div className="chip-list" style={{gap:4}}>
+            {['All', 'INSERT', 'UPDATE', 'DELETE'].map(act => (
+              <div key={act} className={`chip${actionFilter===act?' active':''}`} onClick={() => { setActionFilter(act); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
+                {act}
+              </div>
+            ))}
+          </div>
+          {isFiltered && (
+            <span className="link" onClick={resetFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
+          )}
+        </div>
+      </div>
+
       {ll ? <Spinner/> : (
-        <table>
-          <thead><tr><th>Timestamp</th><th>User</th><th>Table</th><th>Action</th></tr></thead>
-          <tbody>
-            {paginatedLogs.length===0 ? <Empty msg={isFiltered || query ? "No matching audit records found." : "No audit logs yet."}/> :
-              paginatedLogs.map(l=>(
-                <tr key={l.id}>
-                  <td style={{fontSize:11}}>{fmtTime(l.created_at)}</td>
-                  <td>{l.profiles?.full_name||'System'}</td>
-                  <td style={{fontSize:11}}>{l.table_name}</td>
-                  <td><span className={`badge ${l.action==='INSERT'?'green':l.action==='UPDATE'?'amber':'red'}`}>{l.action}</span></td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
+        <div>
+          <table>
+            <thead><tr><th>Timestamp</th><th>User</th><th>Table</th><th>Action</th></tr></thead>
+            <tbody>
+              {paginatedLogs.length===0 ? <Empty msg={isFiltered || query ? "No matching audit records found." : "No audit logs yet."}/> :
+                paginatedLogs.map(l=>(
+                  <tr key={l.id}>
+                    <td style={{fontSize:11}}>{fmtTime(l.created_at)}</td>
+                    <td>{l.profiles?.full_name||'System'}</td>
+                    <td style={{fontSize:11}}>{l.table_name}</td>
+                    <td><span className={`badge ${l.action==='INSERT'?'green':l.action==='UPDATE'?'amber':'red'}`}>{l.action}</span></td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+          <Pagination page={page} pageSize={pageSize} total={filteredLogs.length} onPageChange={setPage} />
+        </div>
       )}
     </div>
   );
 }
 
 createRoot(document.getElementById('root')).render(<Root/>);
-
