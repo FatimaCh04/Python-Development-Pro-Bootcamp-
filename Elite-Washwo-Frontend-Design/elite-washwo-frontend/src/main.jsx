@@ -4,6 +4,7 @@ import './styles.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import SettingsPage from './components/SettingsPage';
+import BookingPage from './components/BookingPage';
 import {
   fetchOverviewStats, fetchRecentAuditLogs, fetchSalesmenSnapshot, fetchChartData,
   fetchSalesmen, fetchSalesmanStats, fetchSalesmanStockLedger, fetchSalesmanFinLedger, fetchSalesmanExpLedger,
@@ -63,6 +64,7 @@ function AppRouter() {
 
 const NAV = [
   { group: 'Operations', items: [
+      { key: 'booking', label: 'Bookings', roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> },
     { key: 'overview',   label: 'Overview',        roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg> },
     { key: 'salesman',   label: 'Salesman Ledger', roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg> },
     { key: 'stock',      label: 'Stock & Returns', roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg> },
@@ -81,6 +83,7 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
+  booking: ['Booking & Orders', 'Manage customer bookings and recoveries'],
   overview: ['Overview', new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
   salesman: ['Salesman Ledger', 'Complete stock, financial & expense ledger per salesman'],
   stock: ['Stock & Returns', 'Salesman returns, condition tracking & daily reconciliation'],
@@ -127,6 +130,9 @@ function App() {
 
   const renderPage = () => {
     switch(activePage) {
+      case 'booking':
+        return <BookingPage />;
+
       case 'overview':
         if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access company overview." />;
         return <OverviewPage navigate={navigate} searchTerm={globalSearch}/>;
@@ -189,13 +195,6 @@ function App() {
         ))}
         </div>
         <div className="sidebar-footer">
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,.08)'}}>
-            <img src="/elitewash-logo.jpg" alt="EliteWash Logo" style={{width:36,height:36,borderRadius:6,objectFit:'cover',flexShrink:0}} />
-            <div>
-              <div style={{fontSize:12,fontWeight:600,color:'#fff'}}>Elite Washwo</div>
-              <div style={{fontSize:10,color:'#5C6B80'}}>ERP v1.0</div>
-            </div>
-          </div>
           <div style={{fontSize:11,color:'#5C6B80',marginBottom:6}}>Signed in as: <span style={{color:'#8CA0AB'}}>{displayName}</span></div>
           <button className="logout-btn" onClick={handleLogout}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -204,28 +203,6 @@ function App() {
         </div>
       </aside>
       <div className="main">
-        <div className="topbar">
-          <div><div className="page-title">{title}</div><div className="page-sub">{subtitle}</div></div>
-          <div className="topbar-right">
-            <div className="search-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-              <input 
-                type="text" 
-                placeholder="Search across page..." 
-                value={globalSearch} 
-                onChange={e => setGlobalSearch(e.target.value)} 
-              />
-              {globalSearch && (
-                <span onClick={() => setGlobalSearch('')} style={{cursor:'pointer',fontSize:12,color:'var(--text-dim)',padding:'0 4px',lineHeight:1}}>âœ•</span>
-              )}
-            </div>
-            <div className="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 8a6 6 0 0112 0c0 4 1.5 5 1.5 6.5H4.5C4.5 13 6 12 6 8z"/><path d="M9.5 17a2.5 2.5 0 005 0"/></svg></div>
-            <div className="user-chip">
-              <div className="avatar">{displayName.substring(0,2).toUpperCase()}</div>
-              <div className="user-meta"><div className="name">{displayName}</div><div className="role">{displayRole}</div></div>
-            </div>
-          </div>
-        </div>
         <div className="content">
           <div className="page-enter" key={activePage}>
             {renderPage()}
