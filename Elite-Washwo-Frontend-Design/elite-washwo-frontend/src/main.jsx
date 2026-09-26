@@ -1138,7 +1138,7 @@ function SalesForm({ onCancel, onSuccess }) {
       )}
 
       <div className="btn-row">
-        <button className="btn primary" onClick={handleSubmit} disabled={saving || items.length === 0}>
+        <button className="btn primary" onClick={handleSubmit} disabled={saving}>
           {saving ? 'Saving...' : 'Submit Sale'}
         </button>
         <button className="btn" onClick={onCancel}>Cancel</button>

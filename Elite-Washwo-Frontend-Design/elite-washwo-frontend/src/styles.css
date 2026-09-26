@@ -263,3 +263,7 @@ footer.note{font-size:11.5px;color:var(--text-dim);text-align:center;padding:18p
 .perm-check b { display:block; font-size:11.5px; color:var(--ink); font-weight:600; }
 .perm-check span { display:block; font-size:11px; color:var(--text-dim); margin-top:2px; }
 @media(max-width:900px) { .perm-layout{grid-template-columns:1fr} .perm-manager-list{border-right:0;border-bottom:1px solid var(--line)} .perm-checks{grid-template-columns:1fr} }
+
+
+/* Disabled buttons */
+.btn:disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }

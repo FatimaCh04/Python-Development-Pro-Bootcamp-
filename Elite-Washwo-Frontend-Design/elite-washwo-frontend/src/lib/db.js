@@ -441,6 +441,13 @@ export async function updateProduct({ pkgId, productId, priceId, name, code, pac
   if (priceId) {
     const { error: e3 } = await supabase.from('product_prices').update({ unit_cost: Number(unitCost), sales_price: Number(salesPrice) }).eq('id', priceId);
     if (e3) throw e3;
+  } else {
+    const { error: e4 } = await supabase.from('product_prices').insert({
+      packaging_id: pkgId,
+      unit_cost: Number(unitCost),
+      sales_price: Number(salesPrice)
+    });
+    if (e4) throw e4;
   }
   return true;
 }
