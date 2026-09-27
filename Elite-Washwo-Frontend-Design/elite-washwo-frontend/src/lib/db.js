@@ -132,8 +132,26 @@ export async function fetchInventoryTransactions(filters={}) {
   return data||[];
 }
 
-export async function submitStockReturn({salesmanId,packagingId,transaction_type,quantity,notes,unit_cost=0}) {
-  const {error}=await supabase.from('inventory_transactions').insert({reference_number:refNum('RTN'),transaction_date:new Date().toISOString(),packaging_id:packagingId,category:transaction_type==='Salesman_Good_Return'?'Sellable Stock':'Damaged Stock',transaction_type,quantity:Number(quantity),unit_cost:Number(unit_cost),total_cost:Number(quantity)*Number(unit_cost),salesman_id:salesmanId,status:'Pending',notes});
+export async function submitStockReturn({salesmanId, distributorId, packagingId, transaction_type, quantity, notes, unit_cost=0}) {
+  let category = 'Damaged Stock';
+  if (transaction_type.includes('Good_Return')) category = 'Sellable Stock';
+  
+  const payload = {
+    reference_number: refNum('RTN'),
+    transaction_date: new Date().toISOString(),
+    packaging_id: packagingId,
+    category,
+    transaction_type,
+    quantity: Number(quantity),
+    unit_cost: Number(unit_cost),
+    total_cost: Number(quantity) * Number(unit_cost),
+    status: 'Pending',
+    notes
+  };
+  if (salesmanId) payload.salesman_id = salesmanId;
+  if (distributorId) payload.distributor_id = distributorId;
+
+  const {error} = await supabase.from('inventory_transactions').insert(payload);
   if(error) throw error;
 }
 
@@ -144,17 +162,36 @@ export async function approveTransaction(id) {
 
 // --- EXPENSES -----------------------------------------------------------------
 export async function fetchExpenses(filters={}) {
-  let q=supabase.from('expenses').select('*, salesmen(profiles(full_name))').order('expense_date',{ascending:false}).limit(100);
-  if(filters.salesman_id) q=q.eq('salesman_id',filters.salesman_id);
-  if(filters.status) q=q.eq('status',filters.status);
+  let q=supabase.from('expenses').select('*, salesmen(profiles(full_name)), distributors(name, code)').order('expense_date',{ascending:false}).limit(100);
+  if(filters.distributor_id) q=q.eq('distributor_id',filters.distributor_id);
+  if(filters.type && filters.type !== 'All') q=q.eq('category', filters.type);
+  if(filters.status && filters.status !== 'All') q=q.eq('status',filters.status);
   const {data,error}=await q;
   if(error) throw error;
   return data||[];
 }
 
-export async function submitExpense({salesmanId,category,amount,description,paid_by,payment_method}) {
-  const {error}=await supabase.from('expenses').insert({reference_number:refNum('EXP'),expense_date:new Date().toISOString(),salesman_id:salesmanId,category,amount:Number(amount),description,paid_by,payment_method,status:'Pending'});
-  if(error) throw error;
+export async function submitExpense({ expenseType, distributorId, amount, accountDetail, tid, notes, head }) {
+  const payload = {
+    reference_number: refNum('EXP'),
+    expense_date: new Date().toISOString(),
+    category: expenseType, 
+    amount: Number(amount),
+    account_detail: accountDetail || null,
+    tid: tid || null,
+    description: notes || '', 
+    head: head || null,
+    distributor_id: expenseType === 'Distributor' ? distributorId : null,
+    salesman_id: null,
+    status: 'Pending'
+  };
+  const {error} = await supabase.from('expenses').insert(payload);
+  if(error) {
+    if (error.code === '23502' && error.message.includes('salesman_id')) {
+      throw new Error("SCHEMA ERROR: Cannot save expense because the database still requires a salesman. Please run this SQL in Supabase: ALTER TABLE expenses ALTER COLUMN salesman_id DROP NOT NULL;");
+    }
+    throw error;
+  }
 }
 
 export async function updateExpenseStatus(id,status) {
@@ -164,12 +201,24 @@ export async function updateExpenseStatus(id,status) {
 
 export async function fetchExpenseSummary() {
   const monthStart=new Date();monthStart.setDate(1);monthStart.setHours(0,0,0,0);
-  const {data}=await supabase.from('expenses').select('amount,status,paid_by').gte('expense_date',monthStart.toISOString());
+  const {data}=await supabase.from('expenses').select('amount,status,category').gte('expense_date',monthStart.toISOString());
   const total=(data||[]).reduce((s,r)=>s+Number(r.amount),0);
-  const pending=(data||[]).filter(r=>['Pending','Submitted'].includes(r.status)).reduce((s,r)=>s+Number(r.amount),0);
-  const company=(data||[]).filter(r=>r.paid_by==='Company').reduce((s,r)=>s+Number(r.amount),0);
-  const salesman=total-company;
-  return {total,pending,company,salesman,companyPct:total?Math.round(company/total*100):0};
+  
+  let distributor = 0;
+  let company = 0;
+  let office = 0;
+  let others = 0;
+  
+  (data||[]).forEach(r => {
+    const amt = Number(r.amount);
+    if (r.category === 'Distributor') distributor += amt;
+    else if (r.category === 'Company') company += amt;
+    else if (r.category === 'Office') office += amt;
+    else if (r.category === 'Others') others += amt;
+    // Historical categories will just not add to these specific buckets, but are included in total
+  });
+  
+  return {total, distributor, company, office, others};
 }
 
 // --- CUSTOMERS ----------------------------------------------------------------
@@ -376,12 +425,13 @@ export async function approveSettlement(salesmanId) {
   return { success: true };
 }
 
-export async function submitSale({ salesmanId, customerId, items, totalAmount }) {
+export async function submitSale({ salesmanId, customerId, distributorId, items, totalAmount }) {
   const ref = refNum('SAL');
   const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
     reference_number: ref,
     salesman_id: salesmanId,
     customer_id: customerId,
+    distributor_id: distributorId || null,
     total_amount: totalAmount,
     sale_date: new Date().toISOString(),
     status: 'Approved'
@@ -469,12 +519,13 @@ export async function deleteProduct(pkgId, productId) {
 }
 
 
-export async function submitBooking({ salesmanId, customerId, items, totalAmount }) {
+export async function submitBooking({ salesmanId, customerId, distributorId, items, totalAmount }) {
   const ref = refNum('BKG');
   const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
     reference_number: ref,
     salesman_id: salesmanId,
     customer_id: customerId,
+    distributor_id: distributorId || null,
     total_amount: totalAmount,
     sale_date: new Date().toISOString(),
     status: 'Pending'
@@ -496,12 +547,16 @@ export async function submitBooking({ salesmanId, customerId, items, totalAmount
   return order;
 }
 
-export async function fetchBookings() {
-  const { data, error } = await supabase
+export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
+  let q = supabase
     .from('sales_orders')
-    .select('id, reference_number, sale_date, total_amount, status, customer_id, salesman_id, customers(name), salesmen(profiles(full_name))')
+    .select('id, reference_number, sale_date, total_amount, status, customer_id, salesman_id, distributor_id, customers(name), salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone)')
     .like('reference_number', 'BKG-%')
     .order('sale_date', { ascending: false });
+  if (dateFrom) q = q.gte('sale_date', dateFrom);
+  if (dateTo) q = q.lte('sale_date', dateTo);
+  if (distributorId) q = q.eq('distributor_id', distributorId);
+  const { data, error } = await q;
   if (error) throw error;
   
   const { data: recs, error: rErr } = await supabase
@@ -533,5 +588,420 @@ export async function addBookingRecovery({ bookingId, customerId, salesmanId, am
     recovery_date: new Date().toISOString(),
     status: 'Approved'
   });
+  if (error) throw error;
+}
+
+
+// ── Distributors ─────────────────────────────────────────────────────────────
+export async function fetchDistributors() {
+  const { data, error } = await supabase.from('distributors').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function addDistributor({ code, name, id_card, phone, commission, is_active }) {
+  const { data, error } = await supabase.from('distributors').insert({
+    code, name, id_card: id_card || null, phone, commission: Number(commission), is_active
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateDistributor(id, { code, name, id_card, phone, commission, is_active }) {
+  const { data, error } = await supabase.from('distributors').update({
+    code, name, id_card: id_card || null, phone, commission: Number(commission), is_active, updated_at: new Date().toISOString()
+  }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDistributor(id) {
+  const { error } = await supabase.from('distributors').delete().eq('id', id);
+  if (error) throw error;
+}
+
+
+// ── Sales (SAL- records) with distributor + filters ──────────────────────────
+export async function fetchSales({ dateFrom, dateTo, distributorId } = {}) {
+  let q = supabase
+    .from('sales_orders')
+    .select('id, reference_number, sale_date, total_amount, status, customer_id, salesman_id, distributor_id, customers(name, code), salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(quantity, unit_price, subtotal)')
+    .like('reference_number', 'SAL-%')
+    .order('sale_date', { ascending: false });
+  if (dateFrom) q = q.gte('sale_date', dateFrom);
+  if (dateTo)   q = q.lte('sale_date', dateTo);
+  if (distributorId) q = q.eq('distributor_id', distributorId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Distributor Outstanding ───────────────────────────────────────────────────
+export async function fetchDistributorOutstanding(distributorId) {
+  if (!distributorId) return 0;
+  const { data: sales }     = await supabase.from('sales_orders').select('total_amount').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']);
+  const { data: recoveries } = await supabase.from('recoveries').select('amount').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']);
+  const totalSales     = (sales     || []).reduce((s, r) => s + Number(r.total_amount), 0);
+  const totalRecovered = (recoveries || []).reduce((s, r) => s + Number(r.amount), 0);
+  return Math.max(0, totalSales - totalRecovered);
+}
+
+// ── Distributor today recovery ────────────────────────────────────────────────
+export async function fetchDistributorTodayRecovery(distributorId) {
+  if (!distributorId) return 0;
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const { data } = await supabase.from('recoveries').select('amount').eq('distributor_id', distributorId).gte('recovery_date', todayStart.toISOString()).in('status', ['Approved', 'Posted']);
+  return (data || []).reduce((s, r) => s + Number(r.amount), 0);
+}
+
+
+export async function fetchDashboardMetrics(selectedDateStr) {
+  const dateObj = selectedDateStr ? new Date(selectedDateStr + 'T00:00:00') : new Date();
+  
+  const endOfDay = new Date(dateObj);
+  endOfDay.setHours(23,59,59,999);
+  const eodIso = endOfDay.toISOString();
+  
+  const startOfDay = new Date(dateObj);
+  startOfDay.setHours(0,0,0,0);
+  const sodIso = startOfDay.toISOString();
+
+  // 1. INVENTORY TRANSACTIONS (Cumulative up to EOD)
+  const { data: invRows } = await supabase
+    .from('inventory_transactions')
+    .select('transaction_type, quantity, distributor_id, salesman_id')
+    .in('status', ['Approved', 'Posted'])
+    .lte('transaction_date', eodIso);
+
+  let companyStock = 0;
+  let distReturnStock = 0;
+  let damageReturnStock = 0;
+
+  (invRows || []).forEach(r => {
+    const qty = Number(r.quantity) || 0;
+    const isGoodReturn = ['Salesman_Good_Return', 'Customer_Good_Return'].includes(r.transaction_type);
+    const isDamagedReturn = ['Salesman_Damaged_Return', 'Customer_Damaged_Return'].includes(r.transaction_type);
+    
+    // Company Saleable Stock (Cumulative)
+    if (['Production', 'Purchase'].includes(r.transaction_type) || isGoodReturn) {
+       companyStock += qty;
+    }
+    if (['Salesman_Issue', 'Distributor_Issue'].includes(r.transaction_type)) {
+       companyStock -= qty;
+    }
+    if (['Adjustment', 'Damage', 'Expiry'].includes(r.transaction_type)) {
+       // Assuming these are direct company stock adjustments if no SM/Dist is assigned
+       if (!r.salesman_id && !r.distributor_id) {
+         companyStock -= qty;
+       }
+    }
+
+    // Distributor Return Stock (Cumulative) - explicitly identified by distributor_id
+    if (r.distributor_id && (isGoodReturn || isDamagedReturn)) {
+       distReturnStock += qty;
+    }
+    
+    // Damage Return Stock (Cumulative) - all approved damaged returns
+    if (isDamagedReturn) {
+       damageReturnStock += qty;
+    }
+  });
+
+  // 2. GLOBAL SETTINGS
+  const { data: gs } = await supabase.from('global_settings').select('*').limit(1).single();
+  const advOpening = Number(gs?.advertisement_opening_balance) || 0;
+  const welfOpening = Number(gs?.welfare_opening_balance) || 0;
+
+  // 3. SALES & SALE ITEMS (Cumulative & Selected Date)
+  const { data: allSales } = await supabase
+    .from('sales_orders')
+    .select('id, reference_number, sale_date, total_amount, distributor_id, distributors(commission), sale_items(quantity)')
+    .like('reference_number', 'SAL-%')
+    .in('status', ['Approved', 'Posted'])
+    .lte('sale_date', eodIso);
+
+  let salesSelectedDateAmount = 0;
+  let commissionSelectedDate = 0;
+  let cumulativeDistSalesAmount = 0;
+  let cumulativePkts = 0;
+
+  (allSales || []).forEach(sale => {
+    const isSelectedDate = sale.sale_date >= sodIso && sale.sale_date <= eodIso;
+    const pkts = (sale.sale_items || []).reduce((a, item) => a + Number(item.quantity || 0), 0);
+    const amt = Number(sale.total_amount) || 0;
+    
+    cumulativePkts += pkts;
+    
+    if (sale.distributor_id) {
+       cumulativeDistSalesAmount += amt;
+    }
+
+    if (isSelectedDate) {
+      salesSelectedDateAmount += amt;
+      const commRate = Number(sale.distributors?.commission) || 30;
+      commissionSelectedDate += (pkts * commRate);
+    }
+  });
+
+  // 4. RECOVERIES (Cumulative for Outstanding)
+  // FIXED: Only include 'Approved', 'Posted' statuses.
+  const { data: allRecs } = await supabase
+    .from('recoveries')
+    .select('amount, distributor_id')
+    .in('status', ['Approved', 'Posted'])
+    .lte('recovery_date', eodIso);
+    
+  let cumulativeDistRecAmount = 0;
+  (allRecs || []).forEach(r => {
+    if (r.distributor_id) {
+       cumulativeDistRecAmount += Number(r.amount || 0);
+    }
+  });
+  
+  const distributorsOutstanding = Math.max(0, cumulativeDistSalesAmount - cumulativeDistRecAmount);
+
+  // 5. EXPENSES (Cumulative & Selected Date)
+  const { data: allExps } = await supabase
+    .from('expenses')
+    .select('amount, expense_date, head, category')
+    .in('status', ['Approved', 'Posted'])
+    .lte('expense_date', eodIso);
+
+  let expensesSelectedDate = 0;
+  let cumulativeAdvExp = 0;
+  let cumulativeWelfExp = 0;
+
+  (allExps || []).forEach(exp => {
+    const amt = Number(exp.amount) || 0;
+    const isSelectedDate = exp.expense_date >= sodIso && exp.expense_date <= eodIso;
+    
+    if (isSelectedDate) {
+       expensesSelectedDate += amt;
+    }
+    
+    if (exp.head === 'Advertisement' || exp.category === 'Advertisement') {
+       cumulativeAdvExp += amt;
+    }
+    if (exp.head === 'Welfare' || exp.category === 'Welfare') {
+       cumulativeWelfExp += amt;
+    }
+  });
+
+  const advertisementBalance = advOpening + (cumulativePkts * 20) - cumulativeAdvExp;
+  const welfareBalance = welfOpening + (cumulativePkts * 10) - cumulativeWelfExp;
+
+  return {
+    companyStock,
+    salesAmount: salesSelectedDateAmount,
+    distributorsOutstanding,
+    expensesAmount: expensesSelectedDate,
+    advertisementBalance,
+    welfareBalance,
+    commissionAmount: commissionSelectedDate,
+    distReturnStock,
+    damageReturnStock
+  };
+}
+
+export async function fetchReportsMetrics(selectedDateStr) {
+  const dateObj = selectedDateStr ? new Date(selectedDateStr + 'T00:00:00') : new Date();
+  
+  const endOfDay = new Date(dateObj);
+  endOfDay.setHours(23,59,59,999);
+  const eodIso = endOfDay.toISOString();
+  
+  const startOfDay = new Date(dateObj);
+  startOfDay.setHours(0,0,0,0);
+  const sodIso = startOfDay.toISOString();
+
+  // 1. GLOBAL SETTINGS
+  const { data: gs } = await supabase.from('global_settings').select('*').limit(1).single();
+  const advOpening = Number(gs?.advertisement_opening_balance) || 0;
+  const welfOpening = Number(gs?.welfare_opening_balance) || 0;
+
+  // 2. BOOKINGS (Selected Date)
+  const { data: bookingsData } = await supabase
+    .from('sales_orders')
+    .select('id, reference_number, sale_date, total_amount, status, distributor_id, distributors(name, code), sale_items(quantity)')
+    .like('reference_number', 'BKG-%')
+    .eq('status', 'Pending')
+    .gte('sale_date', sodIso)
+    .lte('sale_date', eodIso);
+    
+  const bookings = (bookingsData || []).map(b => {
+    const packets = (b.sale_items || []).reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+    return { ...b, packets };
+  });
+
+  // 3. SALES (Cumulative for Adv/Welf, Selected Date for Commission)
+  const { data: allSales } = await supabase
+    .from('sales_orders')
+    .select('id, reference_number, sale_date, total_amount, distributor_id, distributors(commission), sale_items(quantity)')
+    .like('reference_number', 'SAL-%')
+    .in('status', ['Approved', 'Posted'])
+    .lte('sale_date', eodIso);
+    
+  let cumulativeSalePackets = 0;
+  let selectedDateCommission = 0;
+  let selectedDateSalesAmount = 0;
+  let selectedDateSalesPackets = 0;
+  let selectedDateSalesCount = 0;
+  
+  (allSales || []).forEach(sale => {
+    const isSelectedDate = sale.sale_date >= sodIso && sale.sale_date <= eodIso;
+    const pkts = (sale.sale_items || []).reduce((a, item) => a + Number(item.quantity || 0), 0);
+    cumulativeSalePackets += pkts;
+    
+    if (isSelectedDate) {
+      const commRate = Number(sale.distributors?.commission) || 0;
+      selectedDateCommission += (pkts * commRate);
+      selectedDateSalesAmount += Number(sale.total_amount || 0);
+      selectedDateSalesPackets += pkts;
+      selectedDateSalesCount += 1;
+    }
+  });
+
+  // 4. EXPENSES (Cumulative & Selected Date)
+  const { data: allExps } = await supabase
+    .from('expenses')
+    .select('reference_number, amount, expense_date, category, status, account_detail, tid, description, head, distributor_id, distributors(name, code)')
+    .in('status', ['Approved', 'Posted'])
+    .lte('expense_date', eodIso);
+    
+  let cumCompanyOfficeExp = 0;
+  let cumOthersExp = 0;
+  let selectedDateDistExp = 0;
+  const selectedDateExpenses = [];
+  
+  (allExps || []).forEach(exp => {
+    const amt = Number(exp.amount) || 0;
+    const isSelectedDate = exp.expense_date >= sodIso && exp.expense_date <= eodIso;
+    
+    if (isSelectedDate) {
+      selectedDateExpenses.push(exp);
+    }
+    
+    // Categorize for cumulative accounts
+    if (exp.category === 'Company' || exp.category === 'Office') {
+      cumCompanyOfficeExp += amt;
+    } else if (exp.category === 'Others') {
+      cumOthersExp += amt;
+    }
+    
+    // Distributor expense for selected date
+    if (isSelectedDate && exp.category === 'Distributor' && exp.distributor_id) {
+      selectedDateDistExp += amt;
+    }
+  });
+
+  // 5. RECOVERIES (Selected Date)
+  const { data: recoveriesData } = await supabase
+    .from('recoveries')
+    .select('reference_number, amount, recovery_date, status, account_detail, tid, notes, distributor_id, distributors(name, code)')
+    .in('status', ['Approved', 'Posted'])
+    .gte('recovery_date', sodIso)
+    .lte('recovery_date', eodIso);
+
+  // 6. RETURNS (Selected Date)
+  const { data: returnsData } = await supabase
+    .from('inventory_transactions')
+    .select('id, reference_number, transaction_type, quantity, status, transaction_date, notes, distributor_id, distributors(name, code)')
+    .in('status', ['Approved'])
+    .not('distributor_id', 'is', null)
+    .gte('transaction_date', sodIso)
+    .lte('transaction_date', eodIso);
+    
+  const returns = (returnsData || []).filter(r => 
+    r.transaction_type === 'Salesman_Good_Return' || r.transaction_type === 'Salesman_Damaged_Return'
+  );
+
+  // 7. STOCK (Cumulative up to EOD)
+  const { data: invAll } = await supabase
+    .from('inventory_transactions')
+    .select('transaction_type, quantity, distributor_id, salesman_id')
+    .in('status', ['Approved', 'Posted'])
+    .lte('transaction_date', eodIso);
+    
+  let stockSellable = 0;
+  let stockDamaged = 0;
+  
+  (invAll || []).forEach(r => {
+    const qty = Number(r.quantity) || 0;
+    const isGoodReturn = ['Salesman_Good_Return', 'Customer_Good_Return'].includes(r.transaction_type);
+    const isDamagedReturn = ['Salesman_Damaged_Return', 'Customer_Damaged_Return'].includes(r.transaction_type);
+    
+    if (['Production', 'Purchase'].includes(r.transaction_type) || isGoodReturn) {
+       stockSellable += qty;
+    }
+    if (['Salesman_Issue', 'Distributor_Issue'].includes(r.transaction_type)) {
+       stockSellable -= qty;
+    }
+    if (['Adjustment', 'Damage', 'Expiry'].includes(r.transaction_type) && !r.salesman_id && !r.distributor_id) {
+       stockSellable -= qty;
+       if (r.transaction_type === 'Damage') stockDamaged += qty;
+    }
+    if (isDamagedReturn) {
+       stockDamaged += qty;
+    }
+  });
+
+  // Calculate Balances
+  const distributorCommissionBalance = Math.max(0, selectedDateCommission - selectedDateDistExp);
+  const advAllocation = cumulativeSalePackets * 20;
+  const advertisementBalance = advOpening + advAllocation - cumCompanyOfficeExp;
+  
+  const welfAllocation = cumulativeSalePackets * 10;
+  const welfareBalance = welfOpening + welfAllocation - cumOthersExp;
+
+  return {
+    sales: {
+      amount: selectedDateSalesAmount,
+      packets: selectedDateSalesPackets,
+      count: selectedDateSalesCount
+    },
+    booking: {
+      records: bookings
+    },
+    recovery: {
+      records: recoveriesData || []
+    },
+    expense: {
+      records: selectedDateExpenses
+    },
+    returns: {
+      records: returns
+    },
+    stock: {
+      sellable: stockSellable,
+      damaged: stockDamaged
+    },
+    distributorCommission: {
+      allocation: selectedDateCommission,
+      expenses: selectedDateDistExp,
+      balance: distributorCommissionBalance
+    },
+    advertisement: {
+      opening: advOpening,
+      allocation: advAllocation,
+      expenses: cumCompanyOfficeExp,
+      balance: advertisementBalance
+    },
+    welfare: {
+      opening: welfOpening,
+      allocation: welfAllocation,
+      expenses: cumOthersExp,
+      balance: welfareBalance
+    }
+  };
+}
+
+export async function fetchGlobalSettings() {
+  const { data, error } = await supabase.from('global_settings').select('*').limit(1).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateGlobalSettings(fields) {
+  const { error } = await supabase.from('global_settings').update(fields).not('id', 'is', null);
   if (error) throw error;
 }

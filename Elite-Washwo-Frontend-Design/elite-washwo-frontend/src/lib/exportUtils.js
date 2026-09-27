@@ -1,5 +1,5 @@
 /**
- * Elite Washwo - Export & Print Utilities
+ * Elite Wash - Export & Print Utilities
  * Generates real CSV, PDF (via jsPDF & printable window), and WhatsApp share links.
  */
 import { jsPDF } from 'jspdf';
@@ -59,7 +59,7 @@ export function printReport({ title, subtitle = '', dateRange = '', headers, row
     <!DOCTYPE html>
     <html>
       <head>
-        <title>${title} - Elite Washwo</title>
+        <title>${title} - Elite Wash</title>
         <style>
           @page { size: auto; margin: 15mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1f2937; margin: 0; padding: 20px; }
@@ -208,7 +208,7 @@ export function shareOnWhatsApp({ title, lines = [], phone = '' }) {
   const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
   const header = `*ELITE WASHWO — ${title.toUpperCase()}*\nDate: ${new Date().toLocaleDateString('en-PK')}\n`;
   const body = lines.filter(Boolean).join('\n');
-  const footer = `\n_Generated via Elite Washwo ERP_`;
+  const footer = `\n_Generated via Elite Wash ERP_`;
   const fullMessage = `${header}\n${body}${footer}`;
 
   const encoded = encodeURIComponent(fullMessage);

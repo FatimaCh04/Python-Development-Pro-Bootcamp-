@@ -27,7 +27,7 @@ export default function Login() {
         <div className="login-brand">
           <img src="/elitewash-logo.jpg" className="brand-mark" alt="Logo" style={{objectFit: "cover"}} />
           <div>
-            <div className="brand-name">Elite Washwo</div>
+            <div className="brand-name">Elite Wash</div>
             <div className="brand-sub">Surf Stock &amp; Ledger Control</div>
           </div>
         </div>
@@ -46,7 +46,7 @@ export default function Login() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@elitewashwo.com"
+              placeholder="you@elitewash.com"
               required
             />
           </div>
