@@ -12,6 +12,7 @@ import ExpensesPage from './components/ExpensesPage';
 import ReportsPage from './components/ReportsPage';
 import BookingPage from './components/BookingPage';
 import PaymentPage from './components/PaymentPage';
+import DistributorLedgerPage from './components/DistributorLedgerPage';
 import {
   fetchOverviewStats, fetchRecentAuditLogs, fetchSalesmenSnapshot, fetchChartData,
   fetchSalesmen, fetchSalesmanStats, fetchSalesmanStockLedger, fetchSalesmanFinLedger, fetchSalesmanExpLedger,
@@ -81,7 +82,7 @@ const NAV = [
     { key: 'booking',    label: 'Booking Ledger',    roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> },
     { key: 'sales',      label: 'Sales',             roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg> },
     { key: 'payments',   label: 'Person Payments',   roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 10h20"/></svg> },
-    { key: 'salesman',   label: 'Distributor Ledger',roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg> },
+    { key: 'distributor_ledger', label: 'Distributor Ledger', roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6M9 10h6M9 18h4"/></svg> },
     { key: 'stock',      label: 'Stock & Returns',   roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg> },
     { key: 'expenses',   label: 'Expenses',          roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg> },
   ]},
@@ -99,9 +100,10 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
+  distributor_ledger: ['Distributor Ledger', 'Complete stock, sales, recovery & commission ledger per distributor'],
   booking: ['Booking & Orders', 'Manage distributor bookings and recoveries'],
   overview: ['Overview', new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
-  salesman: ['Distributor Ledger', 'Complete stock, financial & expense ledger per distributor'],
+  salesman: ['Salesman Ledger (Legacy)', 'Historical stock, financial & expense ledger for legacy salesmen'],
   stock: ['Stock & Returns', 'Distributor returns, condition tracking & daily reconciliation'],
   expenses: ['Expenses', 'Submission, approval & reimbursement tracking'],
   payments: ['Person Payments', 'Work-based earnings, payments & ledgers for labourers, helpers & transporters'],
@@ -128,12 +130,12 @@ function App() {
   const { user, role, hasPermission, logout } = useAuth();
   const displayName = user?.full_name || 'Admin';
   const displayRole = role ? role.replace(/_/g, ' ') : 'Administrator';
-  const defaultPage = role === 'Salesman' ? 'salesman' : 'overview';
+  const defaultPage = role === 'Salesman' ? 'distributor_ledger' : 'overview';
   const [activePage, setActivePage] = useState(defaultPage);
   const [globalSearch, setGlobalSearch] = useState('');
 
   useEffect(() => {
-    if (role === 'Salesman' && activePage === 'overview') setActivePage('salesman');
+    if (role === 'Salesman' && activePage === 'overview') setActivePage('distributor_ledger');
   }, [role, activePage]);
 
   const [title, subtitle] = PAGE_TITLES[activePage] || [activePage, ''];
@@ -154,6 +156,9 @@ function App() {
       case 'overview':
         if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access company overview." />;
         return <OverviewPage navigate={navigate} searchTerm={globalSearch}/>;
+      case 'distributor_ledger':
+        if (role === 'Manager' && !hasPermission('ledger.view') && !hasPermission('sales.view')) return <AccessDenied msg="You need the 'ledger.view' or 'sales.view' permission to view distributor ledgers." />;
+        return <DistributorLedgerPage searchTerm={globalSearch}/>;
       case 'salesman':
         if (role === 'Manager' && !hasPermission('ledger.view') && !hasPermission('sales.view')) return <AccessDenied msg="You need the 'ledger.view' or 'sales.view' permission to view salesman ledgers." />;
         return <SalesmanPage searchTerm={globalSearch}/>;

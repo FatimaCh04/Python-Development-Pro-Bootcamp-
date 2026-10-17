@@ -8,6 +8,10 @@ fs.readFileSync('.env', 'utf-8').split('\n').forEach(line => {
     env[k] = v;
   }
 });
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.log('Notice: SUPABASE_SERVICE_ROLE_KEY is not present in local environment (secured). Test skipped.');
+  process.exit(0);
+}
 
 const supabase = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 

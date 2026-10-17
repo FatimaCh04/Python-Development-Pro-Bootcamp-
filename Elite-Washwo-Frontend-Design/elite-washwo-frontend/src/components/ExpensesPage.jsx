@@ -414,7 +414,7 @@ export default function ExpensesPage({ searchTerm = '' }) {
               ) : (
                 displayExpenses.map(r => {
                   const distName = r.distributors ? `${r.distributors.code} — ${r.distributors.name}` : null;
-                  const personName = r.persons?.name ? `${r.persons.name} (${r.persons.role})` : null;
+                  const personName = r.persons?.name ? `${r.persons.name} (${r.persons.category || r.persons.code || 'Person'})` : null;
                   const smName = r.salesmen?.profiles?.full_name;
                   const isPersonLinked = !!r.originating_ledger_entry_id;
                   

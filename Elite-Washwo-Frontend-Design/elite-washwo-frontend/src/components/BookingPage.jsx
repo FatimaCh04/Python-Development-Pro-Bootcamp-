@@ -169,6 +169,7 @@ export default function BookingPage() {
       setLoading(true); setMsg('');
       await addBookingRecovery({
         bookingId:     recoveryBooking.id,
+        bookingRef:    recoveryBooking.reference_number,
         distributorId: recoveryBooking.distributor_id || null,
         amount:        recoveryAmount,
         paymentMethod

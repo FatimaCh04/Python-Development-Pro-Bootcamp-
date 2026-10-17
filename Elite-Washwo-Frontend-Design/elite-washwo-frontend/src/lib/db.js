@@ -301,7 +301,7 @@ export async function cancelTransaction(id, reason = '') {
 
 // --- EXPENSES -----------------------------------------------------------------
 export async function fetchExpenses(filters={}) {
-  let q=supabase.from('expenses').select('*, salesmen(profiles(full_name)), distributors(name, code), persons(name, role)').order('expense_date',{ascending:false}).limit(200);
+  let q=supabase.from('expenses').select('*, salesmen(profiles(full_name)), distributors(name, code), persons(name, code, category)').order('expense_date',{ascending:false}).limit(200);
   if(filters.distributor_id) q=q.eq('distributor_id',filters.distributor_id);
   if(filters.person_id) q=q.eq('person_id',filters.person_id);
   if(filters.type && filters.type !== 'All') q=q.eq('category', filters.type);
@@ -435,18 +435,22 @@ export async function fetchProductMovement() {
   if(error) throw error;
   const s={production:0,salesman_issues:0,salesman_returns:0,customer_returns:0,damaged:0,adjustments:0};
   (data||[]).forEach(r=>{
-    if(['Production','Purchase'].includes(r.transaction_type))s.production+=r.quantity;
+    const qty = Number(r.quantity) || 0;
+    if(['Production','Purchase'].includes(r.transaction_type)) s.production += qty;
     // Stock issued — both legacy salesman and current distributor
-    if(['Salesman_Issue','Distributor_Issue'].includes(r.transaction_type))s.salesman_issues+=r.quantity;
-    // Good + damaged returns from distributors and legacy salesmen
-    if(['Salesman_Good_Return','Salesman_Damaged_Return',
-        'Distributor_Good_Return','Distributor_Damaged_Return'].includes(r.transaction_type))s.salesman_returns+=r.quantity;
-    // Legacy customer returns (historical only)
-    if(['Customer_Good_Return','Customer_Damaged_Return'].includes(r.transaction_type))s.customer_returns+=r.quantity;
-    if(r.transaction_type==='Damage')s.damaged+=r.quantity;
-    if(r.transaction_type==='Adjustment')s.adjustments+=r.quantity;
+    if(['Salesman_Issue','Distributor_Issue'].includes(r.transaction_type)) s.salesman_issues += qty;
+    // Good returns only (restocked into company saleable stock upon approval)
+    if(['Salesman_Good_Return','Distributor_Good_Return'].includes(r.transaction_type)) s.salesman_returns += qty;
+    // Legacy customer returns (good condition)
+    if(r.transaction_type === 'Customer_Good_Return') s.customer_returns += qty;
+    // Damaged returns and damaged stock (isolated in quarantine, NEVER counted as saleable)
+    if(['Salesman_Damaged_Return','Distributor_Damaged_Return','Customer_Damaged_Return','Damage','Expiry'].includes(r.transaction_type)) {
+      s.damaged += qty;
+    }
+    if(r.transaction_type === 'Adjustment') s.adjustments += qty;
   });
-  s.closing=s.production-s.salesman_issues+s.salesman_returns+s.customer_returns-s.damaged+s.adjustments;
+  // Saleable closing stock: Damaged stock is segregated and NEVER counted as saleable
+  s.closing = s.production - s.salesman_issues + s.salesman_returns + s.customer_returns + s.adjustments;
   return s;
 }
 
@@ -929,23 +933,29 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   const { data: recs, error: rErr } = await supabase
     .from('recoveries')
     .select('amount, reference_number')
-    .like('reference_number', '%|BKG-%');
+    .like('reference_number', '%|%');
     
   if (rErr) throw rErr;
 
   return data.map(b => {
-    const bookingRecs = recs.filter(r => r.reference_number.endsWith('|' + b.id));
+    const bookingRecs = (recs || []).filter(r => 
+      r.reference_number && (
+        r.reference_number.endsWith('|' + b.id) || 
+        (b.reference_number && r.reference_number.endsWith('|' + b.reference_number))
+      )
+    );
     const totalRecovered = bookingRecs.reduce((sum, r) => sum + Number(r.amount), 0);
     return {
       ...b,
       total_recovered: totalRecovered,
-      remaining_balance: Number(b.total_amount) - totalRecovered
+      remaining_balance: Math.max(0, Number(b.total_amount) - totalRecovered)
     };
   });
 }
 
-export async function addBookingRecovery({ bookingId, customerId, salesmanId, distributorId, amount, paymentMethod }) {
-  const ref = refNum('REC') + '|' + bookingId;
+export async function addBookingRecovery({ bookingId, bookingRef, customerId, salesmanId, distributorId, amount, paymentMethod }) {
+  const identifier = bookingId || bookingRef;
+  const ref = refNum('REC') + '|' + identifier;
   const payload = {
     reference_number: ref,
     amount: Number(amount),
@@ -1018,47 +1028,101 @@ export async function fetchDistributorOutstanding(distributorId) {
     settledCommission: 0, 
     commissionPayable: 0,
     hasUnreconciledRates: false,
-    unreconciledCount: 0
+    unreconciledCount: 0,
+    unreconciledPackets: 0,
+    defaultCommissionRate: 0,
+    estimatedUnreconciledCommission: 0,
+    pendingBookingsCount: 0,
+    pendingBookingsAmount: 0,
+    pendingBookingsPackets: 0
   };
 
-  const [salesRes, recoveriesRes, saleItemsRes, settlementsRes] = await Promise.all([
-    supabase.from('sales_orders').select('id, total_amount, commission_rate_snapshot').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']),
-    supabase.from('recoveries').select('amount, reference_number').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']),
-    supabase.from('sale_items').select('quantity, sales_orders!inner(id, distributor_id, status, commission_rate_snapshot)').filter('sales_orders.distributor_id', 'eq', distributorId).filter('sales_orders.status', 'in', '("Approved","Posted")'),
-    supabase.from('distributor_settlements').select('amount, settlement_type').eq('distributor_id', distributorId).in('status', ['Approved'])
+  const [distRes, salesRes, recoveriesRes, saleItemsRes, settlementsRes, pendingBookingsRes] = await Promise.all([
+    supabase.from('distributors').select('id, name, code, commission').eq('id', distributorId).maybeSingle(),
+    supabase.from('sales_orders')
+      .select('id, reference_number, total_amount, commission_rate_snapshot')
+      .eq('distributor_id', distributorId)
+      .in('status', ['Approved', 'Posted'])
+      .not('reference_number', 'like', 'BKG-%'), // Exclude all bookings from approved sales!
+    supabase.from('recoveries')
+      .select('id, amount, reference_number, payment_method')
+      .eq('distributor_id', distributorId)
+      .in('status', ['Approved', 'Posted']),
+    supabase.from('sale_items')
+      .select('quantity, sales_orders!inner(id, reference_number, distributor_id, status, commission_rate_snapshot)')
+      .filter('sales_orders.distributor_id', 'eq', distributorId)
+      .filter('sales_orders.status', 'in', '("Approved","Posted")')
+      .not('sales_orders.reference_number', 'like', 'BKG-%'), // Exclude all bookings from delivered packet count!
+    supabase.from('distributor_settlements')
+      .select('id, amount, settlement_type, recovery_id, reference_number')
+      .eq('distributor_id', distributorId)
+      .in('status', ['Approved']),
+    supabase.from('sales_orders')
+      .select('id, reference_number, total_amount, sale_items(quantity)')
+      .eq('distributor_id', distributorId)
+      .eq('status', 'Pending')
+      .like('reference_number', 'BKG-%')
   ]);
 
   const totalSales = (salesRes.data || []).reduce((s, r) => s + Number(r.total_amount), 0);
-  const totalRecoveries = (recoveriesRes.data || [])
-    .filter(r => !r.reference_number || !r.reference_number.includes('|BKG-'))
-    .reduce((s, r) => s + Number(r.amount), 0);
   const totalPackets = (saleItemsRes.data || []).reduce((s, r) => s + Number(r.quantity), 0);
 
-  // Check for unreconciled orders
+  // Exclude booking recovery deposits (|BKG-) from direct sales recoveries
+  const validRecoveries = (recoveriesRes.data || []).filter(
+    r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))
+  );
+  const totalRecoveries = validRecoveries.reduce((s, r) => s + Number(r.amount), 0);
+
+  // Accounting: Check for Commission_Against_Outstanding settlements that have NOT already created a separate recovery
+  const unlinkedSettlementAdjustments = (settlementsRes.data || [])
+    .filter(s => s.settlement_type === 'Commission_Against_Outstanding')
+    .filter(s => !s.recovery_id && !validRecoveries.some(r => r.id === s.recovery_id || (r.reference_number && r.reference_number.includes(s.reference_number))));
+  
+  const totalSettlementAdjustments = unlinkedSettlementAdjustments.reduce((s, a) => s + Number(a.amount || 0), 0);
+  const totalCredits = totalRecoveries + totalSettlementAdjustments;
+  const outstanding = Math.max(0, totalSales - totalCredits);
+
+  // Commission Analysis: Separate verified immutable rate snapshots from historical missing snapshots
   let unreconciledCount = 0;
+  let unreconciledPackets = 0;
   (salesRes.data || []).forEach(order => {
     if (order.commission_rate_snapshot === null || order.commission_rate_snapshot === undefined) {
       unreconciledCount++;
     }
   });
-  const hasUnreconciledRates = unreconciledCount > 0;
 
   // Accrued commission based strictly on immutable sale-specific rate snapshots
-  const accruedCommission = (saleItemsRes.data || []).reduce((acc, item) => {
+  let accruedCommission = 0;
+  (saleItemsRes.data || []).forEach(item => {
     const qty = Number(item.quantity) || 0;
     const snap = item.sales_orders?.commission_rate_snapshot;
-    const rate = snap !== null && snap !== undefined ? Number(snap) : 0;
-    return acc + (qty * rate);
-  }, 0);
+    if (snap !== null && snap !== undefined) {
+      accruedCommission += (qty * Number(snap));
+    } else {
+      unreconciledPackets += qty;
+    }
+  });
+
+  const hasUnreconciledRates = unreconciledCount > 0;
+  const distCommissionRate = Number(distRes?.data?.commission || 0);
+  const estimatedUnreconciledCommission = unreconciledPackets * distCommissionRate;
 
   // Settled commission from approved settlements
   const settledCommission = (settlementsRes.data || []).reduce((acc, s) => acc + Number(s.amount || 0), 0);
   const commissionPayable = Math.max(0, accruedCommission - settledCommission);
 
-  const outstanding = Math.max(0, totalSales - totalRecoveries);
+  // Pending bookings summary (informational, does NOT alter balances)
+  const pendingBookingsCount = (pendingBookingsRes.data || []).length;
+  const pendingBookingsAmount = (pendingBookingsRes.data || []).reduce((s, b) => s + Number(b.total_amount || 0), 0);
+  const pendingBookingsPackets = (pendingBookingsRes.data || []).reduce((s, b) => {
+    return s + (b.sale_items || []).reduce((acc, i) => acc + Number(i.quantity || 0), 0);
+  }, 0);
+
   return { 
     totalSales, 
     totalRecoveries, 
+    totalSettlementAdjustments,
+    totalCredits,
     totalPackets, 
     outstanding, 
     salesOutstanding: outstanding, 
@@ -1066,7 +1130,13 @@ export async function fetchDistributorOutstanding(distributorId) {
     settledCommission, 
     commissionPayable,
     hasUnreconciledRates,
-    unreconciledCount
+    unreconciledCount,
+    unreconciledPackets,
+    defaultCommissionRate: distCommissionRate,
+    estimatedUnreconciledCommission,
+    pendingBookingsCount,
+    pendingBookingsAmount,
+    pendingBookingsPackets
   };
 }
 
@@ -1075,7 +1145,282 @@ export async function fetchDistributorTodayRecovery(distributorId) {
   if (!distributorId) return 0;
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const { data } = await supabase.from('recoveries').select('amount, reference_number').eq('distributor_id', distributorId).gte('recovery_date', todayStart.toISOString()).in('status', ['Approved', 'Posted']);
-  return (data || []).filter(r => !r.reference_number || !r.reference_number.includes('|BKG-')).reduce((s, r) => s + Number(r.amount), 0);
+  return (data || []).filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))).reduce((s, r) => s + Number(r.amount), 0);
+}
+
+// ── Distributor stock summary stats ───────────────────────────────────────────
+export async function fetchDistributorStockStats(distributorId) {
+  if (!distributorId) return { stock: 0, issued: 0, goodReturns: 0, damagedReturns: 0, pendingReturns: 0, hasPhysicalDispatch: false };
+  const { data: inv, error } = await supabase
+    .from('inventory_transactions')
+    .select('transaction_type, quantity, status')
+    .eq('distributor_id', distributorId);
+  if (error) throw error;
+
+  let issued = 0;
+  let goodReturns = 0;
+  let damagedReturns = 0;
+  let pendingReturns = 0;
+
+  (inv || []).forEach(r => {
+    const qty = Number(r.quantity || 0);
+    const isApproved = ['Approved', 'Posted'].includes(r.status);
+    if (isApproved) {
+      if (['Distributor_Issue', 'Salesman_Issue'].includes(r.transaction_type)) {
+        issued += qty;
+      } else if (['Distributor_Good_Return', 'Salesman_Good_Return'].includes(r.transaction_type)) {
+        goodReturns += qty;
+      } else if (['Distributor_Damaged_Return', 'Salesman_Damaged_Return'].includes(r.transaction_type)) {
+        damagedReturns += qty;
+      }
+    } else if (r.status === 'Pending') {
+      if (['Distributor_Good_Return', 'Distributor_Damaged_Return', 'Salesman_Good_Return', 'Salesman_Damaged_Return'].includes(r.transaction_type)) {
+        pendingReturns += qty;
+      }
+    }
+  });
+
+  const stock = Math.max(0, issued - goodReturns - damagedReturns);
+  return { stock, issued, goodReturns, damagedReturns, pendingReturns, hasPhysicalDispatch: issued > 0 };
+}
+
+// ── Distributor stock ledger records ──────────────────────────────────────────
+export async function fetchDistributorStockLedger(distributorId) {
+  if (!distributorId) return [];
+  const { data, error } = await supabase
+    .from('inventory_transactions')
+    .select('*, product_packaging(name, products(name))')
+    .eq('distributor_id', distributorId)
+    .order('transaction_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Distributor financial ledger records (Sales & Recoveries with running balance) ──
+export async function fetchDistributorFinLedger(distributorId) {
+  if (!distributorId) return [];
+  const [salesRes, recsRes, settsRes] = await Promise.all([
+    supabase
+      .from('sales_orders')
+      .select('id, reference_number, sale_date, total_amount, status, sale_items(quantity)')
+      .eq('distributor_id', distributorId)
+      .order('sale_date', { ascending: false }),
+    supabase
+      .from('recoveries')
+      .select('id, reference_number, recovery_date, amount, payment_method, status, notes')
+      .eq('distributor_id', distributorId)
+      .order('recovery_date', { ascending: false }),
+    supabase
+      .from('distributor_settlements')
+      .select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes, recovery_id')
+      .eq('distributor_id', distributorId)
+      .in('status', ['Approved'])
+      .order('settlement_date', { ascending: false })
+  ]);
+
+  const rows = [];
+  (salesRes.data || []).forEach(s => {
+    const pkts = (s.sale_items || []).reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+    const isBooking = (s.reference_number || '').startsWith('BKG-');
+    const isPending = s.status === 'Pending';
+    const isApproved = ['Approved', 'Posted'].includes(s.status);
+
+    if (isBooking) {
+      // 1. Pending bookings labeled explicitly as "Booking (Pending)"
+      rows.push({
+        id: s.id,
+        date: s.sale_date,
+        type: isPending ? 'Booking (Pending)' : `Booking (${s.status})`,
+        ref: s.reference_number,
+        packets: pkts,
+        debit: Number(s.total_amount || 0),
+        credit: 0,
+        status: s.status,
+        description: `Booking order of ${pkts} pkts (${s.reference_number})`,
+        isFinancialImpact: false, // Bookings do NOT alter financial receivables/balances
+        isBooking: true
+      });
+    } else {
+      rows.push({
+        id: s.id,
+        date: s.sale_date,
+        type: 'Sale',
+        ref: s.reference_number,
+        packets: pkts,
+        debit: Number(s.total_amount || 0),
+        credit: 0,
+        status: s.status,
+        description: `Sale of ${pkts} pkts (${s.reference_number})`,
+        isFinancialImpact: isApproved, // Only approved sales alter financial receivables/balances
+        isBooking: false
+      });
+    }
+  });
+
+  // Valid recoveries (excluding booking advance deposits with '|' or '|BKG-')
+  const validRecs = (recsRes.data || []).filter(
+    r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))
+  );
+
+  validRecs.forEach(r => {
+    const isApproved = ['Approved', 'Posted'].includes(r.status);
+    rows.push({
+      id: r.id,
+      date: r.recovery_date,
+      type: `Recovery (${r.payment_method || 'Cash'})`,
+      ref: r.reference_number,
+      packets: 0,
+      debit: 0,
+      credit: Number(r.amount || 0),
+      status: r.status,
+      description: `Payment received (${r.payment_method || 'Cash'})${r.notes ? ' · ' + r.notes : ''}`,
+      isFinancialImpact: isApproved,
+      isBooking: false
+    });
+  });
+
+  // Commission_Against_Outstanding adjustments (counted exactly once if no duplicate recovery row exists)
+  (settsRes.data || [])
+    .filter(st => st.settlement_type === 'Commission_Against_Outstanding')
+    .filter(st => !st.recovery_id && !validRecs.some(r => r.id === st.recovery_id || (r.reference_number && r.reference_number.includes(st.reference_number))))
+    .forEach(st => {
+      rows.push({
+        id: st.id,
+        date: st.settlement_date,
+        type: 'Commission Adjustment',
+        ref: st.reference_number,
+        packets: 0,
+        debit: 0,
+        credit: Number(st.amount || 0),
+        status: st.status,
+        description: `Commission applied against outstanding balance (${st.reference_number})${st.notes ? ' · ' + st.notes : ''}`,
+        isFinancialImpact: true,
+        isBooking: false
+      });
+    });
+
+  // Stable chronological sorting:
+  // 1. Timestamp (ascending)
+  // 2. Transaction Type Priority: Sale (1) -> Recovery (2) -> Commission Adjustment (3) -> Booking (4)
+  // 3. Alphanumeric tie-breaker on reference number/id
+  rows.sort((a, b) => {
+    const tA = new Date(a.date).getTime() || 0;
+    const tB = new Date(b.date).getTime() || 0;
+    if (tA !== tB) return tA - tB;
+
+    const priority = (type) => {
+      if (type === 'Sale') return 1;
+      if (type.startsWith('Recovery')) return 2;
+      if (type.startsWith('Commission')) return 3;
+      if (type.startsWith('Booking')) return 4;
+      return 5;
+    };
+    const diff = priority(a.type) - priority(b.type);
+    if (diff !== 0) return diff;
+
+    const refA = a.ref || a.id || '';
+    const refB = b.ref || b.id || '';
+    return refA.localeCompare(refB);
+  });
+
+  // Running balance calculation:
+  // Strict rule: Only approved financial transactions alter running balance.
+  // Pending bookings and unapproved entries get balance = null (displayed as a dash in UI).
+  let runningBal = 0;
+  const withBal = rows.map(r => {
+    if (r.isFinancialImpact) {
+      if (r.debit) runningBal += Number(r.debit);
+      if (r.credit) runningBal -= Number(r.credit);
+      return { ...r, balance: runningBal, isPosted: true };
+    } else {
+      return { ...r, balance: null, isPosted: false };
+    }
+  });
+
+  return withBal.reverse();
+}
+
+// ── Distributor commission ledger records ─────────────────────────────────────
+export async function fetchDistributorCommissionLedger(distributorId) {
+  if (!distributorId) return [];
+  const [salesRes, settsRes] = await Promise.all([
+    supabase
+      .from('sales_orders')
+      .select('id, reference_number, sale_date, status, commission_rate_snapshot, sale_items(quantity)')
+      .eq('distributor_id', distributorId)
+      .not('reference_number', 'like', 'BKG-%') // Exclude bookings from commission ledger!
+      .order('sale_date', { ascending: false }),
+    supabase
+      .from('distributor_settlements')
+      .select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes')
+      .eq('distributor_id', distributorId)
+      .order('settlement_date', { ascending: false })
+  ]);
+
+  const rows = [];
+  (salesRes.data || []).forEach(s => {
+    const pkts = (s.sale_items || []).reduce((acc, item) => acc + Number(item.quantity || 0), 0);
+    const snap = s.commission_rate_snapshot;
+    const hasSnap = snap !== null && snap !== undefined;
+    const rate = hasSnap ? Number(snap) : null;
+    const earned = hasSnap ? (pkts * rate) : 0;
+    const isApproved = ['Approved', 'Posted'].includes(s.status);
+
+    rows.push({
+      id: s.id,
+      date: s.sale_date,
+      type: 'Commission Accrued',
+      ref: s.reference_number,
+      packets: pkts,
+      rate: rate,
+      earned: earned,
+      paid: 0,
+      status: s.status,
+      isMissingSnapshot: !hasSnap,
+      isApproved,
+      notes: hasSnap 
+        ? `Accrued from sale ${s.reference_number} (${pkts} pkts @ Rs. ${rate})`
+        : `Sale ${s.reference_number} (${pkts} pkts) — Rate snapshot missing in DB`
+    });
+  });
+
+  (settsRes.data || []).forEach(st => {
+    const isApproved = ['Approved', 'Posted'].includes(st.status);
+    rows.push({
+      id: st.id,
+      date: st.settlement_date,
+      type: `Commission Paid (${st.payment_method || 'Cash'})`,
+      ref: st.reference_number,
+      packets: 0,
+      rate: null,
+      earned: 0,
+      paid: Number(st.amount || 0),
+      status: st.status,
+      isMissingSnapshot: false,
+      isApproved,
+      notes: st.notes || `Settlement payout (${st.settlement_type})`
+    });
+  });
+
+  // Stable sorting
+  rows.sort((a, b) => {
+    const tA = new Date(a.date).getTime() || 0;
+    const tB = new Date(b.date).getTime() || 0;
+    if (tA !== tB) return tA - tB;
+    return (a.ref || a.id || '').localeCompare(b.ref || b.id || '');
+  });
+
+  let runningComm = 0;
+  const withBal = rows.map(r => {
+    if (r.isApproved) {
+      if (r.earned) runningComm += Number(r.earned);
+      if (r.paid) runningComm -= Number(r.paid);
+      return { ...r, balance: runningComm };
+    }
+    return { ...r, balance: null };
+  });
+
+  return withBal.reverse();
 }
 
 
@@ -1208,7 +1553,7 @@ export async function fetchDashboardMetrics(selectedDateStr) {
   let cumulativeDistRecAmount = 0;
   let recoverySelectedDateAmount = 0;
   (allRecs || [])
-    .filter(r => !r.reference_number || !r.reference_number.includes('|BKG-'))
+    .filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-')))
     .forEach(r => {
       const amt = Number(r.amount || 0);
       cumulativeDistRecAmount += amt;
@@ -1600,7 +1945,7 @@ export async function fetchDistributorLedgerReport(distributorId, startDate = nu
   });
 
   (recs || [])
-    .filter(r => !r.reference_number || !r.reference_number.includes('|BKG-'))
+    .filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-')))
     .forEach(r => {
     allEntries.push({
       id: r.id,
@@ -1966,7 +2311,10 @@ export async function fetchPersonLedger(personId, dateFrom, dateTo) {
         if (e.entry_type === 'Work_Earning') workEarned += amt;
         else if (e.entry_type === 'Payment' || e.entry_type === 'Advance') paid += amt;
         else if (e.entry_type === 'Commission_Earned') commissionEarned += amt;
-        else if (e.entry_type === 'Commission_Paid') commissionPaid += amt;
+        else if (e.entry_type === 'Commission_Paid') {
+          commissionPaid += amt;
+          paid += amt; // Commission cash payouts count as Total Paid
+        }
         else if (e.entry_type === 'Adjustment') adjustments += (credit - debit);
       }
     }

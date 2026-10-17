@@ -358,7 +358,7 @@ export default function PaymentPage({ searchTerm = '' }) {
   <div class="kpi-grid">
     <div class="kpi"><div class="kpi-lbl">Opening Balance</div><div class="kpi-num">Rs. ${fmtNum(summary.openingBalance)}</div></div>
     <div class="kpi"><div class="kpi-lbl">Work Earned</div><div class="kpi-num" style="color:#2e7d32;">Rs. ${fmtNum(summary.workEarned)}</div></div>
-    <div class="kpi"><div class="kpi-lbl">Total Paid</div><div class="kpi-num" style="color:#d9534f;">Rs. ${fmtNum(summary.paid)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total Paid${summary.commissionPaid > 0 ? ' (incl. Rs. ' + fmtNum(summary.commissionPaid) + ' commission)' : ''}</div><div class="kpi-num" style="color:#d9534f;">Rs. ${fmtNum(summary.paid)}</div></div>
     <div class="kpi"><div class="kpi-lbl">Net Closing Position</div><div class="kpi-num" style="color:#0e7c86;">${summary.closingPayable > 0 ? 'Rs. ' + fmtNum(summary.closingPayable) + ' (Payable)' : 'Rs. ' + fmtNum(summary.closingReceivable) + ' (Advance)'}</div></div>
   </div>
 
@@ -850,6 +850,11 @@ _Generated via Elite Wash ERP_`;
                 <div className="bar" />
                 <div className="label">Total Paid</div>
                 <div className="num">Rs. {fmtNum(ledgerData.summary?.paid)}</div>
+                {ledgerData.summary?.commissionPaid > 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    incl. Rs. {fmtNum(ledgerData.summary?.commissionPaid)} commission
+                  </div>
+                )}
               </div>
               <div className="tile red">
                 <div className="bar" />
