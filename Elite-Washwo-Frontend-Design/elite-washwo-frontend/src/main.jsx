@@ -11,16 +11,22 @@ import OverviewPage from './components/OverviewPage';
 import ExpensesPage from './components/ExpensesPage';
 import ReportsPage from './components/ReportsPage';
 import BookingPage from './components/BookingPage';
+import PaymentPage from './components/PaymentPage';
 import {
   fetchOverviewStats, fetchRecentAuditLogs, fetchSalesmenSnapshot, fetchChartData,
   fetchSalesmen, fetchSalesmanStats, fetchSalesmanStockLedger, fetchSalesmanFinLedger, fetchSalesmanExpLedger,
   fetchInventoryTransactions, submitStockReturn, approveTransaction,
   fetchExpenses, submitExpense, updateExpenseStatus, fetchExpenseSummary,
-  fetchCustomers, addCustomer, fetchCustomerReturns,
+
   fetchProducts, fetchProductMovement, fetchPackagings,
   fetchSalesmanSettlement, fetchAuditLogs,
-  submitSale, addProduct, updateProduct, deleteProduct
+  submitSale, addProduct, updateProduct, deleteProduct,
+  fetchDistributors, fetchDistributorOutstanding,
+  fetchDistributorSettlements, submitDistributorCommissionSettlement,
+  approveDistributorSettlement, cancelDistributorSettlement
 } from './lib/db';
+import { printSettlementVoucher } from './lib/exportUtils';
+
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('en-PK');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No date';
@@ -74,10 +80,10 @@ const NAV = [
     { key: 'distributors', label: 'Distributors',    roles: ['Super_Admin', 'Manager', 'Salesman'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> },
     { key: 'booking',    label: 'Booking Ledger',    roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> },
     { key: 'sales',      label: 'Sales',             roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg> },
+    { key: 'payments',   label: 'Person Payments',   roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 10h20"/></svg> },
     { key: 'salesman',   label: 'Distributor Ledger',roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg> },
     { key: 'stock',      label: 'Stock & Returns',   roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg> },
     { key: 'expenses',   label: 'Expenses',          roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg> },
-    { key: 'customers',  label: 'Customers',         roles: ['Super_Admin','Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><circle cx="18" cy="8" r="2.3"/><path d="M15 13.5c2.4.4 4 1.8 4 4.5"/></svg> },
   ]},
   { group: 'Product & Reports', items: [
     { key: 'product',    label: 'Surf Product',      roles: ['Super_Admin','Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg> },
@@ -93,12 +99,13 @@ const NAV = [
 ];
 
 const PAGE_TITLES = {
-  booking: ['Booking & Orders', 'Manage customer bookings and recoveries'],
+  booking: ['Booking & Orders', 'Manage distributor bookings and recoveries'],
   overview: ['Overview', new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
   salesman: ['Distributor Ledger', 'Complete stock, financial & expense ledger per distributor'],
   stock: ['Stock & Returns', 'Distributor returns, condition tracking & daily reconciliation'],
   expenses: ['Expenses', 'Submission, approval & reimbursement tracking'],
-  customers: ['Customers', 'Directory, ledgers & customer returns'],
+  payments: ['Person Payments', 'Work-based earnings, payments & ledgers for labourers, helpers & transporters'],
+
   distributors: ['Distributors', 'Manage distributor information and commission details.'],
   product: ['Surf Product', 'Stock, pricing, movement & profitability'],
   settlement: ['Settlement', 'Periodic distributor settlement statement'],
@@ -160,10 +167,10 @@ function App() {
         return <DistributorsPage searchTerm={globalSearch}/>;
       case 'sales':
         return <SalesPage searchTerm={globalSearch}/>;
-      case 'customers':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access the customer directory."/>;
-        if (role === 'Manager' && !hasPermission('sales.view')) return <AccessDenied msg="You need the sales.view permission to access customers."/>;
-        return <CustomersPage searchTerm={globalSearch}/>;
+      case 'payments':
+        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access Payment Management."/>;
+        if (role === 'Manager' && !hasPermission('payments.view') && !hasPermission('payments.create')) return <AccessDenied msg="You need the 'payments.view' permission to access Payment Management."/>;
+        return <PaymentPage searchTerm={globalSearch}/>;
       case 'product':
         if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access product management."/>;
         if (role === 'Manager' && !hasPermission('inventory.view')) return <AccessDenied msg="You need the inventory.view permission to access products."/>;
@@ -467,181 +474,6 @@ function Pagination({ page, pageSize, total, onPageChange }) {
 }
 
 
-function CustomersPage({ searchTerm = '' }) {
-  const { data: customers, loading: cl, reload } = useAsync(fetchCustomers);
-  const { data: salesmen } = useAsync(fetchSalesmen);
-  const { data: cReturns, loading: rl } = useAsync(fetchCustomerReturns);
-  const [showAdd, setShowAdd] = useState(false);
-  const [showSale, setShowSale] = useState(false);
-  const [form, setForm] = useState({ code:'', name:'', phone:'', address:'', default_salesman_id:'' });
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  // Search & Filter state
-  const [localSearch, setLocalSearch] = useState('');
-  const [salesmanFilter, setSalesmanFilter] = useState('All');
-  const [page, setPage] = useState(1);
-  const [returnSearch, setReturnSearch] = useState('');
-  const [returnPage, setReturnPage] = useState(1);
-  const pageSize = 15;
-
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    if (!form.code || !form.name) { setMsg('err:Code and name required.'); return; }
-    setSaving(true); setMsg('');
-    try {
-      await addCustomer(form);
-      setMsg('ok:Customer added.');
-      setForm({code:'',name:'',phone:'',address:'',default_salesman_id:''});
-      setShowAdd(false); reload();
-    } catch(e) { setMsg('err:'+e.message); } finally { setSaving(false); }
-  };
-
-  const query = (localSearch || searchTerm).trim().toLowerCase();
-
-  const filteredCustomers = (customers || []).filter(c => {
-    if (salesmanFilter !== 'All' && c.default_salesman_id !== salesmanFilter) return false;
-    if (!query) return true;
-    return (
-      (c.name || '').toLowerCase().includes(query) ||
-      (c.code || '').toLowerCase().includes(query) ||
-      (c.phone || '').toLowerCase().includes(query) ||
-      (c.address || '').toLowerCase().includes(query) ||
-      (c.salesmen?.profiles?.full_name || '').toLowerCase().includes(query)
-    );
-  });
-
-  const paginatedCustomers = filteredCustomers.slice((page - 1) * pageSize, page * pageSize);
-  const isCustFiltered = localSearch || salesmanFilter !== 'All';
-  const resetCustFilters = () => { setLocalSearch(''); setSalesmanFilter('All'); setPage(1); };
-
-  const retQuery = (returnSearch || searchTerm).trim().toLowerCase();
-  const filteredReturns = (cReturns || []).filter(r => {
-    if (!retQuery) return true;
-    return (
-      (r.reference_number || '').toLowerCase().includes(retQuery) ||
-      (r.customers?.name || '').toLowerCase().includes(retQuery) ||
-      (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(retQuery) ||
-      (r.transaction_type || '').toLowerCase().includes(retQuery) ||
-      (r.status || '').toLowerCase().includes(retQuery) ||
-      fmtDate(r.transaction_date).toLowerCase().includes(retQuery)
-    );
-  });
-  const paginatedReturns = filteredReturns.slice((returnPage - 1) * pageSize, returnPage * pageSize);
-
-  return (
-    <>
-      <div className="panel">
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
-          <div className="section-head" style={{margin:0}}>
-            <h2>Customer directory</h2>
-          </div>
-          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-            <input 
-              type="text" 
-              placeholder="Search name, code, phone..." 
-              value={localSearch} 
-              onChange={e => { setLocalSearch(e.target.value); setPage(1); }}
-              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
-            />
-            
-            {isCustFiltered && (
-              <span className="link" onClick={resetCustFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
-            )}
-            
-              <button className={showAdd ? 'btn ghost' : 'btn primary'} onClick={()=>setShowAdd(s=>!s)}>{showAdd?'Cancel':'Add customer'}</button>
-          </div>
-        </div>
-
-        
-
-          {showAdd && (
-          <form onSubmit={handleAdd} style={{marginBottom:20,padding:16,background:'#FAFBF8',borderRadius:6,border:'1px solid var(--line)'}}>
-            <Msg msg={msg} />
-            <div className="form-grid">
-              <div className="field"><label>Code *</label><input placeholder="e.g. CUST-001" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))}/></div>
-              <div className="field"><label>Name *</label><input placeholder="Customer name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-              <div className="field"><label>Phone</label><input placeholder="03xx-xxxxxxx" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
-              <div className="field">
-                <label>Default Salesman</label>
-                <select value={form.default_salesman_id} onChange={e=>setForm(f=>({...f,default_salesman_id:e.target.value}))}>
-                  <option value="">-- None --</option>
-                  {(salesmen||[]).map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
-                </select>
-              </div>
-              <div className="field" style={{gridColumn:'1/-1'}}><label>Address</label><input placeholder="Area / locality" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/></div>
-            </div>
-            <button type="submit" className="btn primary" style={{marginTop:12}} disabled={saving}>{saving?'Saving...':'Add Customer'}</button>
-          </form>
-        )}
-
-        {cl ? <Spinner/> : (
-          <div>
-            <table>
-              <thead><tr><th>Customer</th><th>Area</th><th>Outstanding</th></tr></thead>
-              <tbody>
-                {paginatedCustomers.length===0 ? <Empty msg={isCustFiltered || query ? "No customers found matching search criteria." : "No customers yet."}/> :
-                  paginatedCustomers.map(c=>(
-                    <tr key={c.id}>
-                      <td><div style={{fontWeight:600}}>{c.name}</div><div style={{fontSize:11,color:'var(--text-dim)'}}>{c.code}</div></td>
-                      <td>{c.address||'-'}</td>
-                      
-                      <td className="num-cell" style={{color:c.outstanding>0?'var(--red)':'inherit'}}>Rs. {fmtNum(c.outstanding)}</td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-            <Pagination page={page} pageSize={pageSize} total={filteredCustomers.length} onPageChange={setPage} />
-          </div>
-        )}
-      </div>
-
-      <div className="panel" style={{marginTop:20}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom:14}}>
-          <div className="section-head" style={{margin:0}}><h2>Customer returns</h2></div>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <input 
-              type="text" 
-              placeholder="Search returns..." 
-              value={returnSearch} 
-              onChange={e => { setReturnSearch(e.target.value); setReturnPage(1); }}
-              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
-            />
-            {returnSearch && (
-              <span className="link" onClick={() => setReturnSearch('')} style={{color:'var(--red)',fontSize:12}}>Reset</span>
-            )}
-          </div>
-        </div>
-
-        {rl ? <Spinner/> : (
-          <div>
-            <table>
-              <thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Type</th><th>Qty</th><th>Status</th></tr></thead>
-              <tbody>
-                {paginatedReturns.length===0 ? <Empty msg={retQuery ? "No matching customer returns found." : "No customer returns yet."}/> :
-                  paginatedReturns.map(r=>(
-                    <tr key={r.id}>
-                      <td style={{fontSize:11}}>{r.reference_number}</td>
-                      <td>{fmtDate(r.transaction_date)}</td>
-                      <td>{r.customers?.name||'-'}</td>
-                      
-                      <td>{r.transaction_type?.replace(/_/g,' ')}</td>
-                      <td className="num-cell">{r.quantity}</td>
-                      <td>{statusBadge(r.status)}</td>
-                    </tr>
-                  ))
-                }
-              </tbody>
-            </table>
-            <Pagination page={returnPage} pageSize={pageSize} total={filteredReturns.length} onPageChange={setReturnPage} />
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
 function ProductPage({ searchTerm = '' }) {
   const { role } = useAuth();
   const { data: products, loading: pl, reload } = useAsync(fetchProducts);
@@ -748,7 +580,7 @@ function ProductPage({ searchTerm = '' }) {
     <>
       <div className="grid g4" style={{marginBottom:20}}>
         <div className="tile teal"><div className="bar"/><div className="label">Production</div><div className="num">{fmtNum(mv.production)}</div></div>
-        <div className="tile green"><div className="bar"/><div className="label">Salesman returns</div><div className="num">{fmtNum(mv.salesman_returns)}</div></div>
+        <div className="tile green"><div className="bar"/><div className="label">Good returns (distributor / legacy)</div><div className="num">{fmtNum(mv.salesman_returns)}</div></div>
         <div className="tile amber"><div className="bar"/><div className="label">Damaged / adjustments</div><div className="num">{fmtNum(mv.damaged)}</div></div>
         <div className="tile red"><div className="bar"/><div className="label">Closing stock (warehouse)</div><div className="num">{fmtNum(mv.closing)}</div></div>
       </div>
@@ -759,9 +591,9 @@ function ProductPage({ searchTerm = '' }) {
           <table>
             <tbody>
               <tr><td>Production</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.production)}</td></tr>
-              <tr><td>Salesman issues (dispatched)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_issues)}</td></tr>
-              <tr><td>Salesman returns</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_returns)}</td></tr>
-              <tr><td>Customer returns</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.customer_returns)}</td></tr>
+              <tr><td>Stock issued (dispatched to distributors)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_issues)}</td></tr>
+              <tr><td>Good returns (distributor / legacy)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_returns)}</td></tr>
+              <tr><td>Legacy customer returns</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.customer_returns)}</td></tr>
               <tr><td>Damaged</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.damaged)}</td></tr>
               <tr><td>Adjustments</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.adjustments)}</td></tr>
               <tr><td><strong>Closing stock</strong></td><td className="num-cell" style={{textAlign:'right'}}><strong>{fmtNum(mv.closing)}</strong></td></tr>
@@ -866,78 +698,265 @@ function ProductPage({ searchTerm = '' }) {
 }
 
 function SettlementPage({ searchTerm = '' }) {
-  const { data: salesmen } = useAsync(fetchSalesmen);
-  const [selectedId, setSelectedId] = useState('');
-  const { data: settlement, loading: sl } = useAsync(() => selectedId ? fetchSalesmanSettlement(selectedId) : Promise.resolve(null), [selectedId]);
-  
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
+  const { role } = useAuth();
+  const canApprove = role === 'Super_Admin' || role === 'Manager';
+  const { data: distributors } = useAsync(fetchDistributors);
+  const [selectedId, setSelectedId]       = useState('');
+  const [outstanding, setOutstanding]     = useState(null);
+  const [settlements, setSettlements]     = useState([]);
+  const [loadingData, setLoadingData]     = useState(false);
+  const [saving,      setSaving]          = useState(false);
+  const [msg,         setMsg]             = useState('');
+
+  // Commission settlement form
+  const [settleAmt,   setSettleAmt]   = useState('');
+  const [settleType,  setSettleType]  = useState('Commission_Cash_Paid');
+  const [settleNotes, setSettleNotes] = useState('');
+  const [showForm,    setShowForm]    = useState(false);
 
   const query = (searchTerm || '').trim().toLowerCase();
-  const filteredSalesmen = (salesmen || []).filter(s => !query || (s.profiles?.full_name || '').toLowerCase().includes(query) || (s.code || '').toLowerCase().includes(query));
-  
-  const selected = (salesmen||[]).find(s=>s.id===selectedId);
-  const sv = settlement||{};
+  const filteredDists = (distributors || []).filter(d =>
+    !query || (d.name || '').toLowerCase().includes(query) || (d.code || '').toLowerCase().includes(query)
+  );
+  const selected = (distributors || []).find(d => d.id === selectedId);
 
-  const handleApprove = async () => {
-    if (!selectedId) return;
-    setSaving(true);
-    setMsg('');
+  const reloadDistributorData = useCallback(async (distId) => {
+    if (!distId) return;
+    setLoadingData(true);
     try {
-      // Dynamically import or assume approveSettlement is available
-      // It might not be imported in main.jsx, so let's import it at the top or use window logic
-      const { approveSettlement } = await import('./lib/db.js');
-      await approveSettlement(selectedId);
-      setMsg('ok:Settlement approved successfully.');
+      const [out, setts] = await Promise.all([
+        fetchDistributorOutstanding(distId),
+        fetchDistributorSettlements(distId)
+      ]);
+      setOutstanding(out);
+      setSettlements(setts || []);
+    } catch (e) {
+      setMsg('err:' + e.message);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) { setOutstanding(null); setSettlements([]); return; }
+    reloadDistributorData(selectedId);
+  }, [selectedId, reloadDistributorData]);
+
+  const commissionPayable = (() => {
+    if (!outstanding) return 0;
+    const accrued = outstanding.accruedCommission !== undefined && outstanding.accruedCommission > 0
+      ? outstanding.accruedCommission
+      : (outstanding.totalPackets || 0) * Number(selected?.commission || 0);
+    const paid = settlements
+      .filter(s => s.status === 'Approved')
+      .reduce((a, s) => a + Number(s.amount || 0), 0);
+    return Math.max(0, accrued - paid);
+  })();
+
+  const handleCommissionSettle = async () => {
+    if (!selectedId || !settleAmt || Number(settleAmt) <= 0) {
+      setMsg('err:Enter a valid settlement amount.');
+      return;
+    }
+    setSaving(true); setMsg('');
+    try {
+      await submitDistributorCommissionSettlement({
+        distributorId: selectedId,
+        amount: Number(settleAmt),
+        settlementType: settleType,
+        paymentMethod: settleType === 'Commission_Cash_Paid' ? 'Cash' : settleType === 'Commission_Bank_Paid' ? 'Bank' : 'Adjustment',
+        notes: settleNotes
+      });
+      setMsg('ok:Commission settlement recorded successfully.');
+      setSettleAmt(''); setSettleNotes(''); setShowForm(false);
+      // Refresh both settlements and outstanding balances atomically
+      await reloadDistributorData(selectedId);
     } catch(err) {
-      setMsg('error:' + err.message);
+      setMsg('err:' + err.message);
     }
     setSaving(false);
   };
+
+  const handleApproveSettlement = async (settlementId) => {
+    if (!window.confirm('Approve this commission settlement? This will finalize the settlement and linked recovery atomically.')) return;
+    setSaving(true); setMsg('');
+    try {
+      await approveDistributorSettlement(settlementId);
+      setMsg('ok:Commission settlement approved successfully.');
+      await reloadDistributorData(selectedId);
+    } catch (err) {
+      setMsg('err:' + (err.message || 'Failed to approve settlement.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelSettlement = async (settlementId) => {
+    const reason = window.prompt('Reason for cancelling this settlement:');
+    if (!reason) return;
+    setSaving(true); setMsg('');
+    try {
+      await cancelDistributorSettlement(settlementId, reason);
+      setMsg('ok:Commission settlement cancelled successfully.');
+      await reloadDistributorData(selectedId);
+    } catch (err) {
+      setMsg('err:' + (err.message || 'Failed to cancel settlement.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   return (
     <div className="panel">
       <div className="section-head"><h2>Distributor Settlement</h2></div>
       <div className="field" style={{marginBottom:20,maxWidth:300}}>
         <label>Select Distributor</label>
-        <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setMsg(''); }}>
+        <select value={selectedId} onChange={e => { setSelectedId(e.target.value); setMsg(''); setShowForm(false); }}>
           <option value="">-- Select --</option>
-          {filteredSalesmen.map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
+          {filteredDists.map(d=><option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
         </select>
       </div>
 
       {msg && (
         <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, fontSize: 12,
-          background: msg.startsWith('error') ? 'var(--red-soft)' : 'var(--green-soft)',
-          color: msg.startsWith('error') ? 'var(--red)' : 'var(--green)' }}>
-          {msg.replace(/^(ok|error):/, '')}
+          background: msg.startsWith('err') ? 'var(--red-soft)' : 'var(--green-soft)',
+          color: msg.startsWith('err') ? 'var(--red)' : 'var(--green)' }}>
+          {msg.replace(/^(ok|err):/, '')}
         </div>
       )}
 
-      {selectedId && (sl ? <Spinner/> : (
+      {selectedId && (loadingData ? <Spinner/> : (
         <>
-          <div className="grid g3" style={{marginBottom:18}}>
-            <div className="panel-flat"><div style={{fontSize:12,color:'var(--text-dim)'}}>Net sales</div><div className="num" style={{fontSize:20}}>Rs. {fmtNum(sv.netSales)}</div></div>
-            <div className="panel-flat"><div style={{fontSize:12,color:'var(--text-dim)'}}>Recovery</div><div className="num" style={{fontSize:20}}>Rs. {fmtNum(sv.recovery)}</div></div>
-            <div className="panel-flat"><div style={{fontSize:12,color:'var(--text-dim)'}}>Outstanding</div><div className="num" style={{fontSize:20}}>Rs. {fmtNum(sv.outstanding)}</div></div>
+          {/* Two separate balance cards */}
+          <div className="grid g2" style={{marginBottom:18}}>
+            <div className="panel-flat">
+              <div style={{fontSize:12,color:'var(--text-dim)',marginBottom:4}}>📦 Sales Outstanding</div>
+              <div className="num" style={{fontSize:22,color:outstanding?.outstanding > 0 ? 'var(--red)':'var(--green)'}}>
+                Rs. {fmtNum(outstanding?.outstanding)}
+              </div>
+              <div style={{fontSize:11,color:'var(--text-dim)',marginTop:4}}>
+                Sales: Rs. {fmtNum(outstanding?.totalSales)} &nbsp;|&nbsp; Recovered: Rs. {fmtNum(outstanding?.totalRecoveries)}
+              </div>
+            </div>
+            <div className="panel-flat">
+              <div style={{fontSize:12,color:'var(--text-dim)',marginBottom:4}}>💰 Commission Payable</div>
+              <div className="num" style={{fontSize:22,color:commissionPayable > 0 ? 'var(--amber)':'var(--green)'}}>
+                Rs. {fmtNum(commissionPayable)}
+              </div>
+              <div style={{fontSize:11,color:'var(--text-dim)',marginTop:4}}>
+                Rate: Rs. {selected?.commission}/pkt &nbsp;|&nbsp; Packets: {outstanding?.totalPackets || 0}
+              </div>
+            </div>
           </div>
-          <table>
-            <tbody>
-              <tr><td>Sales (net)</td><td className="num-cell" style={{textAlign:'right'}}>+ Rs. {fmtNum(sv.netSales)}</td></tr>
-              <tr><td>Recovery received</td><td className="num-cell" style={{textAlign:'right'}}>− Rs. {fmtNum(sv.recovery)}</td></tr>
-              <tr><td>Reimbursement payable (approved expenses)</td><td className="num-cell" style={{textAlign:'right'}}>+ Rs. {fmtNum(sv.reimbursable)}</td></tr>
-              <tr><td><strong>Net settlement position</strong></td><td className="num-cell" style={{textAlign:'right'}}>
-                <strong style={{color:sv.net>0?'var(--red)':'var(--green)'}}>
-                  {sv.net>0?`Rs. ${fmtNum(sv.net)} payable by ${selected?.profiles?.full_name||'salesman'}`:`Rs. ${fmtNum(Math.abs(sv.net||0))} payable to ${selected?.profiles?.full_name||'salesman'}`}
-                </strong>
-              </td></tr>
-            </tbody>
-          </table>
-          <div className="btn-row" style={{marginTop:16}}>
-            <button className="btn primary" onClick={handleApprove} disabled={saving}>
-              {saving ? 'Approving...' : 'Approve settlement'}
-            </button>
+
+          {/* Important note: these are separate */}
+          <div style={{fontSize:12,padding:'8px 12px',background:'rgba(14,124,134,.06)',borderRadius:6,marginBottom:16,color:'var(--text-dim)'}}>
+            ⚠️ <strong>Sales Outstanding</strong> and <strong>Commission Payable</strong> are tracked separately.
+            Cash/Bank payments reduce only Commission Payable. Only "Against Outstanding" atomically reduces Sales Outstanding.
           </div>
+
+          {/* Commission settlement history */}
+          {settlements.length > 0 && (
+            <div style={{marginBottom:16}}>
+              <div style={{fontWeight:600,fontSize:13,marginBottom:8}}>Commission Settlement History</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th style={{textAlign:'right'}}>Amount</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th style={{textAlign:'right'}}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {settlements.map(s => (
+                    <tr key={s.id}>
+                      <td>{fmtDate(s.settlement_date || s.created_at)}</td>
+                      <td>
+                        <span className={`badge ${s.settlement_type === 'Commission_Against_Outstanding' ? 'teal' : 'gray'}`}>
+                          {s.settlement_type === 'Commission_Against_Outstanding' ? 'Against Outstanding' : s.settlement_type === 'Commission_Bank_Paid' ? 'Bank Paid' : 'Cash Paid'}
+                        </span>
+                      </td>
+                      <td style={{textAlign:'right',color:'var(--teal)'}}>Rs. {fmtNum(s.amount)}</td>
+                      <td>
+                        <span className={`badge ${s.status === 'Approved' ? 'green' : s.status === 'Pending' ? 'amber' : 'red'}`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td style={{color:'var(--text-dim)'}}>{s.notes || '—'}</td>
+                      <td style={{textAlign:'right',whiteSpace:'nowrap'}}>
+                        {s.status === 'Pending' && canApprove && (
+                          <button 
+                            className="btn" 
+                            style={{padding:'2px 8px',fontSize:11,background:'var(--green-soft)',color:'var(--green)',borderColor:'var(--green)',marginRight:4}}
+                            onClick={() => handleApproveSettlement(s.id)}
+                            disabled={saving}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {(s.status === 'Pending' || (s.status === 'Approved' && role === 'Super_Admin')) && (
+                          <button 
+                            className="btn" 
+                            style={{padding:'2px 8px',fontSize:11,background:'var(--red-soft)',color:'var(--red)',borderColor:'var(--red)',marginRight:4}}
+                            onClick={() => handleCancelSettlement(s.id)}
+                            disabled={saving}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button 
+                          className="btn ghost" 
+                          style={{padding:'2px 8px',fontSize:11}}
+                          onClick={() => printSettlementVoucher(s, selected)}
+                        >
+                          Print
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* New commission settlement form */}
+          {!showForm ? (
+            <div className="btn-row">
+              <button className="btn primary" onClick={() => setShowForm(true)}>+ Record Commission Settlement</button>
+            </div>
+          ) : (
+            <div className="panel-flat" style={{marginTop:12,padding:16}}>
+              <div style={{fontWeight:600,fontSize:13,marginBottom:12}}>New Commission Settlement Entry</div>
+              <div className="form-grid" style={{marginBottom:12}}>
+                <div className="field">
+                  <label>Settlement Type</label>
+                  <select value={settleType} onChange={e=>setSettleType(e.target.value)}>
+                    <option value="Commission_Cash_Paid">Commission Cash Paid (Reduces Commission Only)</option>
+                    <option value="Commission_Bank_Paid">Commission Bank Paid (Reduces Commission Only)</option>
+                    <option value="Commission_Against_Outstanding">Offset Against Sales Outstanding (Reduces Both)</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Amount (Rs.)</label>
+                  <input type="number" min="0" value={settleAmt} onChange={e=>setSettleAmt(e.target.value)} placeholder="Enter amount paid" />
+                </div>
+                <div className="field" style={{gridColumn:'1/-1'}}>
+                  <label>Notes / References</label>
+                  <input type="text" value={settleNotes} onChange={e=>setSettleNotes(e.target.value)} placeholder="e.g. Bank transfer reference, cheque #, or settlement notes" />
+                </div>
+              </div>
+              <div className="btn-row">
+                <button className="btn primary" onClick={handleCommissionSettle} disabled={saving}>
+                  {saving ? 'Saving...' : 'Submit Settlement'}
+                </button>
+                <button className="btn" onClick={() => { setShowForm(false); setSettleAmt(''); setSettleNotes(''); }}>Cancel</button>
+              </div>
+            </div>
+          )}
         </>
       ))}
 

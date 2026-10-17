@@ -2,19 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchDistributors,
-  fetchSalesmen,
-  fetchCustomers,
   fetchProducts,
   fetchSales,
   fetchDistributorOutstanding,
   fetchDistributorTodayRecovery,
   submitSale
 } from '../lib/db';
+import { printDistributorPad, formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
 
-// Per-packet fee constants (configurable per business rules)
-const COMMISSION_PER_PACKET    = 30;
-const ADVERTISEMENT_PER_PACKET = 20;
-const WELFARE_PER_PACKET       = 10;
+// Default fallback rates (only used if distributor snapshot is missing)
+const DEFAULT_ADVERTISEMENT_PER_PACKET = 20;
+const DEFAULT_WELFARE_PER_PACKET       = 10;
 
 const fmtNum  = (n) => Number(n || 0).toLocaleString('en-PK');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -43,46 +41,41 @@ export default function SalesPage({ searchTerm = '' }) {
 
   // Reference data
   const [distributors, setDistributors] = useState([]);
-  const [salesmen,     setSalesmen]     = useState([]);
-  const [customers,    setCustomers]    = useState([]);
   const [products,     setProducts]     = useState([]);
 
   // List state
-  const [sales,         setSales]        = useState([]);
-  const [loading,       setLoading]      = useState(false);
-  const [msg,           setMsg]          = useState('');
-  const [filterDate,    setFilterDate]   = useState(todayISO());
-  const [filterDist,    setFilterDist]   = useState('');
-  const [filterSearch,  setFilterSearch] = useState('');
+  const [sales,        setSales]       = useState([]);
+  const [loading,      setLoading]     = useState(false);
+  const [allDates,     setAllDates]    = useState(false);
+  const [msg,          setMsg]         = useState('');
+  const [filterDate,   setFilterDate]  = useState(todayISO());
+  const [filterDist,   setFilterDist]  = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Distributor info panel (list view selected dist)
-  const [distOutstanding,    setDistOutstanding]    = useState(null);
-  const [distTodayRecovery,  setDistTodayRecovery]  = useState(null);
+  const [distOutstanding,   setDistOutstanding]   = useState(null);
+  const [distTodayRecovery, setDistTodayRecovery] = useState(null);
 
   // Create form state
-  const [selDist,        setSelDist]        = useState(null);
-  const [distSearch,     setDistSearch]     = useState('');
-  const [salesmanId,     setSalesmanId]     = useState('');
-  const [customerId,     setCustomerId]     = useState('');
-  const [items,          setItems]          = useState([]);
-  const [saving,         setSaving]         = useState(false);
-  const [formMsg,        setFormMsg]        = useState('');
+  const [selDist,    setSelDist]    = useState(null);
+  const [distSearch, setDistSearch] = useState('');
+  const [items,      setItems]      = useState([]);
+  const [saving,     setSaving]     = useState(false);
+  const [formMsg,    setFormMsg]    = useState('');
 
   // Item picker
-  const [selProduct,  setSelProduct]  = useState('');
-  const [selPkg,      setSelPkg]      = useState('');
-  const [selQty,      setSelQty]      = useState('');
+  const [selProduct, setSelProduct] = useState('');
+  const [selPkg,     setSelPkg]     = useState('');
+  const [selQty,     setSelQty]     = useState('');
 
   // ── Load reference data once ──────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
-        const [d, s, c, p] = await Promise.all([
-          fetchDistributors(), fetchSalesmen(), fetchCustomers(), fetchProducts()
+        const [d, p] = await Promise.all([
+          fetchDistributors(), fetchProducts()
         ]);
         setDistributors(d || []);
-        setSalesmen(s || []);
-        setCustomers(c || []);
         setProducts(p || []);
       } catch (e) { console.error(e); }
     })();
@@ -93,8 +86,8 @@ export default function SalesPage({ searchTerm = '' }) {
     setLoading(true);
     try {
       const data = await fetchSales({
-        dateFrom: filterDate ? dayStart(filterDate) : undefined,
-        dateTo:   filterDate ? dayEnd(filterDate)   : undefined,
+        dateFrom: (!allDates && filterDate) ? dayStart(filterDate) : undefined,
+        dateTo:   (!allDates && filterDate) ? dayEnd(filterDate)   : undefined,
         distributorId: filterDist || undefined
       });
       setSales(data || []);
@@ -103,7 +96,7 @@ export default function SalesPage({ searchTerm = '' }) {
       setMsg('err:Failed to load sales.');
     }
     setLoading(false);
-  }, [filterDate, filterDist]);
+  }, [filterDate, filterDist, allDates]);
 
   useEffect(() => { loadSales(); }, [loadSales]);
 
@@ -122,13 +115,25 @@ export default function SalesPage({ searchTerm = '' }) {
     })();
   }, [filterDist]);
 
-  // ── Commission calculations (derived from TODAY's loaded sales) ───────────
-  const totalPacketsToday = sales.reduce((sum, s) =>
+  // ── Summary tiles — derived from snapshot rates per row ──────────────────
+  const selectedDistObj = distributors.find(d => d.id === filterDist);
+
+  // Total packets across currently displayed sales
+  const totalPackets = sales.reduce((sum, s) =>
     sum + (s.sale_items || []).reduce((a, i) => a + Number(i.quantity), 0), 0
   );
-  const todayCommission    = totalPacketsToday * COMMISSION_PER_PACKET;
-  const todayAdvertisement = totalPacketsToday * ADVERTISEMENT_PER_PACKET;
-  const todayWelfare       = totalPacketsToday * WELFARE_PER_PACKET;
+
+  // Commission today: sum per row using snapshot rate (or selectedDistObj.commission fallback)
+  const todayCommission = sales.reduce((sum, s) => {
+    const pkts = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity), 0);
+    const rate = s.commission_rate_snapshot != null
+      ? Number(s.commission_rate_snapshot)
+      : (selectedDistObj?.commission != null ? Number(selectedDistObj.commission) : 0);
+    return sum + pkts * rate;
+  }, 0);
+
+  const todayAdvertisement = totalPackets * DEFAULT_ADVERTISEMENT_PER_PACKET;
+  const todayWelfare       = totalPackets * DEFAULT_WELFARE_PER_PACKET;
 
   // ── Distributor search (create form) ─────────────────────────────────────
   const activeDistributors = distributors.filter(d => d.is_active);
@@ -143,56 +148,99 @@ export default function SalesPage({ searchTerm = '' }) {
     : activeDistributors;
 
   // ── Product pricing ───────────────────────────────────────────────────────
-  const selProdObj  = products.find(p => p.id === selProduct);
-  const selPkgObj   = selProdObj?.product_packaging?.find(pk => pk.id === selPkg);
-  const autoPrice   = selPkgObj?.product_prices?.[0]?.sales_price || 0;
+  const selProdObj = products.find(p => p.id === selProduct);
+  const selPkgObj  = selProdObj?.product_packaging?.find(pk => pk.id === selPkg);
+  const autoPrice  = selPkgObj?.product_prices?.[0]?.sales_price || 0;
 
   const handleAddItem = () => {
-    if (!selProduct || !selPkg || !selQty || Number(selQty) < 1) {
-      setFormMsg('err:Select a product, packaging, and enter valid quantity.');
+    if (!selProduct || !selPkg) {
+      setFormMsg('err:Select a product and packaging.');
+      return;
+    }
+    const qty = parseInt(selQty, 10);
+    if (!qty || qty < 1) {
+      setFormMsg('err:Enter a valid quantity (greater than 0).');
+      return;
+    }
+    if (!autoPrice || Number(autoPrice) <= 0) {
+      setFormMsg('err:Selected packaging has no valid price.');
       return;
     }
     const name = (selProdObj?.name || '') + (selPkgObj?.name ? ' — ' + selPkgObj.name : '');
-    setItems([...items, { packagingId: selPkg, name, price: Number(autoPrice), quantity: parseInt(selQty, 10) }]);
+    setItems([...items, { packagingId: selPkg, name, price: Number(autoPrice), quantity: qty }]);
     setSelProduct(''); setSelPkg(''); setSelQty('');
     setFormMsg('');
   };
+
   const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
   const totalAmount = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
+  // Commission preview in create form — uses selDist.commission
+  const createCommRate = selDist?.commission != null ? Number(selDist.commission) : 0;
+  const totalItemPkts  = items.reduce((a, i) => a + i.quantity, 0);
+
   // ── Save sale ─────────────────────────────────────────────────────────────
-  // NOTE: sales_orders.salesman_id and customer_id have NOT NULL constraints.
-  // They must always be selected to ensure the DB insert succeeds and
-  // distributor_id is persisted correctly.
   const handleSubmit = async () => {
-    if (!selDist)           { setFormMsg('err:Please select a distributor.'); return; }
-    if (!salesmanId)        { setFormMsg('err:Please select a salesman (required by the database).'); return; }
-    if (!customerId)        { setFormMsg('err:Please select a customer (required by the database).'); return; }
-    if (items.length === 0) { setFormMsg('err:Add at least one product item.'); return; }
-    setSaving(true); setFormMsg('');
+    if (!selDist) {
+      setFormMsg('err:Please select a distributor.');
+      return;
+    }
+    if (items.length === 0) {
+      setFormMsg('err:Add at least one product item.');
+      return;
+    }
+    const invalidItem = items.find(i => i.quantity <= 0 || i.price <= 0);
+    if (invalidItem) {
+      setFormMsg(`err:Item "${invalidItem.name}" has invalid qty or price.`);
+      return;
+    }
+    setSaving(true);
+    setFormMsg('');
     try {
       await submitSale({
-        distributorId: selDist.id,   // UUID — stored in sales_orders.distributor_id
-        salesmanId,                  // Required — NOT NULL in DB
-        customerId,                  // Required — NOT NULL in DB
+        distributorId: selDist.id,
+        salesmanId: null,
+        customerId: null,
         items,
-        totalAmount
+        totalAmount,
+        saleDate: new Date().toISOString()
       });
       setFormMsg('ok:Sale recorded successfully.');
       setSelDist(null); setDistSearch('');
-      setSalesmanId(''); setCustomerId('');
       setItems([]); setSelProduct(''); setSelPkg(''); setSelQty('');
       await loadSales();
       setTimeout(() => { setActiveTab('list'); setFormMsg(''); }, 1500);
     } catch (e) {
-      setFormMsg('err:' + e.message);
-    } finally { setSaving(false); }
+      setFormMsg('err:' + (e.message || 'Failed to submit sale.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── WhatsApp ──────────────────────────────────────────────────────────────
   const handleWhatsApp = (s) => {
-    const dist = s.distributors ? `${s.distributors.name} (${s.distributors.code})` : 'Not Assigned';
-    const packets = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity), 0);
+    const distObj = (Array.isArray(s.distributors) ? s.distributors[0] : s.distributors)
+      || distributors.find(d => d.id === s.distributor_id)
+      || null;
+
+    if (!distObj) {
+      const warn = 'Cannot open WhatsApp: No distributor is linked to this sale.';
+      setMsg('err:' + warn);
+      if (typeof alert === 'function') alert(warn);
+      return;
+    }
+
+    const formattedPhone = formatPakistaniPhoneForWhatsApp(distObj.phone);
+    if (!formattedPhone) {
+      const warn = `Cannot open WhatsApp: Distributor ${distObj.name || ''} has no valid registered phone number.`;
+      setMsg('err:' + warn);
+      if (typeof alert === 'function') alert(warn);
+      return;
+    }
+
+    setMsg('');
+    const dist = `${distObj.name}${distObj.code ? ` (${distObj.code})` : ''}`;
+    const packets = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity || 0), 0);
     const text = encodeURIComponent(
       `*Elite Wash — Sale*\n` +
       `Ref: ${s.reference_number}\n` +
@@ -202,30 +250,25 @@ export default function SalesPage({ searchTerm = '' }) {
       `Total: Rs. ${fmtNum(s.total_amount)}\n` +
       `Status: ${s.status}`
     );
-    window.open(`https://wa.me/923240106056?text=${text}`, '_blank');
+    window.open(`https://wa.me/${formattedPhone}?text=${text}`, '_blank');
   };
 
   // ── Print ─────────────────────────────────────────────────────────────────
   const handlePrint = (s) => {
-    const dist = s.distributors
-      ? `${s.distributors.name} | ${s.distributors.code} | ${s.distributors.id_card || ''} | ${s.distributors.phone || ''}`
-      : 'Not Assigned';
-    const packets = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity), 0);
-    const win = window.open('', '_blank');
-    win.document.write(`<html><head><title>Sale ${s.reference_number}</title>
-      <style>body{font-family:sans-serif;padding:20px}h2{margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ccc;padding:8px;font-size:13px}th{background:#f5f5f5}</style></head>
-      <body>
-        <h2>Elite Wash — Sale</h2>
-        <p><strong>Sale #:</strong> ${s.reference_number} &nbsp; <strong>Date:</strong> ${fmtDate(s.sale_date)} &nbsp; <strong>Status:</strong> ${s.status}</p>
-        <p><strong>Distributor:</strong> ${dist}</p>
-        <p><strong>Customer:</strong> ${s.customers?.name || '—'}</p>
-        <table>
-          <tr><th>Total Packets</th><th>Total Amount</th></tr>
-          <tr><td>${packets}</td><td>Rs. ${fmtNum(s.total_amount)}</td></tr>
-        </table>
-        <br/><p style="font-size:11px;color:#999">Elite Wash ERP — All balances derived from transactions.</p>
-      </body></html>`);
-    win.document.close(); win.print();
+    const mappedSale = {
+      ...s,
+      billNo: s.reference_number,
+      date: fmtDate(s.sale_date),
+      distributorName: s.distributors?.name || '—',
+      items: (s.sale_items || []).map(i => ({
+        description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : 'Elite Wash Surf',
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        amount: Number(i.quantity || 0) * Number(i.unit_price || 0)
+      })),
+      totalAmount: s.total_amount
+    };
+    printDistributorPad(mappedSale);
   };
 
   // ── Client search filter ──────────────────────────────────────────────────
@@ -234,8 +277,7 @@ export default function SalesPage({ searchTerm = '' }) {
     ? sales.filter(s =>
         s.reference_number?.toLowerCase().includes(sq) ||
         s.distributors?.name?.toLowerCase().includes(sq) ||
-        s.distributors?.code?.toLowerCase().includes(sq) ||
-        s.customers?.name?.toLowerCase().includes(sq)
+        s.distributors?.code?.toLowerCase().includes(sq)
       )
     : sales;
 
@@ -243,8 +285,6 @@ export default function SalesPage({ searchTerm = '' }) {
     if (!s.distributors) return <span style={{color:'var(--text-dim)',fontStyle:'italic'}}>Not Assigned</span>;
     return <span>{s.distributors.name} <span style={{fontSize:11,color:'var(--text-dim)'}}>({s.distributors.code})</span></span>;
   };
-
-  const selectedDistObj = distributors.find(d => d.id === filterDist);
 
   return (
     <>
@@ -267,7 +307,7 @@ export default function SalesPage({ searchTerm = '' }) {
               <div className="tile teal">
                 <div className="bar"></div>
                 <div className="label">Outstanding Balance</div>
-                <div className="num">Rs. {distOutstanding !== null ? fmtNum(distOutstanding) : '…'}</div>
+                <div className="num">Rs. {distOutstanding !== null ? fmtNum(distOutstanding.outstanding) : '…'}</div>
               </div>
               <div className="tile green">
                 <div className="bar"></div>
@@ -278,7 +318,7 @@ export default function SalesPage({ searchTerm = '' }) {
                 <div className="bar"></div>
                 <div className="label">Commission (today)</div>
                 <div className="num">Rs. {fmtNum(todayCommission)}</div>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.7)',marginTop:4}}>{totalPacketsToday} pkts × {COMMISSION_PER_PACKET} PKR</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.7)',marginTop:4}}>{totalPackets} pkts (snapshot rates)</div>
               </div>
               <div className="tile red">
                 <div className="bar"></div>
@@ -294,7 +334,11 @@ export default function SalesPage({ searchTerm = '' }) {
             <div style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'flex-end',marginBottom:16}}>
               <div className="field" style={{flex:'1 1 155px',margin:0}}>
                 <label style={{fontSize:11,fontWeight:600,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'.04em'}}>Date</label>
-                <input type="date" value={filterDate} onChange={e=>setFilterDate(e.target.value)} />
+                <input type="date" value={filterDate} onChange={e=>setFilterDate(e.target.value)} disabled={allDates} />
+                <label style={{fontSize:11,marginTop:4,display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}>
+                  <input type="checkbox" checked={allDates} onChange={e=>setAllDates(e.target.checked)} style={{margin:0}} />
+                  All Dates
+                </label>
               </div>
               <div className="field" style={{flex:'1 1 190px',margin:0}}>
                 <label style={{fontSize:11,fontWeight:600,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'.04em'}}>Distributor</label>
@@ -305,7 +349,7 @@ export default function SalesPage({ searchTerm = '' }) {
               </div>
               <div className="field" style={{flex:'2 1 220px',margin:0}}>
                 <label style={{fontSize:11,fontWeight:600,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'.04em'}}>Search</label>
-                <input placeholder="Sale #, distributor, customer..." value={filterSearch} onChange={e=>setFilterSearch(e.target.value)} />
+                <input placeholder="Sale #, distributor name or code..." value={filterSearch} onChange={e=>setFilterSearch(e.target.value)} />
               </div>
               <button className="btn" onClick={loadSales} style={{alignSelf:'flex-end'}}>Refresh</button>
             </div>
@@ -324,7 +368,7 @@ export default function SalesPage({ searchTerm = '' }) {
             <div className="section-head">
               <h2>
                 {filterDist ? (selectedDistObj?.name || 'Distributor') + ' — Sales' : 'All Distributor Sales'}
-                {filterDate && <span style={{fontSize:12,fontWeight:400,color:'var(--text-dim)',marginLeft:10}}>{fmtDate(filterDate)}</span>}
+                {!allDates && filterDate && <span style={{fontSize:12,fontWeight:400,color:'var(--text-dim)',marginLeft:10}}>{fmtDate(filterDate)}</span>}
               </h2>
               <span className="link" style={{fontSize:12}}>{displaySales.length} record{displaySales.length!==1?'s':''}</span>
             </div>
@@ -338,35 +382,33 @@ export default function SalesPage({ searchTerm = '' }) {
                     <th>Sale #</th>
                     <th>Date</th>
                     <th>Distributor</th>
-                    <th>Customer</th>
                     <th style={{textAlign:'center'}}>Packets</th>
                     <th style={{textAlign:'right'}}>Total</th>
                     <th style={{textAlign:'right'}}>Commission</th>
-                    <th style={{textAlign:'right'}}>Adv.</th>
-                    <th style={{textAlign:'right'}}>Welfare</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displaySales.length === 0 ? (
-                    <tr><td colSpan={11} style={{textAlign:'center',padding:20,color:'var(--text-dim)'}}>No sales found for selected filters.</td></tr>
+                    <tr><td colSpan={8} style={{textAlign:'center',padding:20,color:'var(--text-dim)'}}>No sales found for selected filters.</td></tr>
                   ) : displaySales.map(s => {
                     const pkts = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity), 0);
-                    const comm = pkts * COMMISSION_PER_PACKET;
-                    const adv  = pkts * ADVERTISEMENT_PER_PACKET;
-                    const welf = pkts * WELFARE_PER_PACKET;
+                    const commRate = s.commission_rate_snapshot ?? null;
+                    let commCell;
+                    if (commRate === null) {
+                      commCell = <span className="badge amber">No Snapshot</span>;
+                    } else {
+                      commCell = <span style={{color:'var(--teal)'}}>Rs. {fmtNum(pkts * Number(commRate))}</span>;
+                    }
                     return (
                       <tr key={s.id}>
                         <td style={{fontWeight:600}}>{s.reference_number}</td>
                         <td>{fmtDate(s.sale_date)}</td>
                         <td>{distLabel(s)}</td>
-                        <td>{s.customers?.name || '—'}</td>
                         <td style={{textAlign:'center'}}>{pkts}</td>
                         <td className="num-cell">Rs. {fmtNum(s.total_amount)}</td>
-                        <td className="num-cell" style={{color:'var(--teal)'}}>Rs. {fmtNum(comm)}</td>
-                        <td className="num-cell" style={{color:'var(--amber)'}}>Rs. {fmtNum(adv)}</td>
-                        <td className="num-cell" style={{color:'var(--green)'}}>Rs. {fmtNum(welf)}</td>
+                        <td className="num-cell">{commCell}</td>
                         <td><span className="badge green">{s.status}</span></td>
                         <td>
                           <div style={{display:'flex',gap:6}}>
@@ -381,12 +423,10 @@ export default function SalesPage({ searchTerm = '' }) {
                 {displaySales.length > 0 && (
                   <tfoot>
                     <tr style={{background:'#f9f9f9',fontWeight:600}}>
-                      <td colSpan={4}>Totals ({displaySales.length} sales)</td>
-                      <td style={{textAlign:'center'}}>{totalPacketsToday}</td>
+                      <td colSpan={3}>Totals ({displaySales.length} sales)</td>
+                      <td style={{textAlign:'center'}}>{totalPackets}</td>
                       <td className="num-cell">Rs. {fmtNum(displaySales.reduce((a,s)=>a+Number(s.total_amount),0))}</td>
                       <td className="num-cell" style={{color:'var(--teal)'}}>Rs. {fmtNum(todayCommission)}</td>
-                      <td className="num-cell" style={{color:'var(--amber)'}}>Rs. {fmtNum(todayAdvertisement)}</td>
-                      <td className="num-cell" style={{color:'var(--green)'}}>Rs. {fmtNum(todayWelfare)}</td>
                       <td colSpan={2}></td>
                     </tr>
                   </tfoot>
@@ -476,7 +516,7 @@ export default function SalesPage({ searchTerm = '' }) {
             {selPkg && (
               <div style={{marginTop:8,fontSize:12,color:'var(--text-dim)'}}>
                 Price: Rs. {fmtNum(autoPrice)} per unit
-                {selQty > 0 && <> &nbsp;|&nbsp; Amount: Rs. {fmtNum(Number(autoPrice) * Number(selQty))}</>}
+                {Number(selQty) > 0 && <> &nbsp;|&nbsp; Amount: Rs. {fmtNum(Number(autoPrice) * Number(selQty))}</>}
               </div>
             )}
           </div>
@@ -494,14 +534,21 @@ export default function SalesPage({ searchTerm = '' }) {
                       <td style={{textAlign:'center'}}>{item.quantity}</td>
                       <td style={{textAlign:'right'}}>Rs. {fmtNum(item.price)}</td>
                       <td style={{textAlign:'right'}}>Rs. {fmtNum(item.price * item.quantity)}</td>
-                      <td style={{textAlign:'right',color:'var(--teal)'}}>Rs. {fmtNum(item.quantity * COMMISSION_PER_PACKET)}</td>
+                      <td style={{textAlign:'right',color:'var(--teal)'}}>
+                        {selDist
+                          ? `Rs. ${fmtNum(item.quantity * createCommRate)}`
+                          : <span style={{color:'var(--text-dim)',fontSize:11}}>Select dist.</span>
+                        }
+                      </td>
                       <td style={{textAlign:'center'}}><span className="link" style={{color:'var(--red)',fontSize:12}} onClick={()=>removeItem(i)}>Remove</span></td>
                     </tr>
                   ))}
                   <tr style={{fontWeight:'bold',background:'#f9f9f9'}}>
                     <td colSpan={3} style={{textAlign:'right',paddingTop:8}}>Total</td>
                     <td style={{textAlign:'right',paddingTop:8,color:'var(--teal)'}}>Rs. {fmtNum(totalAmount)}</td>
-                    <td style={{textAlign:'right',paddingTop:8,color:'var(--teal)'}}>Rs. {fmtNum(items.reduce((a,i)=>a+i.quantity*COMMISSION_PER_PACKET,0))}</td>
+                    <td style={{textAlign:'right',paddingTop:8,color:'var(--teal)'}}>
+                      {selDist ? `Rs. ${fmtNum(totalItemPkts * createCommRate)}` : '—'}
+                    </td>
                     <td></td>
                   </tr>
                 </tbody>
@@ -509,32 +556,19 @@ export default function SalesPage({ searchTerm = '' }) {
 
               {/* Fee breakdown */}
               <div style={{marginTop:12,padding:10,background:'rgba(14,124,134,.04)',borderRadius:6,fontSize:12,display:'flex',gap:24,flexWrap:'wrap'}}>
-                <span>📦 <strong>Packets:</strong> {items.reduce((a,i)=>a+i.quantity,0)}</span>
-                <span style={{color:'var(--teal)'}}>💰 <strong>Commission ({COMMISSION_PER_PACKET} PKR/pkt):</strong> Rs. {fmtNum(items.reduce((a,i)=>a+i.quantity*COMMISSION_PER_PACKET,0))}</span>
-                <span style={{color:'var(--amber)'}}>📢 <strong>Advertisement ({ADVERTISEMENT_PER_PACKET} PKR/pkt):</strong> Rs. {fmtNum(items.reduce((a,i)=>a+i.quantity*ADVERTISEMENT_PER_PACKET,0))}</span>
-                <span style={{color:'var(--green)'}}>🤝 <strong>Welfare ({WELFARE_PER_PACKET} PKR/pkt):</strong> Rs. {fmtNum(items.reduce((a,i)=>a+i.quantity*WELFARE_PER_PACKET,0))}</span>
+                <span>📦 <strong>Packets:</strong> {totalItemPkts}</span>
+                {selDist ? (
+                  <span style={{color:'var(--teal)'}}>💰 <strong>Commission ({fmtNum(createCommRate)} PKR/pkt):</strong> Rs. {fmtNum(totalItemPkts * createCommRate)}</span>
+                ) : (
+                  <span style={{color:'var(--text-dim)'}}>💰 Commission: select a distributor to preview</span>
+                )}
+                <span style={{color:'var(--amber)'}}>📢 <strong>Advertisement ({DEFAULT_ADVERTISEMENT_PER_PACKET} PKR/pkt):</strong> Rs. {fmtNum(totalItemPkts * DEFAULT_ADVERTISEMENT_PER_PACKET)}</span>
+                <span style={{color:'var(--green)'}}>🤝 <strong>Welfare ({DEFAULT_WELFARE_PER_PACKET} PKR/pkt):</strong> Rs. {fmtNum(totalItemPkts * DEFAULT_WELFARE_PER_PACKET)}</span>
               </div>
             </div>
           )}
 
-          {/* Required fields */}
-          <div className="form-grid" style={{marginBottom:16}}>
-            <div className="field">
-              <label>Salesman *</label>
-              <select value={salesmanId} onChange={e=>setSalesmanId(e.target.value)}>
-                <option value="">-- None --</option>
-                {salesmen.map(s=><option key={s.id} value={s.id}>{s.profiles?.full_name||s.code}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label>Customer *</label>
-              <select value={customerId} onChange={e=>setCustomerId(e.target.value)}>
-                <option value="">-- None --</option>
-                {customers.map(c=><option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
-              </select>
-            </div>
-          </div>
-
+          {/* Submit */}
           <div className="btn-row">
             <button className="btn primary" onClick={handleSubmit} disabled={saving}>
               {saving ? 'Saving...' : 'Submit Sale'}

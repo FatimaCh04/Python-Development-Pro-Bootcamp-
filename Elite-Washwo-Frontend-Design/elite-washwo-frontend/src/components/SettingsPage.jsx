@@ -50,7 +50,7 @@ function StaffManager({ globalSearch = '' }) {
   const pageSize = 15;
 
   const [form, setForm] = useState({
-    email: '', password: '', full_name: '', role: 'Salesman', code: '', route: ''
+    email: '', password: '', full_name: '', role: 'Manager', code: '', route: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -76,10 +76,9 @@ function StaffManager({ globalSearch = '' }) {
     e.preventDefault();
     setSaving(true); setMsg('');
     try {
-      if (form.role === 'Salesman' && !form.code) throw new Error('Salesman code is required.');
       await invokeCreateUser(form);
       setMsg('ok:User created successfully.');
-      setForm({ email: '', password: '', full_name: '', role: 'Salesman', code: '', route: '' });
+      setForm({ email: '', password: '', full_name: '', role: 'Manager', code: '', route: '' });
       setShowAdd(false);
       fetchStaff();
     } catch(e) {
@@ -117,7 +116,7 @@ function StaffManager({ globalSearch = '' }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom: 16}}>
         <div>
           <h2 style={{fontSize:18, margin:0}}>Staff Directory</h2>
-          <p style={{fontSize:12.5,color:'var(--text-dim)',margin:0}}>Manage Manager and Salesman accounts.</p>
+          <p style={{fontSize:12.5,color:'var(--text-dim)',margin:0}}>Manage Manager accounts.</p>
         </div>
         <button className="btn primary" onClick={()=>setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : 'Add Staff'}</button>
       </div>
@@ -131,7 +130,7 @@ function StaffManager({ globalSearch = '' }) {
           style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:220}}
         />
         <div className="chip-list" style={{gap:4}}>
-          {['All', 'Manager', 'Salesman'].map(r => (
+          {['All', 'Manager'].map(r => (
             <div key={r} className={`chip${roleFilter===r?' active':''}`} onClick={() => { setRoleFilter(r); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
               {r}
             </div>
@@ -169,21 +168,8 @@ function StaffManager({ globalSearch = '' }) {
               <label>Role *</label>
               <select value={form.role} onChange={e=>setForm({...form, role: e.target.value})}>
                 <option value="Manager">Manager</option>
-                <option value="Salesman">Salesman</option>
               </select>
             </div>
-            {form.role === 'Salesman' && (
-              <>
-                <div className="field">
-                  <label>Salesman Code *</label>
-                  <input required placeholder="e.g. S-01" value={form.code} onChange={e=>setForm({...form, code: e.target.value})} />
-                </div>
-                <div className="field">
-                  <label>Route</label>
-                  <input placeholder="e.g. North Zone" value={form.route} onChange={e=>setForm({...form, route: e.target.value})} />
-                </div>
-              </>
-            )}
           </div>
           <button type="submit" className="btn primary" style={{marginTop:12}} disabled={saving}>
             {saving ? 'Creating...' : 'Create Account'}
