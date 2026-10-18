@@ -8,7 +8,7 @@ import {
   fetchDistributorTodayRecovery,
   submitSale
 } from '../lib/db';
-import { printDistributorPad, formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
+import { printDistributorPad, shareDistributorPadOnWhatsApp, formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
 
 // Default fallback rates (only used if distributor snapshot is missing)
 const DEFAULT_ADVERTISEMENT_PER_PACKET = 20;
@@ -55,6 +55,10 @@ export default function SalesPage({ searchTerm = '' }) {
   // Distributor info panel (list view selected dist)
   const [distOutstanding,   setDistOutstanding]   = useState(null);
   const [distTodayRecovery, setDistTodayRecovery] = useState(null);
+
+  // WhatsApp share state
+  const [sharingSaleId, setSharingSaleId] = useState(null);
+  const [shareModal,    setShareModal]    = useState(null);
 
   // Create form state
   const [selDist,    setSelDist]    = useState(null);
@@ -217,40 +221,91 @@ export default function SalesPage({ searchTerm = '' }) {
     }
   };
 
-  // ── WhatsApp ──────────────────────────────────────────────────────────────
-  const handleWhatsApp = (s) => {
-    const distObj = (Array.isArray(s.distributors) ? s.distributors[0] : s.distributors)
-      || distributors.find(d => d.id === s.distributor_id)
-      || null;
-
-    if (!distObj) {
-      const warn = 'Cannot open WhatsApp: No distributor is linked to this sale.';
-      setMsg('err:' + warn);
-      if (typeof alert === 'function') alert(warn);
-      return;
+  // ── WhatsApp PDF share workflow ───────────────────────────────────────────
+  const handleWhatsApp = async (s) => {
+    let targetWindow = null;
+    if (typeof window !== 'undefined') {
+      targetWindow = window.open('about:blank', '_blank');
     }
 
-    const formattedPhone = formatPakistaniPhoneForWhatsApp(distObj.phone);
-    if (!formattedPhone) {
-      const warn = `Cannot open WhatsApp: Distributor ${distObj.name || ''} has no valid registered phone number.`;
-      setMsg('err:' + warn);
-      if (typeof alert === 'function') alert(warn);
-      return;
-    }
+    try {
+      const distObj = (Array.isArray(s.distributors) ? s.distributors[0] : s.distributors)
+        || distributors.find(d => d.id === s.distributor_id)
+        || null;
 
-    setMsg('');
-    const dist = `${distObj.name}${distObj.code ? ` (${distObj.code})` : ''}`;
-    const packets = (s.sale_items || []).reduce((a, i) => a + Number(i.quantity || 0), 0);
-    const text = encodeURIComponent(
-      `*Elite Wash — Sale*\n` +
-      `Ref: ${s.reference_number}\n` +
-      `Date: ${fmtDate(s.sale_date)}\n` +
-      `Distributor: ${dist}\n` +
-      `Packets: ${packets}\n` +
-      `Total: Rs. ${fmtNum(s.total_amount)}\n` +
-      `Status: ${s.status}`
-    );
-    window.open(`https://wa.me/${formattedPhone}?text=${text}`, '_blank');
+      if (!distObj) {
+        if (targetWindow && !targetWindow.closed) {
+          try { targetWindow.close(); } catch (_) {}
+        }
+        const warn = 'Cannot open WhatsApp: No distributor is linked to this sale.';
+        setMsg('err:' + warn);
+        if (typeof alert === 'function') alert(warn);
+        return;
+      }
+
+      const formattedPhone = formatPakistaniPhoneForWhatsApp(distObj.phone);
+      if (!formattedPhone) {
+        if (targetWindow && !targetWindow.closed) {
+          try { targetWindow.close(); } catch (_) {}
+        }
+        const warn = `Cannot open WhatsApp: Distributor ${distObj.name || ''} has no valid registered phone number.`;
+        setMsg('err:' + warn);
+        if (typeof alert === 'function') alert(warn);
+        return;
+      }
+
+      setSharingSaleId(s.id);
+      setMsg(`ok:Opening WhatsApp & generating signed delivery PDF for ${s.reference_number}...`);
+
+      const mappedSale = {
+        ...s,
+        billNo: s.reference_number,
+        date: fmtDate(s.sale_date),
+        distributorName: distObj?.name || '—',
+        distributorCode: distObj?.code || '',
+        items: (s.sale_items || []).map(i => ({
+          description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : 'Elite Wash Surf',
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          amount: Number(i.quantity || 0) * Number(i.unit_price || 0)
+        })),
+        totalAmount: s.total_amount
+      };
+
+      await shareDistributorPadOnWhatsApp({
+        sale: mappedSale,
+        distributor: distObj,
+        targetWindow,
+        onProgress: (statusText) => setMsg('ok:' + statusText),
+        onSuccess: (successMsg, details) => {
+          setMsg('ok:' + successMsg);
+          if (details && details.mode === 'download_and_chat') {
+            setShareModal({
+              sale: mappedSale,
+              distName: distObj.name,
+              phone: formattedPhone,
+              filename: details.filename,
+              waUrl: details.waUrl,
+              popupBlocked: details.popupBlocked
+            });
+          }
+        },
+        onError: (errMsg) => {
+          if (targetWindow && !targetWindow.closed) {
+            try { targetWindow.close(); } catch (_) {}
+          }
+          setMsg('err:' + errMsg);
+          if (typeof alert === 'function') alert(errMsg);
+        }
+      });
+    } catch (e) {
+      if (targetWindow && !targetWindow.closed) {
+        try { targetWindow.close(); } catch (_) {}
+      }
+      setMsg('err:Failed to generate or share delivery PDF: ' + e.message);
+    } finally {
+      setSharingSaleId(null);
+    }
   };
 
   // ── Print ─────────────────────────────────────────────────────────────────
@@ -306,8 +361,10 @@ export default function SalesPage({ searchTerm = '' }) {
             <div className="grid g4" style={{marginBottom:16}}>
               <div className="tile teal">
                 <div className="bar"></div>
-                <div className="label">Outstanding Balance</div>
-                <div className="num">Rs. {distOutstanding !== null ? fmtNum(distOutstanding.outstanding) : '…'}</div>
+                <div className="label">{distOutstanding?.advanceBalance > 0 ? 'Advance Credit Held' : 'Outstanding Balance'}</div>
+                <div className="num">
+                  Rs. {distOutstanding !== null ? fmtNum(distOutstanding.advanceBalance > 0 ? distOutstanding.advanceBalance : distOutstanding.outstanding) : '…'}
+                </div>
               </div>
               <div className="tile green">
                 <div className="bar"></div>
@@ -413,7 +470,23 @@ export default function SalesPage({ searchTerm = '' }) {
                         <td>
                           <div style={{display:'flex',gap:6}}>
                             <button className="btn" style={{padding:'3px 8px',fontSize:12}} onClick={()=>handlePrint(s)}>Print</button>
-                            <button className="btn" style={{padding:'3px 8px',fontSize:12,background:'#25d366',color:'#fff',border:'none'}} onClick={()=>handleWhatsApp(s)}>WA</button>
+                            <button
+                              className="btn"
+                              style={{
+                                padding:'3px 8px',
+                                fontSize:12,
+                                background:'#25d366',
+                                color:'#fff',
+                                border:'none',
+                                opacity: sharingSaleId === s.id ? 0.7 : 1,
+                                cursor: sharingSaleId === s.id ? 'wait' : 'pointer'
+                              }}
+                              disabled={sharingSaleId === s.id}
+                              onClick={()=>handleWhatsApp(s)}
+                              title="Share complete signed delivery PDF receipt on WhatsApp"
+                            >
+                              {sharingSaleId === s.id ? 'PDF...' : 'WA'}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -574,6 +647,56 @@ export default function SalesPage({ searchTerm = '' }) {
               {saving ? 'Saving...' : 'Submit Sale'}
             </button>
             <button className="btn" onClick={()=>setActiveTab('list')}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── WHATSAPP SHARE INSTRUCTIONS MODAL ──────────────────────────── */}
+      {shareModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="panel" style={{ width: 500, maxWidth: '92%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#25d366', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 'bold' }}>✓</div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Delivery Receipt PDF Ready to Share</h3>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{shareModal.distName} &bull; +{shareModal.phone}</div>
+                </div>
+              </div>
+              <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => setShareModal(null)}>✕</button>
+            </div>
+
+            <div style={{ background: '#FAFBF8', border: '1px solid var(--line)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+              <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📄</span>
+                <div>
+                  <strong>Downloaded Delivery Slip:</strong>
+                  <div style={{ color: 'var(--teal)', fontWeight: 600 }}>{shareModal.filename}</div>
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px', background: '#FFF8E7', border: '1px solid #F0D78C', borderRadius: 6, fontSize: 12.5, color: '#856404' }}>
+                <strong>How to complete sending on WhatsApp:</strong>
+                <ol style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                  <li>WhatsApp chat with <strong>{shareModal.distName}</strong> (+{shareModal.phone}) opens in your browser.</li>
+                  <li>In WhatsApp, click the <strong>attach icon (📎) &rarr; Document</strong>.</li>
+                  <li>Select the downloaded <strong>{shareModal.filename}</strong> from your Downloads folder.</li>
+                  <li>Click <strong>Send</strong> to deliver the signed bill pad receipt.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <button
+                className="btn primary"
+                style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={() => window.open(shareModal.waUrl, '_blank')}
+              >
+                <span>💬</span> Open WhatsApp Chat
+              </button>
+              <button className="btn ghost" onClick={() => setShareModal(null)}>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

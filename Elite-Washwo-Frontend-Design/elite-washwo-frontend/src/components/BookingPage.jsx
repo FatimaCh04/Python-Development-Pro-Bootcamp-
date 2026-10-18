@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { fetchBookings, fetchProducts, fetchDistributors, submitBooking, addBookingRecovery } from '../lib/db';
+import { fetchBookings, fetchProducts, fetchDistributors, submitBooking, addBookingRecovery, fetchRecoveries } from '../lib/db';
 import { printBookingPad, shareBookingPadOnWhatsApp, formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
 
 const fmtNum  = (n) => Number(n || 0).toLocaleString('en-PK');
@@ -27,13 +27,14 @@ function Msg({ msg }) {
 export default function BookingPage() {
   const { role } = useAuth();
 
-  // ── Tab ───────────────────────────────────────────────────────────────────
+  // ── Tab: 'list' | 'create' | 'recoveries' ─────────────────────────────────
   const [activeTab, setActiveTab] = useState('list');
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [bookings,      setBookings]      = useState([]);
   const [distributors,  setDistributors]  = useState([]);
   const [products,      setProducts]      = useState([]);
+  const [recoveries,    setRecoveries]    = useState([]);
   const [loading,       setLoading]       = useState(false);
   const [msg,           setMsg]           = useState('');
 
@@ -43,16 +44,21 @@ export default function BookingPage() {
   const [filterDistributor, setFilterDistributor] = useState('');
   const [filterSearch,      setFilterSearch]      = useState('');
 
+  // ── Recoveries tab filters ────────────────────────────────────────────────
+  const [recDistFilter,     setRecDistFilter]     = useState('');
+  const [recSearch,         setRecSearch]         = useState('');
+
   // ── Create form ───────────────────────────────────────────────────────────
   const [selectedDistributor, setSelectedDistributor] = useState(null);
   const [distSearch,          setDistSearch]          = useState('');
   const [bookingDate,         setBookingDate]         = useState(todayISO());
   const [items,               setItems]               = useState([]); // [{packagingId, name, qty, price}]
 
-  // Item picker
+  // Item picker (with editable unit price)
   const [selProduct, setSelProduct] = useState('');
   const [selPkg,     setSelPkg]     = useState('');
   const [selQty,     setSelQty]     = useState('');
+  const [inputPrice, setInputPrice] = useState('');
 
   // ── Recovery modal ────────────────────────────────────────────────────────
   const [showRecovery,    setShowRecovery]    = useState(false);
@@ -110,18 +116,38 @@ export default function BookingPage() {
   function handleSelectDist(d) { setSelectedDistributor(d); setDistSearch(''); }
   function handleClearDist()   { setSelectedDistributor(null); setDistSearch(''); }
 
+  // ── Load recoveries whenever recDistFilter changes ───────────────────────
+  const loadRecoveries = useCallback(async () => {
+    try {
+      const data = await fetchRecoveries({
+        distributorId: recDistFilter || undefined
+      });
+      setRecoveries(data || []);
+    } catch (e) {
+      console.error('Failed to load recoveries:', e);
+    }
+  }, [recDistFilter]);
+
+  useEffect(() => {
+    loadRecoveries();
+  }, [loadRecoveries]);
+
   // ── Item picker derived values ────────────────────────────────────────────
   const selProdObj = products.find(p => p.id === selProduct);
   const selPkgObj  = selProdObj?.product_packaging?.find(pk => pk.id === selPkg);
-  const selPrice   = selPkgObj?.product_prices?.[0]?.sales_price || 0;
-  const selLineTotal = selPrice * (Number(selQty) || 0);
+  const defaultCatalogPrice = selPkgObj?.product_prices?.[0]?.sales_price || 0;
+  const currentUnitPrice = inputPrice !== '' ? Number(inputPrice) : defaultCatalogPrice;
+  const selLineTotal = (currentUnitPrice || 0) * (Number(selQty) || 0);
 
   function handleAddItem() {
-    if (!selPkg)                          { setMsg('err:Select a packaging.'); return; }
-    if (!selQty || Number(selQty) <= 0)   { setMsg('err:Enter a valid quantity.'); return; }
+    if (!selPkg)                        { setMsg('err:Select a packaging variant.'); return; }
+    if (!selQty || Number(selQty) <= 0) { setMsg('err:Enter a valid quantity (greater than 0).'); return; }
+    const unitP = Number(inputPrice !== '' ? inputPrice : defaultCatalogPrice);
+    if (isNaN(unitP) || unitP <= 0)     { setMsg('err:Enter a valid agreed unit price.'); return; }
+
     const label = `${selProdObj?.name || ''} — ${selPkgObj?.name || ''}`;
-    setItems(prev => [...prev, { packagingId: selPkg, name: label, qty: Number(selQty), price: selPrice }]);
-    setSelProduct(''); setSelPkg(''); setSelQty(''); setMsg('');
+    setItems(prev => [...prev, { packagingId: selPkg, name: label, qty: Number(selQty), price: unitP }]);
+    setSelProduct(''); setSelPkg(''); setSelQty(''); setInputPrice(''); setMsg('');
   }
 
   function handleRemoveItem(idx) {
@@ -136,6 +162,7 @@ export default function BookingPage() {
     if (!selectedDistributor)  { setMsg('err:Please select a distributor.'); return; }
     if (items.length === 0)    { setMsg('err:Add at least one item.'); return; }
     if (items.some(i => i.qty <= 0)) { setMsg('err:All items must have qty > 0.'); return; }
+    if (items.some(i => i.price <= 0)) { setMsg('err:All items must have unit price > 0.'); return; }
 
     try {
       setLoading(true); setMsg('');
@@ -149,7 +176,7 @@ export default function BookingPage() {
       // Reset form
       setSelectedDistributor(null); setDistSearch('');
       setBookingDate(todayISO()); setItems([]);
-      setSelProduct(''); setSelPkg(''); setSelQty('');
+      setSelProduct(''); setSelPkg(''); setSelQty(''); setInputPrice('');
       await loadBookings();
       setTimeout(() => { setActiveTab('list'); setMsg(''); }, 1500);
     } catch (e) {
@@ -174,9 +201,10 @@ export default function BookingPage() {
         amount:        recoveryAmount,
         paymentMethod
       });
-      setMsg('ok:Recovery added successfully.');
+      setMsg(`ok:Recovery of Rs. ${fmtNum(recoveryAmount)} recorded successfully. View in Recovery History tab.`);
       await loadBookings();
-      setTimeout(() => { setShowRecovery(false); setMsg(''); }, 1500);
+      await loadRecoveries();
+      setTimeout(() => { setShowRecovery(false); }, 1500);
     } catch (e) {
       setMsg('err:' + e.message);
     } finally { setLoading(false); }
@@ -293,6 +321,19 @@ async function ensureBookingItems(b) {
       })
     : bookings;
 
+  // ── Recovery filters ──────────────────────────────────────────────────────
+  const recQuery = (recSearch || '').toLowerCase();
+  const displayRecoveries = recSearch
+    ? recoveries.filter(r =>
+        r.reference_number?.toLowerCase().includes(recQuery) ||
+        r.distributors?.name?.toLowerCase().includes(recQuery) ||
+        r.distributors?.code?.toLowerCase().includes(recQuery) ||
+        r.payment_method?.toLowerCase().includes(recQuery) ||
+        (r.notes || '').toLowerCase().includes(recQuery)
+      )
+    : recoveries;
+  const totalRecAmt = displayRecoveries.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+
   function distLabel(b) {
     if (!b.distributors) return <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Not Assigned</span>;
     return (
@@ -309,8 +350,11 @@ async function ensureBookingItems(b) {
       {/* Tabs */}
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="tabs">
-          <div className={`tab${activeTab === 'list'   ? ' active' : ''}`} onClick={() => setActiveTab('list')}>Booking Ledger</div>
-          <div className={`tab${activeTab === 'create' ? ' active' : ''}`} onClick={() => setActiveTab('create')}>Create Booking</div>
+          <div className={`tab${activeTab === 'list'       ? ' active' : ''}`} onClick={() => setActiveTab('list')}>Booking Ledger</div>
+          <div className={`tab${activeTab === 'create'     ? ' active' : ''}`} onClick={() => setActiveTab('create')}>Create Booking</div>
+          <div className={`tab${activeTab === 'recoveries' ? ' active' : ''}`} onClick={() => setActiveTab('recoveries')}>
+            Recovery History ({recoveries.length})
+          </div>
         </div>
       </div>
 
@@ -366,72 +410,91 @@ async function ensureBookingItems(b) {
           {loading ? (
             <div style={{ padding: 20, color: 'var(--text-dim)' }}>Loading bookings...</div>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Booking #</th>
-                  <th>Date</th>
-                  <th>Distributor</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayBookings.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)' }}>No bookings found for selected filters.</td></tr>
-                ) : displayBookings.map(b => (
-                  <tr key={b.id}>
-                    <td style={{ fontWeight: 600 }}>{b.reference_number}</td>
-                    <td>{fmtDate(b.sale_date)}</td>
-                    <td>{distLabel(b)}</td>
-                    <td style={{ textAlign: 'right' }}>Rs. {fmtNum(b.total_amount)}</td>
-                    <td>
-                      <span className={`badge ${b.remaining_balance <= 0 ? 'green' : 'amber'}`}>
-                        {b.remaining_balance <= 0 ? 'Cleared' : b.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {b.remaining_balance > 0 && (
+            <>
+              <div style={{ padding: '8px 12px', background: '#F5F3ED', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
+                ℹ️ <strong>Booking Ledger Notice:</strong> Bookings represent customer order reservations. Values below track <em>Advance Deposits</em> and do not post to trade debt receivables until fulfilled as an approved Delivery Bill (<code>SAL-</code>).
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bill # / Ref</th>
+                    <th>Date</th>
+                    <th>Distributor</th>
+                    <th style={{ textAlign: 'right' }}>Packets</th>
+                    <th style={{ textAlign: 'right' }}>Booking Value</th>
+                    <th style={{ textAlign: 'right' }}>Advance Paid</th>
+                    <th style={{ textAlign: 'right' }}>Advance Remaining</th>
+                    <th>Booking Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayBookings.length === 0 ? (
+                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)' }}>No bookings found for selected filters.</td></tr>
+                  ) : displayBookings.map(b => {
+                    const pkts = (b.sale_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                    return (
+                      <tr key={b.id}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 13 }}>Bill #{b.formattedBillNo || '01'}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>{b.reference_number}</div>
+                        </td>
+                        <td>{fmtDate(b.sale_date)}</td>
+                        <td>{distLabel(b)}</td>
+                        <td style={{ textAlign: 'right' }}>{fmtNum(pkts)} pkts</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>Rs. {fmtNum(b.total_amount)}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--green)', fontWeight: 600 }}>Rs. {fmtNum(b.total_recovered)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: b.remaining_balance > 0 ? 'var(--red)' : 'var(--green)' }}>
+                          Rs. {fmtNum(b.remaining_balance)}
+                        </td>
+                        <td>
+                          <span className={`badge ${b.remaining_balance <= 0 ? 'green' : b.total_recovered > 0 ? 'amber' : 'gray'}`}>
+                            {b.remaining_balance <= 0 ? 'Advance Fully Paid' : b.total_recovered > 0 ? 'Partially Paid (Adv)' : 'Unpaid Advance'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {b.remaining_balance > 0 && (
+                              <button
+                                className="btn"
+                                style={{ padding: '3px 8px', fontSize: 11.5 }}
+                                onClick={() => {
+                                  setRecoveryBooking(b);
+                                  setRecoveryAmount(b.remaining_balance);
+                                  setPaymentMethod('Cash');
+                                  setShowRecovery(true);
+                                  setMsg('');
+                                }}
+                              >
+                                + Record Advance
+                              </button>
+                            )}
+                          <button className="btn" style={{ padding: '3px 8px', fontSize: 11.5 }} onClick={() => handlePrintBooking(b)}>Print</button>
                           <button
                             className="btn"
-                            style={{ padding: '3px 10px', fontSize: 12 }}
-                            onClick={() => {
-                              setRecoveryBooking(b);
-                              setRecoveryAmount(b.remaining_balance);
-                              setPaymentMethod('Cash');
-                              setShowRecovery(true);
-                              setMsg('');
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: 11.5,
+                              background: '#25d366',
+                              color: '#fff',
+                              border: 'none',
+                              opacity: sharingBookingId === b.id ? 0.7 : 1,
+                              cursor: sharingBookingId === b.id ? 'wait' : 'pointer'
                             }}
+                            disabled={sharingBookingId === b.id}
+                            onClick={() => handleWhatsApp(b)}
+                            title="Share complete signed PDF receipt on WhatsApp"
                           >
-                            Recovery
+                            {sharingBookingId === b.id ? 'PDF...' : 'WA'}
                           </button>
-                        )}
-                        <button className="btn" style={{ padding: '3px 10px', fontSize: 12 }} onClick={() => handlePrintBooking(b)}>Print</button>
-                        <button
-                          className="btn"
-                          style={{
-                            padding: '3px 10px',
-                            fontSize: 12,
-                            background: '#25d366',
-                            color: '#fff',
-                            border: 'none',
-                            opacity: sharingBookingId === b.id ? 0.7 : 1,
-                            cursor: sharingBookingId === b.id ? 'wait' : 'pointer'
-                          }}
-                          disabled={sharingBookingId === b.id}
-                          onClick={() => handleWhatsApp(b)}
-                          title="Share complete signed PDF receipt on WhatsApp"
-                        >
-                          {sharingBookingId === b.id ? 'PDF...' : 'WA'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+            </>
           )}
         </div>
       )}
@@ -516,26 +579,41 @@ async function ensureBookingItems(b) {
               </div>
               <div className="field">
                 <label>Packaging / Variant</label>
-                <select value={selPkg} onChange={e => setSelPkg(e.target.value)} disabled={!selProduct}>
+                <select value={selPkg} onChange={e => {
+                  const pkgId = e.target.value;
+                  setSelPkg(pkgId);
+                  const pkgObj = selProdObj?.product_packaging?.find(pk => pk.id === pkgId);
+                  const p = pkgObj?.product_prices?.[0]?.sales_price || 0;
+                  setInputPrice(p ? String(p) : '');
+                }} disabled={!selProduct}>
                   <option value="">-- Select Packaging --</option>
                   {selProdObj?.product_packaging?.map(pkg => (
                     <option key={pkg.id} value={pkg.id}>
-                      {pkg.name} — Rs. {fmtNum(pkg.product_prices?.[0]?.sales_price || 0)} / unit
+                      {pkg.name} — Default Rs. {fmtNum(pkg.product_prices?.[0]?.sales_price || 0)} / unit
                     </option>
                   ))}
                 </select>
               </div>
               <div className="field">
-                <label>Qty (packets)</label>
+                <label>Qty (packets) *</label>
                 <input type="number" min="1" value={selQty} onChange={e => setSelQty(e.target.value)} placeholder="e.g. 50" />
               </div>
               <div className="field">
-                <label>Price (Rs.)</label>
-                <input type="text" value={selPkg ? `Rs. ${fmtNum(selPrice)}` : '—'} disabled style={{ background: '#f9f9f9', color: 'var(--ink)' }} />
+                <label>Agreed Price / pkt (Rs.) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  value={inputPrice}
+                  onChange={e => setInputPrice(e.target.value)}
+                  placeholder={selPkg ? "Agreed Unit Price" : "—"}
+                  disabled={!selPkg}
+                  style={{ fontWeight: 600, color: 'var(--ink)' }}
+                />
               </div>
               <div className="field">
                 <label>Line Total (Rs.)</label>
-                <input type="text" value={selPkg && selQty ? `Rs. ${fmtNum(selLineTotal)}` : '—'} disabled style={{ background: '#f9f9f9', color: 'var(--ink)' }} />
+                <input type="text" value={selPkg && selQty && inputPrice ? `Rs. ${fmtNum(selLineTotal)}` : '—'} disabled style={{ background: '#f9f9f9', color: 'var(--ink)', fontWeight: 600 }} />
               </div>
             </div>
             <button className="btn primary" onClick={handleAddItem} style={{ marginTop: 6 }}>+ Add Item</button>
@@ -549,7 +627,7 @@ async function ensureBookingItems(b) {
                   <tr>
                     <th>Product</th>
                     <th style={{ textAlign: 'right' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Unit Price</th>
+                    <th style={{ textAlign: 'right' }}>Agreed Unit Price</th>
                     <th style={{ textAlign: 'right' }}>Line Total</th>
                     <th></th>
                   </tr>
@@ -589,21 +667,140 @@ async function ensureBookingItems(b) {
         </div>
       )}
 
+      {/* ── RECOVERY HISTORY TAB ─────────────────────────────────────────── */}
+      {activeTab === 'recoveries' && (
+        <div className="panel">
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div className="field" style={{ flex: '1 1 200px', margin: 0 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Distributor</label>
+              <select value={recDistFilter} onChange={e => setRecDistFilter(e.target.value)}>
+                <option value="">All Distributors</option>
+                {distributors.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ flex: '2 1 240px', margin: 0 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Search</label>
+              <input placeholder="Receipt #, booking ref, distributor..." value={recSearch} onChange={e => setRecSearch(e.target.value)} />
+            </div>
+            <button className="btn" onClick={loadRecoveries} style={{ alignSelf: 'flex-end' }}>Refresh</button>
+          </div>
+
+          <div className="section-head">
+            <h2>
+              {recDistFilter
+                ? (distributors.find(d => d.id === recDistFilter)?.name || 'Distributor') + ' — Recoveries'
+                : 'All Recorded Recoveries & Advance Payments'}
+            </h2>
+            <span className="link" style={{ fontSize: 12 }}>
+              {displayRecoveries.length} record{displayRecoveries.length !== 1 ? 's' : ''} · Total: Rs. {fmtNum(totalRecAmt)}
+            </span>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Recovery #</th>
+                <th>Date</th>
+                <th>Distributor</th>
+                <th>Linked Booking / Ref</th>
+                <th>Payment Mode</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayRecoveries.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
+                    No recoveries found for selected filters.
+                  </td>
+                </tr>
+              ) : displayRecoveries.map(r => {
+                const cleanRef = r.clean_recovery_ref || (r.reference_number && r.reference_number.includes('|') ? r.reference_number.split('|')[0] : r.reference_number);
+                const displayLinkedRef = r.linked_order_ref;
+                const rawLinked = r.raw_linked_id || (r.reference_number && r.reference_number.includes('|') ? r.reference_number.split('|')[1]?.trim() : null);
+
+                return (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 600 }}>{cleanRef}</td>
+                    <td>{fmtDate(r.recovery_date)}</td>
+                    <td>
+                      {r.distributors ? (
+                        <span>
+                          <strong>{r.distributors.name}</strong>{' '}
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>({r.distributors.code})</span>
+                        </span>
+                      ) : r.booking_distributor ? (
+                        <span>
+                          <strong>{r.booking_distributor.name}</strong>{' '}
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>({r.booking_distributor.code})</span>
+                          <span style={{ display: 'block', fontSize: 10, color: 'var(--teal)' }}>(via Linked Booking)</span>
+                        </span>
+                      ) : r.salesmen?.profiles?.full_name ? (
+                        <span>
+                          {r.salesmen.profiles.full_name}{' '}
+                          <span className="badge gray" style={{ fontSize: 10, padding: '2px 5px' }}>Legacy Salesman</span>
+                        </span>
+                      ) : r.customers?.name ? (
+                        <span>
+                          {r.customers.name}{' '}
+                          <span className="badge gray" style={{ fontSize: 10, padding: '2px 5px' }}>Customer</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontStyle: 'italic', fontSize: 12 }}>Unassigned (Legacy)</span>
+                      )}
+                    </td>
+                    <td>
+                      {displayLinkedRef ? (
+                        <span
+                          title={rawLinked ? `Database Reference ID: ${rawLinked}` : ''}
+                          style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--teal)' }}
+                        >
+                          {displayLinkedRef}
+                        </span>
+                      ) : rawLinked ? (
+                        <span
+                          title={`Database Reference ID: ${rawLinked}`}
+                          style={{ color: 'var(--text-dim)', fontStyle: 'italic', fontSize: 11.5 }}
+                        >
+                          Ref: {rawLinked.slice(0, 8)}... (Unavailable)
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)' }}>Direct Recovery</span>
+                      )}
+                    </td>
+                    <td>{r.payment_method || 'Cash'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>
+                      Rs. {fmtNum(r.amount)}
+                    </td>
+                    <td>
+                      <span className={`badge ${['Approved','Posted'].includes(r.status) ? 'green' : 'amber'}`}>
+                        {r.status || 'Approved'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* ── RECOVERY MODAL ────────────────────────────────────────────────── */}
       {showRecovery && recoveryBooking && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="panel" style={{ width: 440, maxWidth: '90%' }}>
             <div className="section-head">
-              <h2>Add Recovery — {recoveryBooking.reference_number}</h2>
+              <h2>Record Booking Advance — {recoveryBooking.reference_number}</h2>
               <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => { setShowRecovery(false); setMsg(''); }}>✕</button>
             </div>
 
             <div style={{ marginBottom: 14, fontSize: 13, lineHeight: 1.7, background: '#FAFBF8', padding: 10, borderRadius: 6, border: '1px solid var(--line)' }}>
               <strong>Distributor:</strong> {recoveryBooking.distributors?.name || 'Not Assigned'}<br />
               {recoveryBooking.distributors?.code && <><strong>Code:</strong> {recoveryBooking.distributors.code}<br /></>}
-              <strong>Total Booking:</strong> Rs. {fmtNum(recoveryBooking.total_amount)}<br />
-              <strong>Recovered:</strong> <span style={{ color: 'var(--green)' }}>Rs. {fmtNum(recoveryBooking.total_recovered)}</span><br />
-              <strong>Remaining:</strong> <span style={{ color: 'var(--amber)' }}>Rs. {fmtNum(recoveryBooking.remaining_balance)}</span>
+              <strong>Booking Value:</strong> Rs. {fmtNum(recoveryBooking.total_amount)}<br />
+              <strong>Advance Paid:</strong> <span style={{ color: 'var(--green)' }}>Rs. {fmtNum(recoveryBooking.total_recovered)}</span><br />
+              <strong>Advance Remaining:</strong> <span style={{ color: 'var(--amber)' }}>Rs. {fmtNum(recoveryBooking.remaining_balance)}</span>
             </div>
 
             <Msg msg={msg} />

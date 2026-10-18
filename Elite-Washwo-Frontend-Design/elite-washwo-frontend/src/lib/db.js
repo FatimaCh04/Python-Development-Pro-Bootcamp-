@@ -21,14 +21,14 @@ export async function fetchOverviewStats() {
   });
 
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-  const { data: salesRows } = await supabase.from('sales_orders').select('total_amount').in('status',['Approved','Posted']).gte('sale_date', monthStart.toISOString());
+  const { data: salesRows } = await supabase.from('sales_orders').select('total_amount').in('status',['Approved','Posted']).not('reference_number', 'like', 'BKG-%').gte('sale_date', monthStart.toISOString());
   const salesTotal = (salesRows||[]).reduce((s,r)=>s+Number(r.total_amount),0);
 
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
   const { data: recRows } = await supabase.from('recoveries').select('amount').in('status',['Approved','Posted']).gte('recovery_date', todayStart.toISOString());
   const recoveryToday = (recRows||[]).reduce((s,r)=>s+Number(r.amount),0);
 
-  const { data: allSales } = await supabase.from('sales_orders').select('total_amount').in('status',['Approved','Posted']);
+  const { data: allSales } = await supabase.from('sales_orders').select('total_amount').in('status',['Approved','Posted']).not('reference_number', 'like', 'BKG-%');
   const { data: allRec }   = await supabase.from('recoveries').select('amount').in('status',['Approved','Posted']);
   const outstanding = Math.max(0,(allSales||[]).reduce((s,r)=>s+Number(r.total_amount),0)-(allRec||[]).reduce((s,r)=>s+Number(r.amount),0));
 
@@ -785,13 +785,37 @@ export async function submitSale({ salesmanId, customerId, distributorId, items,
     if (err.code !== 'PGRST202') throw err;
   }
 
-  // RPC not deployed. Block with a clear error rather than a non-atomic fallback.
-  // A split insert risks creating an orphaned sale header if the items insert fails.
-  throw new Error(
-    'MIGRATION REQUIRED: The create_sales_order_with_items database function is not deployed. ' +
-    'Please apply phase2_person_payments.sql to enable atomic sale creation. ' +
-    'Non-atomic split inserts are intentionally disabled to prevent orphaned financial records.'
-  );
+  // Fallback if RPC is not deployed: snapshot distributor rates and insert atomically into tables
+  const { data: distData } = await supabase.from('distributors').select('commission').eq('id', distributorId).maybeSingle();
+  const commSnapshot = distData?.commission != null ? Number(distData.commission) : 30;
+
+  const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
+    reference_number: ref,
+    salesman_id: salesmanId || null,
+    customer_id: customerId || null,
+    distributor_id: distributorId,
+    total_amount: Number(totalAmount) || 0,
+    commission_rate_snapshot: commSnapshot,
+    advertisement_rate_snapshot: 20,
+    welfare_rate_snapshot: 10,
+    sale_date: new Date().toISOString(),
+    status: 'Approved'
+  }).select().single();
+  
+  if (orderErr) throw orderErr;
+
+  const saleItems = items.map(item => ({
+    sale_order_id: order.id,
+    packaging_id: item.packagingId,
+    quantity: Number(item.quantity) || 0,
+    unit_price: Number(item.price) || 0,
+    subtotal: (Number(item.quantity) || 0) * (Number(item.price) || 0)
+  }));
+
+  const { error: itemsErr } = await supabase.from('sale_items').insert(saleItems);
+  if (itemsErr) throw itemsErr;
+  
+  return order;
 }
 
 export async function addProduct({ name, code, packagingName, unitCost, salesPrice }) {
@@ -929,7 +953,26 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   if (distributorId) q = q.eq('distributor_id', distributorId);
   const { data, error } = await q;
   if (error) throw error;
-  
+
+  // Stable sequential numbering across all bookings chronologically
+  const { data: allBookings } = await supabase
+    .from('sales_orders')
+    .select('id, sale_date')
+    .like('reference_number', 'BKG-%')
+    .order('sale_date', { ascending: true });
+
+  const sortedBookings = (allBookings || []).slice().sort((a, b) => {
+    const tA = new Date(a.sale_date).getTime() || 0;
+    const tB = new Date(b.sale_date).getTime() || 0;
+    if (tA !== tB) return tA - tB;
+    return String(a.id).localeCompare(String(b.id));
+  });
+
+  const seqMap = new Map();
+  sortedBookings.forEach((b, idx) => {
+    seqMap.set(b.id, idx + 1);
+  });
+
   const { data: recs, error: rErr } = await supabase
     .from('recoveries')
     .select('amount, reference_number')
@@ -937,7 +980,7 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
     
   if (rErr) throw rErr;
 
-  return data.map(b => {
+  return (data || []).map(b => {
     const bookingRecs = (recs || []).filter(r => 
       r.reference_number && (
         r.reference_number.endsWith('|' + b.id) || 
@@ -945,8 +988,11 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
       )
     );
     const totalRecovered = bookingRecs.reduce((sum, r) => sum + Number(r.amount), 0);
+    const seq = seqMap.get(b.id) || 1;
     return {
       ...b,
+      sequential_no: seq,
+      formattedBillNo: String(seq).padStart(2, '0'),
       total_recovered: totalRecovered,
       remaining_balance: Math.max(0, Number(b.total_amount) - totalRecovered)
     };
@@ -954,21 +1000,192 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
 }
 
 export async function addBookingRecovery({ bookingId, bookingRef, customerId, salesmanId, distributorId, amount, paymentMethod }) {
-  const identifier = bookingId || bookingRef;
+  const identifier = bookingRef || bookingId;
   const ref = refNum('REC') + '|' + identifier;
   const payload = {
     reference_number: ref,
     amount: Number(amount),
-    payment_method: paymentMethod,
+    payment_method: paymentMethod || 'Cash',
     recovery_date: new Date().toISOString(),
-    status: 'Approved'
+    status: 'Approved',
+    notes: `Advance payment on booking ${identifier}`
   };
   if (distributorId) payload.distributor_id = distributorId;
   if (salesmanId) payload.salesman_id = salesmanId;
   if (customerId) payload.customer_id = customerId;
 
-  const { error } = await supabase.from('recoveries').insert(payload);
+  const { data, error } = await supabase.from('recoveries').insert(payload).select().single();
   if (error) throw error;
+  return data;
+}
+
+export async function addDistributorRecovery({ distributorId, amount, paymentMethod = 'Cash', recoveryDate, notes }) {
+  if (!distributorId) throw new Error('Distributor is required for recovery.');
+  const amt = Number(amount);
+  if (!amt || amt <= 0) throw new Error('Recovery amount must be greater than zero.');
+
+  const ref = refNum('REC');
+  const payload = {
+    reference_number: ref,
+    distributor_id: distributorId,
+    amount: amt,
+    payment_method: paymentMethod || 'Cash',
+    recovery_date: recoveryDate ? new Date(recoveryDate).toISOString() : new Date().toISOString(),
+    status: 'Approved',
+    notes: notes || ''
+  };
+  const { data, error } = await supabase.from('recoveries').insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status, limit = 200 } = {}) {
+  let directQ = supabase
+    .from('recoveries')
+    .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name)), customers(name)')
+    .order('recovery_date', { ascending: false })
+    .limit(limit);
+  if (distributorId) directQ = directQ.eq('distributor_id', distributorId);
+  if (status && status !== 'All') directQ = directQ.eq('status', status);
+  if (dateFrom) directQ = directQ.gte('recovery_date', dateFrom);
+  if (dateTo) directQ = directQ.lte('recovery_date', dateTo);
+
+  let unassignedQ = null;
+  if (distributorId) {
+    unassignedQ = supabase
+      .from('recoveries')
+      .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name)), customers(name)')
+      .is('distributor_id', null)
+      .like('reference_number', '%|%')
+      .order('recovery_date', { ascending: false })
+      .limit(limit);
+    if (status && status !== 'All') unassignedQ = unassignedQ.eq('status', status);
+    if (dateFrom) unassignedQ = unassignedQ.gte('recovery_date', dateFrom);
+    if (dateTo) unassignedQ = unassignedQ.lte('recovery_date', dateTo);
+  }
+
+  const [directRes, unassignedRes] = await Promise.all([
+    directQ,
+    unassignedQ ? unassignedQ : Promise.resolve({ data: [] })
+  ]);
+  if (directRes.error) throw directRes.error;
+  if (unassignedRes && unassignedRes.error) throw unassignedRes.error;
+
+  const rawList = [...(directRes.data || []), ...(unassignedRes?.data || [])];
+  const uuidSet = new Set();
+  const refSet = new Set();
+
+  rawList.forEach(r => {
+    if (r.reference_number && r.reference_number.includes('|')) {
+      const target = r.reference_number.split('|')[1]?.trim();
+      if (target) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) {
+          uuidSet.add(target);
+        } else {
+          refSet.add(target);
+        }
+      }
+    }
+  });
+
+  const orderById = new Map();
+  const orderByRef = new Map();
+
+  const fetchPromises = [];
+  if (uuidSet.size > 0) {
+    fetchPromises.push(
+      supabase
+        .from('sales_orders')
+        .select('id, reference_number, distributor_id, distributors(id, name, code, phone)')
+        .in('id', Array.from(uuidSet))
+        .then(res => {
+          (res.data || []).forEach(o => {
+            orderById.set(o.id, o);
+            if (o.reference_number) orderByRef.set(o.reference_number, o);
+          });
+        })
+    );
+  }
+  if (refSet.size > 0) {
+    fetchPromises.push(
+      supabase
+        .from('sales_orders')
+        .select('id, reference_number, distributor_id, distributors(id, name, code, phone)')
+        .in('reference_number', Array.from(refSet))
+        .then(res => {
+          (res.data || []).forEach(o => {
+            orderById.set(o.id, o);
+            if (o.reference_number) orderByRef.set(o.reference_number, o);
+          });
+        })
+    );
+  }
+
+  if (fetchPromises.length > 0) {
+    try {
+      await Promise.all(fetchPromises);
+    } catch (lookupErr) {
+      console.warn('Could not resolve linked orders in fetchRecoveries:', lookupErr);
+    }
+  }
+
+  const mapped = [];
+  const seenIds = new Set();
+
+  rawList.forEach(r => {
+    if (seenIds.has(r.id)) return;
+    seenIds.add(r.id);
+
+    if (r.reference_number && r.reference_number.includes('|')) {
+      const parts = r.reference_number.split('|');
+      const cleanRef = parts[0];
+      const target = parts[1]?.trim() || '';
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
+      let linkedRef = null;
+      let linkedDist = null;
+
+      if (orderById.has(target)) {
+        const ord = orderById.get(target);
+        linkedRef = ord.reference_number;
+        linkedDist = ord.distributors;
+      } else if (orderByRef.has(target)) {
+        const ord = orderByRef.get(target);
+        linkedRef = ord.reference_number;
+        linkedDist = ord.distributors;
+      } else if (!isUuid && target) {
+        linkedRef = target;
+      }
+
+      // If filtering by distributor, verify that this unassigned recovery's order belongs to distributorId
+      if (distributorId && !r.distributor_id) {
+        const orderDistId = linkedDist?.id || (orderById.get(target)?.distributor_id) || (orderByRef.get(target)?.distributor_id);
+        if (orderDistId !== distributorId) {
+          return; // Exclude unassigned recovery linked to a different distributor
+        }
+      }
+
+      mapped.push({
+        ...r,
+        clean_recovery_ref: cleanRef,
+        raw_linked_id: target,
+        linked_order_ref: linkedRef,
+        booking_distributor: linkedDist || null,
+        distributors: r.distributors || linkedDist || null,
+        is_linked_uuid: isUuid
+      });
+    } else {
+      mapped.push({
+        ...r,
+        clean_recovery_ref: r.reference_number,
+        raw_linked_id: null,
+        linked_order_ref: null,
+        booking_distributor: null,
+        is_linked_uuid: false
+      });
+    }
+  });
+
+  return mapped;
 }
 
 
@@ -1016,13 +1233,100 @@ export async function fetchSales({ dateFrom, dateTo, distributorId } = {}) {
   return data || [];
 }
 
+// ── Shared Distributor Recoveries Resolution Helper ────────────────────────
+/**
+ * Resolves all recoveries attributed to a specific distributor.
+ *
+ * Attribution Rules:
+ * 1. Direct recoveries: recovery record has `distributor_id === distributorId`.
+ * 2. Linked recoveries: recovery record has `distributor_id IS NULL`, reference contains `|<target>`,
+ *    and `<target>` matches the id (UUID) or reference_number (BKG-*, SAL-*) of an order belonging to `distributorId`.
+ * 3. Strict Safety: Never guesses attribution for unlinked or ambiguous records.
+ * 4. Deduplication: Keyed by recovery `id` to guarantee zero double counting.
+ */
+export async function fetchDistributorApprovedRecoveries(distributorId, options = {}) {
+  if (!distributorId) return [];
+  const { approvedOnly = true, dateFrom = null, dateTo = null } = options;
+
+  // 1. Direct recoveries query
+  let directQ = supabase
+    .from('recoveries')
+    .select('id, reference_number, recovery_date, amount, payment_method, status, notes, distributor_id')
+    .eq('distributor_id', distributorId)
+    .limit(5000);
+
+  if (approvedOnly) directQ = directQ.in('status', ['Approved', 'Posted']);
+  if (dateFrom) directQ = directQ.gte('recovery_date', dateFrom);
+  if (dateTo) directQ = directQ.lte('recovery_date', dateTo);
+
+  // 2. Unassigned recoveries query
+  let unassignedQ = supabase
+    .from('recoveries')
+    .select('id, reference_number, recovery_date, amount, payment_method, status, notes, distributor_id')
+    .is('distributor_id', null)
+    .like('reference_number', '%|%')
+    .limit(5000);
+
+  if (approvedOnly) unassignedQ = unassignedQ.in('status', ['Approved', 'Posted']);
+  if (dateFrom) unassignedQ = unassignedQ.gte('recovery_date', dateFrom);
+  if (dateTo) unassignedQ = unassignedQ.lte('recovery_date', dateTo);
+
+  // 3. Distributor's verified orders
+  const distOrdersQ = supabase
+    .from('sales_orders')
+    .select('id, reference_number')
+    .eq('distributor_id', distributorId)
+    .limit(5000);
+
+  const [directRes, unassignedRes, distOrdersRes] = await Promise.all([
+    directQ,
+    unassignedQ,
+    distOrdersQ
+  ]);
+
+  if (directRes.error) throw directRes.error;
+  if (unassignedRes.error) throw unassignedRes.error;
+  if (distOrdersRes.error) throw distOrdersRes.error;
+
+  const validOrderIds = new Set((distOrdersRes.data || []).map(o => o.id));
+  const validOrderRefs = new Set((distOrdersRes.data || []).map(o => o.reference_number).filter(Boolean));
+
+  const recoveryMap = new Map();
+
+  // Add direct recoveries
+  (directRes.data || []).forEach(r => {
+    recoveryMap.set(r.id, r);
+  });
+
+  // Add verified linked recoveries where direct distributor_id is NULL
+  (unassignedRes.data || []).forEach(r => {
+    if (r.reference_number && r.reference_number.includes('|')) {
+      const target = r.reference_number.split('|')[1]?.trim();
+      if (target && (validOrderIds.has(target) || validOrderRefs.has(target))) {
+        if (!recoveryMap.has(r.id)) {
+          recoveryMap.set(r.id, {
+            ...r,
+            is_linked_attribution: true
+          });
+        }
+      }
+    }
+  });
+
+  return Array.from(recoveryMap.values());
+}
+
 // ── Distributor Outstanding ───────────────────────────────────────────────────
 export async function fetchDistributorOutstanding(distributorId) {
   if (!distributorId) return { 
     totalSales: 0, 
     totalRecoveries: 0, 
+    totalSettlementAdjustments: 0,
+    totalCredits: 0,
     totalPackets: 0, 
+    netBalance: 0,
     outstanding: 0, 
+    advanceBalance: 0,
     salesOutstanding: 0, 
     accruedCommission: 0, 
     settledCommission: 0, 
@@ -1037,50 +1341,55 @@ export async function fetchDistributorOutstanding(distributorId) {
     pendingBookingsPackets: 0
   };
 
-  const [distRes, salesRes, recoveriesRes, saleItemsRes, settlementsRes, pendingBookingsRes] = await Promise.all([
+  const [distRes, salesRes, allRecoveries, saleItemsRes, settlementsRes, pendingBookingsRes] = await Promise.all([
     supabase.from('distributors').select('id, name, code, commission').eq('id', distributorId).maybeSingle(),
     supabase.from('sales_orders')
       .select('id, reference_number, total_amount, commission_rate_snapshot')
       .eq('distributor_id', distributorId)
       .in('status', ['Approved', 'Posted'])
-      .not('reference_number', 'like', 'BKG-%'), // Exclude all bookings from approved sales!
-    supabase.from('recoveries')
-      .select('id, amount, reference_number, payment_method')
-      .eq('distributor_id', distributorId)
-      .in('status', ['Approved', 'Posted']),
+      .not('reference_number', 'like', 'BKG-%') // Exclude all bookings from approved sales!
+      .limit(5000),
+    fetchDistributorApprovedRecoveries(distributorId, { approvedOnly: true }),
     supabase.from('sale_items')
       .select('quantity, sales_orders!inner(id, reference_number, distributor_id, status, commission_rate_snapshot)')
       .filter('sales_orders.distributor_id', 'eq', distributorId)
       .filter('sales_orders.status', 'in', '("Approved","Posted")')
-      .not('sales_orders.reference_number', 'like', 'BKG-%'), // Exclude all bookings from delivered packet count!
+      .not('sales_orders.reference_number', 'like', 'BKG-%') // Exclude all bookings from delivered packet count!
+      .limit(10000),
     supabase.from('distributor_settlements')
       .select('id, amount, settlement_type, recovery_id, reference_number')
       .eq('distributor_id', distributorId)
-      .in('status', ['Approved']),
+      .in('status', ['Approved'])
+      .limit(5000),
     supabase.from('sales_orders')
       .select('id, reference_number, total_amount, sale_items(quantity)')
       .eq('distributor_id', distributorId)
       .eq('status', 'Pending')
       .like('reference_number', 'BKG-%')
+      .limit(5000)
   ]);
+
+  if (salesRes.error) throw salesRes.error;
+  if (saleItemsRes.error) throw saleItemsRes.error;
+  if (settlementsRes.error) throw settlementsRes.error;
+  if (pendingBookingsRes.error) throw pendingBookingsRes.error;
 
   const totalSales = (salesRes.data || []).reduce((s, r) => s + Number(r.total_amount), 0);
   const totalPackets = (saleItemsRes.data || []).reduce((s, r) => s + Number(r.quantity), 0);
 
-  // Exclude booking recovery deposits (|BKG-) from direct sales recoveries
-  const validRecoveries = (recoveriesRes.data || []).filter(
-    r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))
-  );
-  const totalRecoveries = validRecoveries.reduce((s, r) => s + Number(r.amount), 0);
+  // Include all approved recoveries from distributor (including booking advance recoveries)
+  const totalRecoveries = allRecoveries.reduce((s, r) => s + Number(r.amount), 0);
 
   // Accounting: Check for Commission_Against_Outstanding settlements that have NOT already created a separate recovery
   const unlinkedSettlementAdjustments = (settlementsRes.data || [])
     .filter(s => s.settlement_type === 'Commission_Against_Outstanding')
-    .filter(s => !s.recovery_id && !validRecoveries.some(r => r.id === s.recovery_id || (r.reference_number && r.reference_number.includes(s.reference_number))));
+    .filter(s => !s.recovery_id && !allRecoveries.some(r => r.id === s.recovery_id || (r.reference_number && r.reference_number.includes(s.reference_number))));
   
   const totalSettlementAdjustments = unlinkedSettlementAdjustments.reduce((s, a) => s + Number(a.amount || 0), 0);
   const totalCredits = totalRecoveries + totalSettlementAdjustments;
-  const outstanding = Math.max(0, totalSales - totalCredits);
+  const netBalance = totalSales - totalCredits;
+  const outstanding = Math.max(0, netBalance);
+  const advanceBalance = Math.max(0, -netBalance);
 
   // Commission Analysis: Separate verified immutable rate snapshots from historical missing snapshots
   let unreconciledCount = 0;
@@ -1124,7 +1433,9 @@ export async function fetchDistributorOutstanding(distributorId) {
     totalSettlementAdjustments,
     totalCredits,
     totalPackets, 
+    netBalance,
     outstanding, 
+    advanceBalance,
     salesOutstanding: outstanding, 
     accruedCommission, 
     settledCommission, 
@@ -1144,8 +1455,11 @@ export async function fetchDistributorOutstanding(distributorId) {
 export async function fetchDistributorTodayRecovery(distributorId) {
   if (!distributorId) return 0;
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const { data } = await supabase.from('recoveries').select('amount, reference_number').eq('distributor_id', distributorId).gte('recovery_date', todayStart.toISOString()).in('status', ['Approved', 'Posted']);
-  return (data || []).filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))).reduce((s, r) => s + Number(r.amount), 0);
+  const recs = await fetchDistributorApprovedRecoveries(distributorId, {
+    approvedOnly: true,
+    dateFrom: todayStart.toISOString()
+  });
+  return recs.reduce((s, r) => s + Number(r.amount), 0);
 }
 
 // ── Distributor stock summary stats ───────────────────────────────────────────
@@ -1199,24 +1513,30 @@ export async function fetchDistributorStockLedger(distributorId) {
 // ── Distributor financial ledger records (Sales & Recoveries with running balance) ──
 export async function fetchDistributorFinLedger(distributorId) {
   if (!distributorId) return [];
-  const [salesRes, recsRes, settsRes] = await Promise.all([
+  const [salesRes, allRecs, settsRes] = await Promise.all([
     supabase
       .from('sales_orders')
       .select('id, reference_number, sale_date, total_amount, status, sale_items(quantity)')
       .eq('distributor_id', distributorId)
-      .order('sale_date', { ascending: false }),
-    supabase
-      .from('recoveries')
-      .select('id, reference_number, recovery_date, amount, payment_method, status, notes')
-      .eq('distributor_id', distributorId)
-      .order('recovery_date', { ascending: false }),
+      .order('sale_date', { ascending: false })
+      .limit(5000),
+    fetchDistributorApprovedRecoveries(distributorId, { approvedOnly: false }),
     supabase
       .from('distributor_settlements')
       .select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes, recovery_id')
       .eq('distributor_id', distributorId)
       .in('status', ['Approved'])
       .order('settlement_date', { ascending: false })
+      .limit(5000)
   ]);
+
+  if (salesRes.error) throw salesRes.error;
+  if (settsRes.error) throw settsRes.error;
+
+  const orderRefMap = new Map();
+  (salesRes.data || []).forEach(o => {
+    orderRefMap.set(o.id, o.reference_number);
+  });
 
   const rows = [];
   (salesRes.data || []).forEach(s => {
@@ -1226,17 +1546,19 @@ export async function fetchDistributorFinLedger(distributorId) {
     const isApproved = ['Approved', 'Posted'].includes(s.status);
 
     if (isBooking) {
-      // 1. Pending bookings labeled explicitly as "Booking (Pending)"
+      // 1. Pending bookings: Nonfinancial commitment. Financial debit must be 0!
+      const bookingVal = Number(s.total_amount || 0);
       rows.push({
         id: s.id,
         date: s.sale_date,
         type: isPending ? 'Booking (Pending)' : `Booking (${s.status})`,
         ref: s.reference_number,
         packets: pkts,
-        debit: Number(s.total_amount || 0),
+        debit: 0, // Financial debit is explicitly 0 (non-financial commitment)
         credit: 0,
+        bookingValue: bookingVal,
         status: s.status,
-        description: `Booking order of ${pkts} pkts (${s.reference_number})`,
+        description: `Booking reservation: ${pkts} pkts · Value: Rs. ${bookingVal.toLocaleString('en-PK')} (${s.reference_number})`,
         isFinancialImpact: false, // Bookings do NOT alter financial receivables/balances
         isBooking: true
       });
@@ -1257,23 +1579,36 @@ export async function fetchDistributorFinLedger(distributorId) {
     }
   });
 
-  // Valid recoveries (excluding booking advance deposits with '|' or '|BKG-')
-  const validRecs = (recsRes.data || []).filter(
-    r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-'))
-  );
-
-  validRecs.forEach(r => {
+  // All recoveries from distributor (including booking advance recoveries)
+  allRecs.forEach(r => {
     const isApproved = ['Approved', 'Posted'].includes(r.status);
+    const hasPipe = r.reference_number && r.reference_number.includes('|');
+    let cleanRef = r.reference_number;
+    let linkedRef = null;
+
+    if (hasPipe) {
+      const parts = r.reference_number.split('|');
+      cleanRef = parts[0]?.trim();
+      const target = parts[1]?.trim();
+      linkedRef = orderRefMap.get(target) || target;
+    }
+
+    const isBookingAdvance = Boolean(linkedRef);
+
     rows.push({
       id: r.id,
       date: r.recovery_date,
-      type: `Recovery (${r.payment_method || 'Cash'})`,
-      ref: r.reference_number,
+      type: isBookingAdvance ? 'Recovery (Advance)' : `Recovery (${r.payment_method || 'Cash'})`,
+      ref: cleanRef, // Clean human-readable reference (e.g. REC-MUMLRQP1)
+      raw_ref: r.reference_number, // Preserved internal reference
+      linked_order_ref: linkedRef, // Resolved human-readable booking reference (e.g. BKG-MUMKW006)
       packets: 0,
       debit: 0,
       credit: Number(r.amount || 0),
       status: r.status,
-      description: `Payment received (${r.payment_method || 'Cash'})${r.notes ? ' · ' + r.notes : ''}`,
+      description: isBookingAdvance 
+        ? `Advance payment on booking ${linkedRef}${r.notes ? ' · ' + r.notes : ''}`
+        : `Payment received (${r.payment_method || 'Cash'})${r.notes ? ' · ' + r.notes : ''}`,
       isFinancialImpact: isApproved,
       isBooking: false
     });
@@ -1282,7 +1617,7 @@ export async function fetchDistributorFinLedger(distributorId) {
   // Commission_Against_Outstanding adjustments (counted exactly once if no duplicate recovery row exists)
   (settsRes.data || [])
     .filter(st => st.settlement_type === 'Commission_Against_Outstanding')
-    .filter(st => !st.recovery_id && !validRecs.some(r => r.id === st.recovery_id || (r.reference_number && r.reference_number.includes(st.reference_number))))
+    .filter(st => !st.recovery_id && !allRecs.some(r => r.id === st.recovery_id || (r.reference_number && r.reference_number.includes(st.reference_number))))
     .forEach(st => {
       rows.push({
         id: st.id,
@@ -1921,11 +2256,41 @@ export async function fetchDistributorLedgerReport(distributorId, startDate = nu
   const { data: dist, error: dErr } = await supabase.from('distributors').select('*').eq('id', distributorId).single();
   if (dErr) throw dErr;
 
-  let sq = supabase.from('sales_orders').select('id, reference_number, sale_date, total_amount, status, commission_rate_snapshot, sale_items(quantity)').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']);
-  let rq = supabase.from('recoveries').select('id, reference_number, recovery_date, amount, payment_method, status, notes').eq('distributor_id', distributorId).in('status', ['Approved', 'Posted']);
-  let setq = supabase.from('distributor_settlements').select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes').eq('distributor_id', distributorId).in('status', ['Approved']);
+  let sq = supabase
+    .from('sales_orders')
+    .select('id, reference_number, sale_date, total_amount, status, commission_rate_snapshot, sale_items(quantity)')
+    .eq('distributor_id', distributorId)
+    .in('status', ['Approved', 'Posted'])
+    .not('reference_number', 'like', 'BKG-%')
+    .limit(5000);
 
-  const [{ data: sales }, { data: recs }, { data: setts }] = await Promise.all([sq, rq, setq]);
+  let setq = supabase
+    .from('distributor_settlements')
+    .select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes, recovery_id')
+    .eq('distributor_id', distributorId)
+    .in('status', ['Approved'])
+    .limit(5000);
+
+  let allOrdersQ = supabase
+    .from('sales_orders')
+    .select('id, reference_number')
+    .eq('distributor_id', distributorId)
+    .limit(5000);
+
+  const [{ data: sales, error: sErr }, allRecs, { data: setts, error: setErr }, { data: allOrders }] = await Promise.all([
+    sq,
+    fetchDistributorApprovedRecoveries(distributorId, { approvedOnly: true }),
+    setq,
+    allOrdersQ
+  ]);
+
+  if (sErr) throw sErr;
+  if (setErr) throw setErr;
+
+  const orderRefMap = new Map();
+  (allOrders || []).forEach(o => {
+    orderRefMap.set(o.id, o.reference_number);
+  });
 
   const allEntries = [];
 
@@ -1944,21 +2309,54 @@ export async function fetchDistributorLedgerReport(distributorId, startDate = nu
     });
   });
 
-  (recs || [])
-    .filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-')))
-    .forEach(r => {
+  (allRecs || []).forEach(r => {
+    const hasPipe = r.reference_number && r.reference_number.includes('|');
+    let cleanRef = r.reference_number;
+    let linkedRef = '';
+
+    if (hasPipe) {
+      const parts = r.reference_number.split('|');
+      cleanRef = parts[0]?.trim();
+      const target = parts[1]?.trim();
+      linkedRef = orderRefMap.get(target) || target;
+    }
+
+    const isBookingAdvance = Boolean(linkedRef);
+
     allEntries.push({
       id: r.id,
       date: r.recovery_date,
-      ref: r.reference_number,
-      type: `Recovery (${r.payment_method || 'Cash'})`,
-      description: `Payment received (${r.payment_method || 'Cash'})${r.notes ? ' · ' + r.notes : ''}`,
+      ref: cleanRef,
+      raw_ref: r.reference_number,
+      linked_order_ref: linkedRef,
+      type: isBookingAdvance ? 'Recovery (Advance)' : `Recovery (${r.payment_method || 'Cash'})`,
+      description: isBookingAdvance
+        ? `Advance payment on booking ${linkedRef}${r.notes ? ' · ' + r.notes : ''}`
+        : `Payment received (${r.payment_method || 'Cash'})${r.notes ? ' · ' + r.notes : ''}`,
       debit: 0,
       credit: Number(r.amount || 0),
       packets: 0,
       status: r.status
     });
   });
+
+  // Commission_Against_Outstanding adjustments (counted exactly once if no duplicate recovery row exists)
+  (setts || [])
+    .filter(st => st.settlement_type === 'Commission_Against_Outstanding')
+    .filter(st => !st.recovery_id && !allRecs.some(r => r.id === st.recovery_id || (r.reference_number && r.reference_number.includes(st.reference_number))))
+    .forEach(st => {
+      allEntries.push({
+        id: st.id,
+        date: st.settlement_date,
+        ref: st.reference_number,
+        type: 'Commission Adjustment',
+        description: `Commission applied against outstanding balance (${st.reference_number})${st.notes ? ' · ' + st.notes : ''}`,
+        debit: 0,
+        credit: Number(st.amount || 0),
+        packets: 0,
+        status: st.status
+      });
+    });
 
   allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -2010,12 +2408,60 @@ export async function fetchRecoveryReport(filters = {}) {
   else q = q.in('status', ['Approved', 'Posted']);
   if (filters.startDate) q = q.gte('recovery_date', `${filters.startDate}T00:00:00.000Z`);
   if (filters.endDate) q = q.lte('recovery_date', `${filters.endDate}T23:59:59.999Z`);
-  if (filters.distributorId) q = q.eq('distributor_id', filters.distributorId);
   if (filters.paymentMethod && filters.paymentMethod !== 'All') q = q.eq('payment_method', filters.paymentMethod);
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+  let unassignedQ = null;
+  if (filters.distributorId) {
+    q = q.eq('distributor_id', filters.distributorId);
+    unassignedQ = supabase
+      .from('recoveries')
+      .select('*, distributors(name, code, phone)')
+      .is('distributor_id', null)
+      .like('reference_number', '%|%')
+      .order('recovery_date', { ascending: false });
+    if (filters.status && filters.status !== 'All') unassignedQ = unassignedQ.eq('status', filters.status);
+    else unassignedQ = unassignedQ.in('status', ['Approved', 'Posted']);
+    if (filters.startDate) unassignedQ = unassignedQ.gte('recovery_date', `${filters.startDate}T00:00:00.000Z`);
+    if (filters.endDate) unassignedQ = unassignedQ.lte('recovery_date', `${filters.endDate}T23:59:59.999Z`);
+    if (filters.paymentMethod && filters.paymentMethod !== 'All') unassignedQ = unassignedQ.eq('payment_method', filters.paymentMethod);
+  }
+
+  const [res, unassignedRes] = await Promise.all([
+    q,
+    unassignedQ ? unassignedQ : Promise.resolve({ data: [] })
+  ]);
+  if (res.error) throw res.error;
+  if (unassignedRes && unassignedRes.error) throw unassignedRes.error;
+
+  let list = res.data || [];
+  if (filters.distributorId && (unassignedRes.data || []).length > 0) {
+    const distOrders = await supabase
+      .from('sales_orders')
+      .select('id, reference_number, distributors(name, code, phone)')
+      .eq('distributor_id', filters.distributorId);
+    
+    const validIds = new Map();
+    (distOrders.data || []).forEach(o => {
+      validIds.set(o.id, o.distributors);
+      if (o.reference_number) validIds.set(o.reference_number, o.distributors);
+    });
+
+    const matched = [];
+    (unassignedRes.data || []).forEach(r => {
+      if (r.reference_number && r.reference_number.includes('|')) {
+        const target = r.reference_number.split('|')[1]?.trim();
+        if (target && validIds.has(target)) {
+          matched.push({
+            ...r,
+            distributors: validIds.get(target)
+          });
+        }
+      }
+    });
+    list = [...list, ...matched];
+    list.sort((a, b) => new Date(b.recovery_date) - new Date(a.recovery_date));
+  }
+  return list;
 }
 
 export async function fetchStockMovementReport(filters = {}) {

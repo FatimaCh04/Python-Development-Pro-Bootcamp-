@@ -11,7 +11,7 @@ import {
 } from '../lib/db';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
+import { formatPakistaniPhoneForWhatsApp, printPersonPaymentVoucher, sharePersonPaymentVoucherOnWhatsApp } from '../lib/exportUtils';
 
 const CATEGORIES = [
   'All',
@@ -105,6 +105,8 @@ export default function PaymentPage({ searchTerm = '' }) {
   const [ledgerDateTo, setLedgerDateTo] = useState('');
   const [ledgerData, setLedgerData] = useState({ entries: [], summary: {}, person: null });
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [sharingEntryId, setSharingEntryId] = useState(null);
+  const [shareModal, setShareModal] = useState(null);
 
   // Load Persons
   const loadPersons = useCallback(async () => {
@@ -478,6 +480,100 @@ _Generated via Elite Wash ERP_`;
 
     const url = `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+  };
+
+  // ── Print Official Payment Voucher ────────────────────────────────────────
+  const handlePrintVoucher = (entry) => {
+    const person = ledgerData.person;
+    if (!person) return;
+    const voucherData = {
+      voucherNo: entry.reference_number,
+      date: entry.entry_date,
+      beneficiaryName: person.name,
+      beneficiaryCategory: person.category,
+      beneficiaryCode: person.code,
+      beneficiaryPhone: person.phone,
+      beneficiaryCnic: person.cnic,
+      amount: entry.debit > 0 ? entry.debit : (entry.credit > 0 ? entry.credit : entry.amount),
+      paymentType: entry.entry_type,
+      paymentMethod: entry.payment_method || 'Cash',
+      accountDetail: entry.account_detail || '',
+      tid: entry.tid || '',
+      description: entry.description,
+      runningBalance: entry.balance,
+      status: entry.status || 'Approved'
+    };
+    printPersonPaymentVoucher(voucherData);
+  };
+
+  // ── Share Signed Voucher PDF on WhatsApp ──────────────────────────────────
+  const handleWhatsAppVoucher = async (entry) => {
+    const person = ledgerData.person;
+    if (!person) return;
+
+    let targetWindow = null;
+    if (typeof window !== 'undefined') {
+      targetWindow = window.open('about:blank', '_blank');
+    }
+
+    const formattedPhone = formatPakistaniPhoneForWhatsApp(person.phone);
+    if (!formattedPhone) {
+      if (targetWindow && !targetWindow.closed) {
+        try { targetWindow.close(); } catch (_) {}
+      }
+      alert(`Cannot open WhatsApp: Beneficiary ${person.name} has no valid registered phone number.`);
+      return;
+    }
+
+    setSharingEntryId(entry.id);
+    const voucherData = {
+      voucherNo: entry.reference_number,
+      date: entry.entry_date,
+      beneficiaryName: person.name,
+      beneficiaryCategory: person.category,
+      beneficiaryCode: person.code,
+      beneficiaryPhone: person.phone,
+      beneficiaryCnic: person.cnic,
+      amount: entry.debit > 0 ? entry.debit : (entry.credit > 0 ? entry.credit : entry.amount),
+      paymentType: entry.entry_type,
+      paymentMethod: entry.payment_method || 'Cash',
+      accountDetail: entry.account_detail || '',
+      tid: entry.tid || '',
+      description: entry.description,
+      runningBalance: entry.balance,
+      status: entry.status || 'Approved'
+    };
+
+    try {
+      await sharePersonPaymentVoucherOnWhatsApp(voucherData, {
+        targetWindow,
+        beneficiary: person,
+        onSuccess: (successMsg, details) => {
+          if (details && details.mode === 'download_and_chat') {
+            setShareModal({
+              beneficiaryName: person.name,
+              phone: formattedPhone,
+              filename: details.filename,
+              waUrl: details.waUrl,
+              popupBlocked: details.popupBlocked
+            });
+          }
+        },
+        onError: (errMsg) => {
+          if (targetWindow && !targetWindow.closed) {
+            try { targetWindow.close(); } catch (_) {}
+          }
+          alert(errMsg);
+        }
+      });
+    } catch (err) {
+      if (targetWindow && !targetWindow.closed) {
+        try { targetWindow.close(); } catch (_) {}
+      }
+      alert('Failed to generate or share voucher: ' + err.message);
+    } finally {
+      setSharingEntryId(null);
+    }
   };
 
   // Filter persons in directory
@@ -887,13 +983,13 @@ _Generated via Elite Wash ERP_`;
                     <th style={{ textAlign: 'right' }}>Running Balance</th>
                     <th>Method / TID</th>
                     <th>Status</th>
-                    {canApprove && <th style={{ textAlign: 'center' }}>Action</th>}
+                    <th style={{ textAlign: 'center' }}>Voucher &amp; Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ledgerData.entries.length === 0 ? (
                     <tr>
-                      <td colSpan={canApprove ? 10 : 9} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
                         No transactions recorded for this worker in the selected period.
                       </td>
                     </tr>
@@ -939,13 +1035,38 @@ _Generated via Elite Wash ERP_`;
                             {e.status || 'Approved'}
                           </span>
                         </td>
-                        {canApprove && (
-                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {e.status === 'Pending' && (
-                              <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center', alignItems: 'center' }}>
+                            <button
+                              className="btn ghost"
+                              style={{ padding: '2px 6px', fontSize: 11 }}
+                              onClick={() => handlePrintVoucher(e)}
+                              title="Print Official Payment / Work Voucher"
+                            >
+                              Voucher
+                            </button>
+                            <button
+                              className="btn"
+                              style={{
+                                padding: '2px 6px',
+                                fontSize: 11,
+                                background: '#25d366',
+                                color: '#fff',
+                                border: 'none',
+                                opacity: sharingEntryId === e.id ? 0.7 : 1,
+                                cursor: sharingEntryId === e.id ? 'wait' : 'pointer'
+                              }}
+                              disabled={sharingEntryId === e.id}
+                              onClick={() => handleWhatsAppVoucher(e)}
+                              title="Share Signed Payment Voucher PDF on WhatsApp"
+                            >
+                              {sharingEntryId === e.id ? 'PDF...' : 'WA'}
+                            </button>
+                            {canApprove && e.status === 'Pending' && (
+                              <>
                                 <button
                                   className="btn"
-                                  style={{ padding: '2px 8px', fontSize: 10.5, background: 'var(--green)', color: '#fff', border: 'none' }}
+                                  style={{ padding: '2px 6px', fontSize: 10.5, background: 'var(--green)', color: '#fff', border: 'none' }}
                                   onClick={() => handleApproveEntry(e.id)}
                                   title="Approve Entry"
                                 >
@@ -953,26 +1074,26 @@ _Generated via Elite Wash ERP_`;
                                 </button>
                                 <button
                                   className="btn"
-                                  style={{ padding: '2px 8px', fontSize: 10.5, background: 'var(--red)', color: '#fff', border: 'none' }}
+                                  style={{ padding: '2px 6px', fontSize: 10.5, background: 'var(--red)', color: '#fff', border: 'none' }}
                                   onClick={() => handleCancelEntry(e.id)}
                                   title="Cancel Entry"
                                 >
                                   Cancel
                                 </button>
-                              </div>
+                              </>
                             )}
-                            {e.status === 'Approved' && (
+                            {canApprove && e.status === 'Approved' && (
                               <button
                                 className="btn ghost"
-                                style={{ padding: '2px 8px', fontSize: 10.5, color: 'var(--red)' }}
+                                style={{ padding: '2px 6px', fontSize: 10.5, color: 'var(--red)' }}
                                 onClick={() => handleCancelEntry(e.id)}
                                 title="Reverse / Cancel"
                               >
                                 Reverse
                               </button>
                             )}
-                          </td>
-                        )}
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -1114,6 +1235,56 @@ _Generated via Elite Wash ERP_`;
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── WHATSAPP SHARE INSTRUCTIONS MODAL ──────────────────────────── */}
+      {shareModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div className="panel" style={{ width: 500, maxWidth: '92%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#25d366', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 'bold' }}>✓</div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>Payment Voucher PDF Ready to Share</h3>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{shareModal.beneficiaryName} &bull; +{shareModal.phone}</div>
+                </div>
+              </div>
+              <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => setShareModal(null)}>✕</button>
+            </div>
+
+            <div style={{ background: '#FAFBF8', border: '1px solid var(--line)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}>
+              <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📄</span>
+                <div>
+                  <strong>Downloaded Payment Voucher:</strong>
+                  <div style={{ color: 'var(--teal)', fontWeight: 600 }}>{shareModal.filename}</div>
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px', background: '#FFF8E7', border: '1px solid #F0D78C', borderRadius: 6, fontSize: 12.5, color: '#856404' }}>
+                <strong>How to complete sending on WhatsApp:</strong>
+                <ol style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                  <li>WhatsApp chat with <strong>{shareModal.beneficiaryName}</strong> (+{shareModal.phone}) opens in your browser.</li>
+                  <li>In WhatsApp, click the <strong>attach icon (📎) &rarr; Document</strong>.</li>
+                  <li>Select the downloaded <strong>{shareModal.filename}</strong> from your Downloads folder.</li>
+                  <li>Click <strong>Send</strong> to deliver the signed voucher slip.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <button
+                className="btn primary"
+                style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                onClick={() => window.open(shareModal.waUrl, '_blank')}
+              >
+                <span>💬</span> Open WhatsApp Chat
+              </button>
+              <button className="btn ghost" onClick={() => setShareModal(null)}>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
