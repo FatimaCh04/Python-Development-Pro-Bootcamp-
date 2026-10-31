@@ -1,0 +1,97 @@
+name: Supabase Database Activity Check
+
+on:
+  schedule:
+    # Runs approximately every 6 hours at minute 23 past the hour (00:23, 06:23, 12:23, 18:23 UTC)
+    # Using minute 23 avoids the standard top-of-the-hour queue contention on GitHub Actions
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    # Allows manual trigger for testing directly from the GitHub Actions UI
+
+concurrency:
+  group: supabase-activity-check
+  cancel-in-progress: true
+
+jobs:
+  database-activity-check:
+    name: Supabase Health & Activity Ping
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate GitHub Secrets Configuration
+        run: |
+          if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::Required secrets SUPABASE_URL or SUPABASE_ANON_KEY are missing!"
+            echo "=========================================================================="
+            echo "ACTION REQUIRED: Configure repository secrets in GitHub:"
+            echo "  1. Go to your repo -> Settings -> Secrets and variables -> Actions"
+            echo "  2. Add 'SUPABASE_URL': https://<your-project>.supabase.co"
+            echo "  3. Add 'SUPABASE_ANON_KEY': <your-public-anon-key>"
+            echo "=========================================================================="
+            exit 1
+          fi
+
+      - name: Execute Lightweight Read-Only Database SELECT
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          # Normalize URL (strip trailing slash)
+          CLEAN_URL="${SUPABASE_URL%/}"
+
+          echo "=========================================================================="
+          echo "Elite Wash ERP — Scheduled Supabase Database Activity Check"
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%SZ")"
+          echo "Target Project URL: ${CLEAN_URL}"
+          echo "=========================================================================="
+
+          # Endpoints:
+          # 1. Primary: Dedicated isolated read-only health check table
+          # 2. Fallback: Public read-only catalog packaging table (if health check table not yet initialized)
+          PRIMARY_ENDPOINT="${CLEAN_URL}/rest/v1/system_health_check?select=status,service_name"
+          FALLBACK_ENDPOINT="${CLEAN_URL}/rest/v1/product_packaging?select=id&limit=1"
+
+          echo "Pinging primary health check endpoint..."
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o response.json \
+            --max-time 15 \
+            --header "apikey: ${SUPABASE_ANON_KEY}" \
+            --header "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            --header "Accept: application/json" \
+            "${PRIMARY_ENDPOINT}")
+
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✔ Primary Health Check PASSED (HTTP 200 OK)."
+            echo "Response Payload: $(cat response.json)"
+            echo "Database activity confirmed. Postgres engine is ACTIVE and healthy."
+            exit 0
+          elif [ "$HTTP_STATUS" -eq 404 ]; then
+            echo "ℹ Notice: Dedicated table 'system_health_check' returned HTTP 404 (not yet created)."
+            echo "Falling back to public read-only catalog query: ${FALLBACK_ENDPOINT}..."
+
+            FALLBACK_STATUS=$(curl -s -w "%{http_code}" -o fallback_response.json \
+              --max-time 15 \
+              --header "apikey: ${SUPABASE_ANON_KEY}" \
+              --header "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              --header "Accept: application/json" \
+              "${FALLBACK_ENDPOINT}")
+
+            if [ "$FALLBACK_STATUS" -eq 200 ]; then
+              echo "✔ Fallback Read Query PASSED (HTTP 200 OK)."
+              echo "Database activity confirmed. Postgres engine is ACTIVE and healthy."
+              echo ""
+              echo "TIP: To use the dedicated health-check table, run the provided script:"
+              echo "     elite-washwo-frontend/setup_health_check_table.sql in Supabase SQL editor."
+              exit 0
+            else
+              echo "::error::Both primary and fallback database queries failed! Fallback HTTP: ${FALLBACK_STATUS}"
+              echo "Error Body: $(cat fallback_response.json 2>/dev/null || echo 'No body received')"
+              exit 1
+            fi
+          else
+            echo "::error::Supabase health check failed with HTTP status ${HTTP_STATUS}!"
+            echo "Error Body: $(cat response.json 2>/dev/null || echo 'No body received')"
+            exit 1
+          fi
