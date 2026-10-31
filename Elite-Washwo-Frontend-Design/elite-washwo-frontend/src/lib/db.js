@@ -16,7 +16,7 @@ export async function fetchOverviewStats() {
   let sellable = 0;
   (invRows || []).forEach(r => {
     if (r.salesman_id) return;
-    if (['Production','Purchase','Salesman_Good_Return','Customer_Good_Return'].includes(r.transaction_type)) sellable += r.quantity;
+    if (['Production','Purchase','Salesman_Good_Return','Distributor_Good_Return'].includes(r.transaction_type)) sellable += r.quantity;
     if (['Salesman_Issue','Adjustment','Damage','Expiry'].includes(r.transaction_type)) sellable -= r.quantity;
   });
 
@@ -47,21 +47,8 @@ export async function fetchRecentAuditLogs(limit = 6) {
 }
 
 export async function fetchSalesmenSnapshot() {
-  const { data: salesmen } = await supabase.from('salesmen').select('id, code, route, profiles(full_name)');
-  const { data: invRows }  = await supabase.from('inventory_transactions').select('salesman_id, transaction_type, quantity').in('status',['Approved','Posted']).not('salesman_id','is',null);
-  const { data: salesRows }= await supabase.from('sales_orders').select('salesman_id, total_amount').in('status',['Approved','Posted']);
-  const { data: recRows }  = await supabase.from('recoveries').select('salesman_id, amount').in('status',['Approved','Posted']);
-
-  const stockMap={}, salesMap={}, recMap={};
-  (invRows||[]).forEach(r=>{
-    if(!stockMap[r.salesman_id]) stockMap[r.salesman_id]=0;
-    if(r.transaction_type==='Salesman_Issue') stockMap[r.salesman_id]+=r.quantity;
-    if(['Sale','Salesman_Good_Return','Salesman_Damaged_Return'].includes(r.transaction_type)) stockMap[r.salesman_id]-=r.quantity;
-  });
-  (salesRows||[]).forEach(r=>{salesMap[r.salesman_id]=(salesMap[r.salesman_id]||0)+Number(r.total_amount);});
-  (recRows||[]).forEach(r=>{recMap[r.salesman_id]=(recMap[r.salesman_id]||0)+Number(r.amount);});
-
-  return (salesmen||[]).map(s=>({id:s.id,name:s.profiles?.full_name||s.code,stock:stockMap[s.id]||0,outstanding:Math.max(0,(salesMap[s.id]||0)-(recMap[s.id]||0)),route:s.route}));
+  // Discontinued: Salesman role has been discontinued.
+  return [];
 }
 
 export async function fetchChartData() {
@@ -76,55 +63,30 @@ export async function fetchChartData() {
   return {labels:days.map(d=>{const dt=new Date(d);return dt.toLocaleDateString('en',{day:'numeric',month:'short'});}),sales:days.map(d=>sbd[d]),recovery:days.map(d=>rbd[d])};
 }
 
-// --- SALESMEN -----------------------------------------------------------------
+// --- SALESMEN (DEPRECATED - Role Discontinued) --------------------------------
 export async function fetchSalesmen() {
-  const {data,error}=await supabase.from('salesmen').select('*, profiles(full_name, is_active)').order('code');
-  if(error) throw error;
-  return data||[];
+  return [];
 }
 
 export async function fetchSalesmanStats(salesmanId) {
-  const {data:inv}=await supabase.from('inventory_transactions').select('transaction_type,quantity').eq('salesman_id',salesmanId).in('status',['Approved','Posted']);
-  let stock=0;
-  (inv||[]).forEach(r=>{if(r.transaction_type==='Salesman_Issue')stock+=r.quantity;if(['Sale','Salesman_Good_Return','Salesman_Damaged_Return'].includes(r.transaction_type))stock-=r.quantity;});
-  const todayStart=new Date();todayStart.setHours(0,0,0,0);
-  const {data:ts}=await supabase.from('sales_orders').select('total_amount').eq('salesman_id',salesmanId).in('status',['Approved','Posted']).gte('sale_date',todayStart.toISOString());
-  const todaySalesAmt=(ts||[]).reduce((s,r)=>s+Number(r.total_amount),0);
-  const {data:as}=await supabase.from('sales_orders').select('total_amount').eq('salesman_id',salesmanId).in('status',['Approved','Posted']);
-  const {data:ar}=await supabase.from('recoveries').select('amount').eq('salesman_id',salesmanId).in('status',['Approved','Posted']);
-  const outstanding=Math.max(0,(as||[]).reduce((s,r)=>s+Number(r.total_amount),0)-(ar||[]).reduce((s,r)=>s+Number(r.amount),0));
-  const {data:pe}=await supabase.from('expenses').select('amount').eq('salesman_id',salesmanId).in('status',['Pending','Submitted']);
-  const pendingReimb=(pe||[]).reduce((s,r)=>s+Number(r.amount),0);
-  return {stock,todaySalesAmt,outstanding,pendingReimb};
+  return { stock: 0, todaySalesAmt: 0, outstanding: 0, pendingReimb: 0 };
 }
 
 export async function fetchSalesmanStockLedger(salesmanId) {
-  const {data,error}=await supabase.from('inventory_transactions').select('*, product_packaging(name, products(name))').eq('salesman_id',salesmanId).order('transaction_date',{ascending:false});
-  if(error) throw error;
-  return data||[];
+  return [];
 }
 
 export async function fetchSalesmanFinLedger(salesmanId) {
-  const {data:sales}=await supabase.from('sales_orders').select('reference_number,sale_date,total_amount,status').eq('salesman_id',salesmanId).order('sale_date',{ascending:false});
-  const {data:recs}=await supabase.from('recoveries').select('reference_number,recovery_date,amount,payment_method,status').eq('salesman_id',salesmanId).order('recovery_date',{ascending:false});
-  const rows=[];
-  (sales||[]).forEach(r=>rows.push({date:r.sale_date,type:'Sale (credit)',ref:r.reference_number,debit:r.total_amount,credit:null,status:r.status}));
-  (recs||[]).forEach(r=>rows.push({date:r.recovery_date,type:`Recovery  ${r.payment_method}`,ref:r.reference_number,debit:null,credit:r.amount,status:r.status}));
-  rows.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  let bal=0;
-  const withBal=rows.map(r=>{if(r.debit)bal+=Number(r.debit);if(r.credit)bal-=Number(r.credit);return{...r,balance:bal};});
-  return withBal.reverse();
+  return [];
 }
 
 export async function fetchSalesmanExpLedger(salesmanId) {
-  const {data,error}=await supabase.from('expenses').select('*').eq('salesman_id',salesmanId).order('expense_date',{ascending:false});
-  if(error) throw error;
-  return data||[];
+  return [];
 }
 
 // --- STOCK / RETURNS ----------------------------------------------------------
 export async function fetchInventoryTransactions(filters={}) {
-  let q=supabase.from('inventory_transactions').select('*, salesmen(profiles(full_name)), distributors(name, code, phone), product_packaging(name, products(name))').order('transaction_date',{ascending:false}).limit(200);
+  let q=supabase.from('inventory_transactions').select('*, distributors(name, code, phone), product_packaging(name, products(name))').order('transaction_date',{ascending:false}).limit(200);
   if(filters.salesman_id) q=q.eq('salesman_id',filters.salesman_id);
   if(filters.distributor_id) q=q.eq('distributor_id',filters.distributor_id);
   if(filters.transaction_type && filters.transaction_type !== 'All') q=q.eq('transaction_type',filters.transaction_type);
@@ -158,8 +120,8 @@ export async function fetchStockBalances(asOfDate = null) {
 
   (data || []).forEach(r => {
     const qty = Number(r.quantity) || 0;
-    const isGoodReturn = ['Salesman_Good_Return', 'Customer_Good_Return', 'Distributor_Good_Return'].includes(r.transaction_type);
-    const isDamagedReturn = ['Salesman_Damaged_Return', 'Customer_Damaged_Return', 'Distributor_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
+    const isGoodReturn = ['Salesman_Good_Return', 'Distributor_Good_Return'].includes(r.transaction_type);
+    const isDamagedReturn = ['Salesman_Damaged_Return', 'Distributor_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
 
     if (['Production', 'Purchase'].includes(r.transaction_type)) {
       productionPurchases += qty;
@@ -220,6 +182,7 @@ export async function submitStockReturn({salesmanId, distributorId, packagingId,
     notes: notes || ''
   };
   if (salesmanId) payload.salesman_id = salesmanId;
+  if (bookingId) payload.sale_order_id = bookingId;
   if (distributorId) payload.distributor_id = distributorId;
 
   const {data, error} = await supabase.from('inventory_transactions').insert(payload).select().single();
@@ -402,26 +365,9 @@ export async function fetchExpenseSummary() {
   return {total, approvedTotal: total, pendingTotal, distributor, company, office, advertisement, welfare, others};
 }
 
-// --- CUSTOMERS ----------------------------------------------------------------
-export async function fetchCustomers() {
-  const {data,error}=await supabase.from('customers').select('*, salesmen(profiles(full_name))').order('name');
-  if(error) throw error;
-  const {data:ledger}=await supabase.from('customer_ledger').select('*');
-  const lm={};
-  (ledger||[]).forEach(l=>{lm[l.customer_id]=l.outstanding_balance;});
-  return (data||[]).map(c=>({...c,outstanding:lm[c.id]||0}));
-}
+// --- CUSTOMER MODULE (PERMANENTLY DISCONTINUED & REMOVED) --------------------
+// Legacy customer functions permanently removed
 
-export async function addCustomer({code,name,phone,address,default_salesman_id}) {
-  const {error}=await supabase.from('customers').insert({code,name,phone,address,default_salesman_id:default_salesman_id||null});
-  if(error) throw error;
-}
-
-export async function fetchCustomerReturns() {
-  const {data,error}=await supabase.from('inventory_transactions').select('*, customers(name), salesmen(profiles(full_name)), product_packaging(name)').in('transaction_type',['Customer_Good_Return','Customer_Damaged_Return']).order('transaction_date',{ascending:false}).limit(50);
-  if(error) throw error;
-  return data||[];
-}
 
 // --- PRODUCTS -----------------------------------------------------------------
 export async function fetchProducts() {
@@ -433,7 +379,7 @@ export async function fetchProducts() {
 export async function fetchProductMovement() {
   const {data,error}=await supabase.from('inventory_transactions').select('transaction_type,quantity').in('status',['Approved','Posted']);
   if(error) throw error;
-  const s={production:0,salesman_issues:0,salesman_returns:0,customer_returns:0,damaged:0,adjustments:0};
+  const s={production:0,salesman_issues:0,salesman_returns:0,damaged:0,adjustments:0};
   (data||[]).forEach(r=>{
     const qty = Number(r.quantity) || 0;
     if(['Production','Purchase'].includes(r.transaction_type)) s.production += qty;
@@ -441,16 +387,15 @@ export async function fetchProductMovement() {
     if(['Salesman_Issue','Distributor_Issue'].includes(r.transaction_type)) s.salesman_issues += qty;
     // Good returns only (restocked into company saleable stock upon approval)
     if(['Salesman_Good_Return','Distributor_Good_Return'].includes(r.transaction_type)) s.salesman_returns += qty;
-    // Legacy customer returns (good condition)
-    if(r.transaction_type === 'Customer_Good_Return') s.customer_returns += qty;
+
     // Damaged returns and damaged stock (isolated in quarantine, NEVER counted as saleable)
-    if(['Salesman_Damaged_Return','Distributor_Damaged_Return','Customer_Damaged_Return','Damage','Expiry'].includes(r.transaction_type)) {
+    if(['Salesman_Damaged_Return','Distributor_Damaged_Return','Damage','Expiry'].includes(r.transaction_type)) {
       s.damaged += qty;
     }
     if(r.transaction_type === 'Adjustment') s.adjustments += qty;
   });
   // Saleable closing stock: Damaged stock is segregated and NEVER counted as saleable
-  s.closing = s.production - s.salesman_issues + s.salesman_returns + s.customer_returns + s.adjustments;
+  s.closing = s.production - s.salesman_issues + s.salesman_returns + s.adjustments;
   return s;
 }
 
@@ -502,16 +447,16 @@ export async function invokeCreateUser(payload) {
 // --- STAGE 5: REPORTS & CLOSING ---
 
 export async function closeTodayLedger({ closingDate = new Date().toISOString().split('T')[0] } = {}) {
-  const [{ data: salesmen }, { data: distributors }] = await Promise.all([
-    supabase.from('salesmen').select('id, code, profiles(full_name)'),
-    supabase.from('distributors').select('id, code, name').eq('is_active', true)
-  ]);
+  const { data: distributors } = await supabase
+    .from('distributors')
+    .select('id, code, name')
+    .eq('is_active', true);
 
   const results = [];
   const startOfDay = `${closingDate}T00:00:00.000Z`;
   const endOfDay = `${closingDate}T23:59:59.999Z`;
 
-  // 1. Process Distributors
+  // Process Distributors
   for (const dist of (distributors || [])) {
     const { data: ts } = await supabase.from('sales_orders')
       .select('total_amount')
@@ -555,51 +500,6 @@ export async function closeTodayLedger({ closingDate = new Date().toISOString().
     }, { onConflict: 'closing_date,distributor_id' }).select().single();
 
     if (cErr) console.warn('Distributor closing notice for ' + dist.code, cErr);
-    else results.push(closing);
-  }
-
-  // 2. Process Historical Salesmen (if present)
-  for (const sm of (salesmen || [])) {
-    const { data: ts } = await supabase.from('sales_orders')
-      .select('total_amount')
-      .eq('salesman_id', sm.id)
-      .in('status', ['Approved', 'Posted'])
-      .gte('sale_date', startOfDay)
-      .lte('sale_date', endOfDay);
-    const salesAmt = (ts || []).reduce((s, r) => s + Number(r.total_amount), 0);
-
-    const { data: tr } = await supabase.from('recoveries')
-      .select('amount')
-      .eq('salesman_id', sm.id)
-      .in('status', ['Approved', 'Posted'])
-      .gte('recovery_date', startOfDay)
-      .lte('recovery_date', endOfDay);
-    const recAmt = (tr || []).reduce((s, r) => s + Number(r.amount), 0);
-
-    const { data: stockRows } = await supabase.from('inventory_transactions')
-      .select('quantity, transaction_type')
-      .eq('salesman_id', sm.id)
-      .in('status', ['Approved', 'Posted'])
-      .lte('transaction_date', endOfDay);
-    let currentStock = 0;
-    (stockRows || []).forEach(r => {
-      if (r.transaction_type === 'Salesman_Issue') currentStock += Number(r.quantity || 0);
-      if (['Sale', 'Salesman_Good_Return', 'Salesman_Damaged_Return'].includes(r.transaction_type)) {
-        currentStock -= Number(r.quantity || 0);
-      }
-    });
-
-    const { data: closing, error: cErr } = await supabase.from('daily_closings').upsert({
-      closing_date: closingDate,
-      salesman_id: sm.id,
-      expected_cash: recAmt,
-      submitted_cash: null,
-      expected_stock: { packets: currentStock, sales: salesAmt },
-      submitted_stock: null,
-      status: 'Pending'
-    }, { onConflict: 'closing_date,salesman_id' }).select().single();
-
-    if (cErr) console.warn('Closing notice for ' + sm.code, cErr);
     else results.push(closing);
   }
 
@@ -755,7 +655,7 @@ export async function approveSettlement(salesmanId) {
   return { success: true };
 }
 
-export async function submitSale({ salesmanId, customerId, distributorId, items, totalAmount }) {
+export async function submitSale({ salesmanId, distributorId, items, totalAmount }) {
   if (!distributorId) throw new Error('Distributor is required for sale creation.');
   if (!items || items.length === 0) throw new Error('At least one sale item is required.');
 
@@ -767,7 +667,6 @@ export async function submitSale({ salesmanId, customerId, distributorId, items,
       p_reference_number: ref,
       p_distributor_id: distributorId,
       p_salesman_id: salesmanId || null,
-      p_customer_id: customerId || null,
       p_total_amount: Number(totalAmount) || 0,
       p_sale_date: new Date().toISOString(),
       p_status: 'Approved',
@@ -792,7 +691,6 @@ export async function submitSale({ salesmanId, customerId, distributorId, items,
   const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
     reference_number: ref,
     salesman_id: salesmanId || null,
-    customer_id: customerId || null,
     distributor_id: distributorId,
     total_amount: Number(totalAmount) || 0,
     commission_rate_snapshot: commSnapshot,
@@ -884,8 +782,9 @@ export async function deleteProduct(pkgId, productId) {
 }
 
 
-export async function submitBooking({ salesmanId, customerId, distributorId, items, totalAmount }) {
+export async function submitBooking({ salesmanId, distributorId, bookingDate, items, totalAmount }) {
   const ref = refNum('BKG');
+  const effectiveDate = bookingDate ? new Date(bookingDate).toISOString() : new Date().toISOString();
 
   // Attempt atomic creation RPC first
   try {
@@ -893,9 +792,8 @@ export async function submitBooking({ salesmanId, customerId, distributorId, ite
       p_reference_number: ref,
       p_distributor_id: distributorId || null,
       p_salesman_id: salesmanId || null,
-      p_customer_id: customerId || null,
       p_total_amount: Number(totalAmount) || 0,
-      p_sale_date: new Date().toISOString(),
+      p_sale_date: effectiveDate,
       p_status: 'Pending',
       p_items: (items || []).map(item => ({
         packagingId: item.packagingId,
@@ -919,10 +817,9 @@ export async function submitBooking({ salesmanId, customerId, distributorId, ite
   const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
     reference_number: ref,
     salesman_id: salesmanId || null,
-    customer_id: customerId || null,
     distributor_id: distributorId || null,
     total_amount: totalAmount,
-    sale_date: new Date().toISOString(),
+    sale_date: effectiveDate,
     status: 'Pending'
   }).select().single();
   
@@ -945,20 +842,22 @@ export async function submitBooking({ salesmanId, customerId, distributorId, ite
 export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   let q = supabase
     .from('sales_orders')
-    .select('id, reference_number, sale_date, total_amount, status, customer_id, salesman_id, distributor_id, customers(name), salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(*, product_packaging(name, products(name)))')
+    .select('id, reference_number, sale_date, total_amount, status, salesman_id, distributor_id, salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(*, product_packaging(name, products(name)))')
     .like('reference_number', 'BKG-%')
-    .order('sale_date', { ascending: false });
+    .order('sale_date', { ascending: true });
   if (dateFrom) q = q.gte('sale_date', dateFrom);
   if (dateTo) q = q.lte('sale_date', dateTo);
   if (distributorId) q = q.eq('distributor_id', distributorId);
   const { data, error } = await q;
   if (error) throw error;
 
-  // Stable sequential numbering across all bookings chronologically
+  // Stable sequential numbering across all assigned bookings chronologically
+  // Only assigned distributor bookings qualify for Bill #01..#08.. sequential numbering
   const { data: allBookings } = await supabase
     .from('sales_orders')
-    .select('id, sale_date')
+    .select('id, sale_date, distributor_id')
     .like('reference_number', 'BKG-%')
+    .not('distributor_id', 'is', null)
     .order('sale_date', { ascending: true });
 
   const sortedBookings = (allBookings || []).slice().sort((a, b) => {
@@ -975,31 +874,41 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
 
   const { data: recs, error: rErr } = await supabase
     .from('recoveries')
-    .select('amount, reference_number')
+    .select('amount, reference_number, sale_order_id')
     .like('reference_number', '%|%');
     
   if (rErr) throw rErr;
 
-  return (data || []).map(b => {
+  const results = (data || []).map(b => {
     const bookingRecs = (recs || []).filter(r => 
-      r.reference_number && (
+      r.sale_order_id === b.id ||
+      (r.reference_number && (
         r.reference_number.endsWith('|' + b.id) || 
         (b.reference_number && r.reference_number.endsWith('|' + b.reference_number))
-      )
+      ))
     );
     const totalRecovered = bookingRecs.reduce((sum, r) => sum + Number(r.amount), 0);
-    const seq = seqMap.get(b.id) || 1;
+    const isAssigned = Boolean(b.distributor_id);
+    const seq = isAssigned ? (seqMap.get(b.id) || 1) : null;
     return {
       ...b,
       sequential_no: seq,
-      formattedBillNo: String(seq).padStart(2, '0'),
+      formattedBillNo: seq ? String(seq).padStart(2, '0') : null,
       total_recovered: totalRecovered,
       remaining_balance: Math.max(0, Number(b.total_amount) - totalRecovered)
     };
   });
+
+  // Display remaining bookings in chronological order (oldest first: Bill #01 through Bill #08)
+  return results.sort((a, b) => {
+    const tA = new Date(a.sale_date).getTime() || 0;
+    const tB = new Date(b.sale_date).getTime() || 0;
+    if (tA !== tB) return tA - tB;
+    return (a.sequential_no || 0) - (b.sequential_no || 0);
+  });
 }
 
-export async function addBookingRecovery({ bookingId, bookingRef, customerId, salesmanId, distributorId, amount, paymentMethod }) {
+export async function addBookingRecovery({ bookingId, bookingRef, salesmanId, distributorId, amount, paymentMethod }) {
   const identifier = bookingRef || bookingId;
   const ref = refNum('REC') + '|' + identifier;
   const payload = {
@@ -1012,7 +921,6 @@ export async function addBookingRecovery({ bookingId, bookingRef, customerId, sa
   };
   if (distributorId) payload.distributor_id = distributorId;
   if (salesmanId) payload.salesman_id = salesmanId;
-  if (customerId) payload.customer_id = customerId;
 
   const { data, error } = await supabase.from('recoveries').insert(payload).select().single();
   if (error) throw error;
@@ -1042,7 +950,7 @@ export async function addDistributorRecovery({ distributorId, amount, paymentMet
 export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status, limit = 200 } = {}) {
   let directQ = supabase
     .from('recoveries')
-    .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name)), customers(name)')
+    .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name))')
     .order('recovery_date', { ascending: false })
     .limit(limit);
   if (distributorId) directQ = directQ.eq('distributor_id', distributorId);
@@ -1054,7 +962,7 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
   if (distributorId) {
     unassignedQ = supabase
       .from('recoveries')
-      .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name)), customers(name)')
+      .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name))')
       .is('distributor_id', null)
       .like('reference_number', '%|%')
       .order('recovery_date', { ascending: false })
@@ -1222,7 +1130,7 @@ export async function deleteDistributor(id) {
 export async function fetchSales({ dateFrom, dateTo, distributorId } = {}) {
   let q = supabase
     .from('sales_orders')
-    .select('id, reference_number, sale_date, total_amount, status, customer_id, salesman_id, distributor_id, customers(name, code), salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(quantity, unit_price, subtotal)')
+    .select('id, reference_number, sale_date, total_amount, status, salesman_id, distributor_id, salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(quantity, unit_price, subtotal)')
     .like('reference_number', 'SAL-%')
     .order('sale_date', { ascending: false });
   if (dateFrom) q = q.gte('sale_date', dateFrom);
@@ -1788,8 +1696,8 @@ export async function fetchDashboardMetrics(selectedDateStr) {
   (invRows || []).forEach(r => {
     const qty = Number(r.quantity) || 0;
     const isSelectedDate = r.transaction_date >= sodIso && r.transaction_date <= eodIso;
-    const isGoodReturn = ['Salesman_Good_Return', 'Customer_Good_Return', 'Distributor_Good_Return'].includes(r.transaction_type);
-    const isDamagedReturn = ['Salesman_Damaged_Return', 'Customer_Damaged_Return', 'Distributor_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
+    const isGoodReturn = ['Salesman_Good_Return', 'Distributor_Good_Return'].includes(r.transaction_type);
+    const isDamagedReturn = ['Salesman_Damaged_Return', 'Distributor_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
     
     // Company Saleable Stock (Cumulative)
     if (['Production', 'Purchase'].includes(r.transaction_type) || isGoodReturn) {
@@ -2120,8 +2028,8 @@ export async function fetchReportsMetrics(selectedDateStr) {
   
   (invAll || []).forEach(r => {
     const qty = Number(r.quantity) || 0;
-    const isGoodReturn = ['Distributor_Good_Return', 'Customer_Good_Return', 'Salesman_Good_Return'].includes(r.transaction_type);
-    const isDamagedReturn = ['Distributor_Damaged_Return', 'Customer_Damaged_Return', 'Salesman_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
+    const isGoodReturn = ['Distributor_Good_Return', 'Salesman_Good_Return'].includes(r.transaction_type);
+    const isDamagedReturn = ['Distributor_Damaged_Return', 'Salesman_Damaged_Return', 'Damage', 'Expiry'].includes(r.transaction_type);
     
     if (['Production', 'Purchase'].includes(r.transaction_type) || isGoodReturn) {
        stockSellable += qty;
@@ -2488,8 +2396,7 @@ export async function fetchReturnsReport(filters = {}) {
     .select('*, product_packaging(name, products(name)), distributors(name, code), salesmen(code, profiles(full_name))')
     .in('transaction_type', [
       'Distributor_Good_Return', 'Distributor_Damaged_Return',
-      'Salesman_Good_Return', 'Salesman_Damaged_Return',
-      'Customer_Good_Return', 'Customer_Damaged_Return'
+      'Salesman_Good_Return', 'Salesman_Damaged_Return'
     ])
     .order('transaction_date', { ascending: false });
 

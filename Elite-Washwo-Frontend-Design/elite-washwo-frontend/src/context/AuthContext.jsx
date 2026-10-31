@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
         // Super Admin gets all permissions implicitly
         setPermissions(['ALL']);
       } else {
-        setPermissions([]); // Salesman relies on RLS directly, no explicit arbitrary permissions
+        setPermissions([]);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (requiredPermission) => {
     if (role === 'Super_Admin') return true;
     if (role === 'Manager') return permissions.includes(requiredPermission);
-    return false; // Salesmen don't use this dynamic permission array
+    return false;
   };
 
   const login = async (email, password) => {

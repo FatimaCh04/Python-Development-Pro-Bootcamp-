@@ -1,4 +1,4 @@
-﻿import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -31,10 +31,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { email, password, full_name, role, code, route } = await req.json()
+    const { email, password, full_name, role } = await req.json()
 
-    if (!email || !password || !full_name || !role) {
-      throw new Error('Missing required fields')
+    if (!email || !password || !full_name) {
+      throw new Error('Missing required fields: email, password, full_name')
+    }
+
+    // Discontinue Salesman role. Allow only Manager creation via Staff Management.
+    const assignedRole = role === 'Manager' ? 'Manager' : null;
+    if (!assignedRole) {
+      throw new Error('Invalid role: Only Manager accounts can be created. Salesman role is permanently discontinued.');
     }
     
     // 1. Create Auth User
@@ -52,7 +58,7 @@ serve(async (req) => {
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
       id: newUserId,
       full_name,
-      role,
+      role: 'Manager',
       is_active: true
     })
 
@@ -60,21 +66,6 @@ serve(async (req) => {
       // Rollback auth user
       await supabaseAdmin.auth.admin.deleteUser(newUserId)
       throw profileError
-    }
-
-    // 3. Create Salesman record if applicable
-    if (role === 'Salesman') {
-      const { error: salesmanError } = await supabaseAdmin.from('salesmen').insert({
-        profile_id: newUserId,
-        code,
-        route
-      })
-      if (salesmanError) {
-        // Rollback
-        await supabaseAdmin.from('profiles').delete().eq('id', newUserId)
-        await supabaseAdmin.auth.admin.deleteUser(newUserId)
-        throw salesmanError
-      }
     }
 
     return new Response(JSON.stringify({ success: true, user: authData.user }), {

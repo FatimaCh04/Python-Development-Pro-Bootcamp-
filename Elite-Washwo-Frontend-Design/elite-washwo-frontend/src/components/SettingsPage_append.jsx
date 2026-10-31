@@ -86,7 +86,7 @@ function ChangePasswordSection() {
 
 // ── Distributor Settings Section ─────────────────────────────────────────
 function DistributorSettingsSection({ role }) {
-  const isReadOnly = role === 'Salesman';
+  const isReadOnly = role !== 'Super_Admin' && role !== 'Manager';
   const [distributors, setDistributors] = useState([]);
   const [search, setSearch]             = useState('');
   const [selected, setSelected]         = useState(null);

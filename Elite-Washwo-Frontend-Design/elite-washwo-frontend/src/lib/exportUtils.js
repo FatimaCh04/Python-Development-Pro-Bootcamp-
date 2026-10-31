@@ -254,7 +254,7 @@ export function getBookingPadHtml(booking, options = {}) {
   const displayBillNo = booking.formattedBillNo || booking.sequential_no || booking.display_bill_no || booking.bill_no || (refNo.startsWith('BKG-') ? refNo.replace(/^BKG-0*/, '') : refNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
   const dateStr = booking.sale_date ? new Date(booking.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK");
-  const distName = booking.distributors?.name || booking.distributorName || booking.customerName || "—";
+  const distName = booking.distributors?.name || booking.distributorName || "—";
   
   const rawItems = booking.items || (booking.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
@@ -435,7 +435,7 @@ export function renderBookingPadToJsPdf(doc, booking) {
   const displayBillNo = booking.formattedBillNo || booking.sequential_no || booking.display_bill_no || booking.bill_no || (refNo.startsWith('BKG-') ? refNo.replace(/^BKG-0*/, '') : refNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
   const dateStr = booking.sale_date ? new Date(booking.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK");
-  const distName = booking.distributors?.name || booking.distributorName || booking.customerName || "—";
+  const distName = booking.distributors?.name || booking.distributorName || "—";
   
   const rawItems = booking.items || (booking.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
@@ -789,7 +789,7 @@ export function getDistributorPadHtml(sale, options = {}) {
   const displayBillNo = sale.display_bill_no || sale.bill_no || (billNo.startsWith('SAL-') ? billNo.replace(/^SAL-0*/, '') : billNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
   const saleDate     = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
-  const distributor  = sale.distributorName || sale.customerName || sale.distributors?.name || "—";
+  const distributor  = sale.distributorName || sale.distributors?.name || "—";
   const rawItems     = sale.items || (sale.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
     quantity: i.quantity,
@@ -917,7 +917,7 @@ export function renderDistributorPadToJsPdf(doc, sale) {
   const displayBillNo = sale.display_bill_no || sale.bill_no || (billNo.startsWith('SAL-') ? billNo.replace(/^SAL-0*/, '') : billNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
   const saleDate = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
-  const distributor = sale.distributorName || sale.customerName || sale.distributors?.name || "—";
+  const distributor = sale.distributorName || sale.distributors?.name || "—";
   
   const rawItems = sale.items || (sale.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),

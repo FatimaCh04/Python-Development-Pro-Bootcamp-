@@ -14,13 +14,11 @@ import BookingPage from './components/BookingPage';
 import PaymentPage from './components/PaymentPage';
 import DistributorLedgerPage from './components/DistributorLedgerPage';
 import {
-  fetchOverviewStats, fetchRecentAuditLogs, fetchSalesmenSnapshot, fetchChartData,
-  fetchSalesmen, fetchSalesmanStats, fetchSalesmanStockLedger, fetchSalesmanFinLedger, fetchSalesmanExpLedger,
+  fetchOverviewStats, fetchRecentAuditLogs, fetchChartData,
   fetchInventoryTransactions, submitStockReturn, approveTransaction,
   fetchExpenses, submitExpense, updateExpenseStatus, fetchExpenseSummary,
-
   fetchProducts, fetchProductMovement, fetchPackagings,
-  fetchSalesmanSettlement, fetchAuditLogs,
+  fetchAuditLogs,
   submitSale, addProduct, updateProduct, deleteProduct,
   fetchDistributors, fetchDistributorOutstanding,
   fetchDistributorSettlements, submitDistributorCommissionSettlement,
@@ -78,13 +76,13 @@ function AppRouter() {
 const NAV = [
   { group: 'Operations', items: [
     { key: 'overview',   label: 'Dashboard',          roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg> },
-    { key: 'distributors', label: 'Distributors',    roles: ['Super_Admin', 'Manager', 'Salesman'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> },
+    { key: 'distributors', label: 'Distributors',    roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> },
     { key: 'booking',    label: 'Booking Ledger',    roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg> },
     { key: 'sales',      label: 'Sales',             roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg> },
     { key: 'payments',   label: 'Person Payments',   roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 10h20"/></svg> },
     { key: 'distributor_ledger', label: 'Distributor Ledger', roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6M9 10h6M9 18h4"/></svg> },
-    { key: 'stock',      label: 'Stock & Returns',   roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg> },
-    { key: 'expenses',   label: 'Expenses',          roles: null, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg> },
+    { key: 'stock',      label: 'Stock & Returns',   roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg> },
+    { key: 'expenses',   label: 'Expenses',          roles: ['Super_Admin', 'Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg> },
   ]},
   { group: 'Product & Reports', items: [
     { key: 'product',    label: 'Surf Product',      roles: ['Super_Admin','Manager'], icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 7l-8-4-8 4 8 4 8-4z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg> },
@@ -103,7 +101,6 @@ const PAGE_TITLES = {
   distributor_ledger: ['Distributor Ledger', 'Complete stock, sales, recovery & commission ledger per distributor'],
   booking: ['Booking & Orders', 'Manage distributor bookings and recoveries'],
   overview: ['Overview', new Date().toLocaleDateString('en-PK',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
-  salesman: ['Salesman Ledger (Legacy)', 'Historical stock, financial & expense ledger for legacy salesmen'],
   stock: ['Stock & Returns', 'Distributor returns, condition tracking & daily reconciliation'],
   expenses: ['Expenses', 'Submission, approval & reimbursement tracking'],
   payments: ['Person Payments', 'Work-based earnings, payments & ledgers for labourers, helpers & transporters'],
@@ -130,13 +127,8 @@ function App() {
   const { user, role, hasPermission, logout } = useAuth();
   const displayName = user?.full_name || 'Admin';
   const displayRole = role ? role.replace(/_/g, ' ') : 'Administrator';
-  const defaultPage = role === 'Salesman' ? 'distributor_ledger' : 'overview';
-  const [activePage, setActivePage] = useState(defaultPage);
+  const [activePage, setActivePage] = useState('overview');
   const [globalSearch, setGlobalSearch] = useState('');
-
-  useEffect(() => {
-    if (role === 'Salesman' && activePage === 'overview') setActivePage('distributor_ledger');
-  }, [role, activePage]);
 
   const [title, subtitle] = PAGE_TITLES[activePage] || [activePage, ''];
   const handleLogout = async () => { try { await logout(); } catch(e) { console.error(e); } };
@@ -152,16 +144,11 @@ function App() {
     switch(activePage) {
       case 'booking':
         return <BookingPage />;
-
       case 'overview':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access company overview." />;
         return <OverviewPage navigate={navigate} searchTerm={globalSearch}/>;
       case 'distributor_ledger':
         if (role === 'Manager' && !hasPermission('ledger.view') && !hasPermission('sales.view')) return <AccessDenied msg="You need the 'ledger.view' or 'sales.view' permission to view distributor ledgers." />;
         return <DistributorLedgerPage searchTerm={globalSearch}/>;
-      case 'salesman':
-        if (role === 'Manager' && !hasPermission('ledger.view') && !hasPermission('sales.view')) return <AccessDenied msg="You need the 'ledger.view' or 'sales.view' permission to view salesman ledgers." />;
-        return <SalesmanPage searchTerm={globalSearch}/>;
       case 'stock':
         if (role === 'Manager' && !hasPermission('inventory.view') && !hasPermission('returns.view')) return <AccessDenied msg="You need the 'inventory.view' or 'returns.view' permission to access Stock & Returns." />;
         return <StockPage searchTerm={globalSearch}/>;
@@ -173,23 +160,18 @@ function App() {
       case 'sales':
         return <SalesPage searchTerm={globalSearch}/>;
       case 'payments':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access Payment Management."/>;
         if (role === 'Manager' && !hasPermission('payments.view') && !hasPermission('payments.create')) return <AccessDenied msg="You need the 'payments.view' permission to access Payment Management."/>;
         return <PaymentPage searchTerm={globalSearch}/>;
       case 'product':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access product management."/>;
         if (role === 'Manager' && !hasPermission('inventory.view')) return <AccessDenied msg="You need the inventory.view permission to access products."/>;
         return <ProductPage searchTerm={globalSearch}/>;
       case 'settlement':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access settlement."/>;
         if (role === 'Manager' && !hasPermission('settlement.view')) return <AccessDenied msg="You need the settlement.view permission to access settlement."/>;
         return <SettlementPage searchTerm={globalSearch}/>;
       case 'reports':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access reports."/>;
         if (role === 'Manager' && !hasPermission('reports.view')) return <AccessDenied msg="You need the reports.view permission to access reports."/>;
         return <ReportsPage/>;
       case 'audit':
-        if (role === 'Salesman') return <AccessDenied msg="Salesmen cannot access the audit trail."/>;
         if (role === 'Manager' && !hasPermission('audit.view')) return <AccessDenied msg="You need the audit.view permission to access the audit trail."/>;
         return <AuditPage searchTerm={globalSearch}/>;
       case 'settings':
@@ -241,224 +223,6 @@ function App() {
   );
 }
 
-
-function SalesmanPage({ searchTerm = '' }) {
-  const { role, user } = useAuth();
-  const [activeTab, setActiveTab] = useState('stockLedger');
-  const [selectedId, setSelectedId] = useState(null);
-  const [localSearch, setLocalSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [page, setPage] = useState(1);
-  const pageSize = 15;
-
-  const { data: salesmen, loading: sl } = useAsync(fetchSalesmen);
-  
-  const selected = (salesmen||[]).find(s => s.id === selectedId) || (salesmen||[])[0];
-  const sid = selected?.id;
-
-  useEffect(() => {
-    if (!salesmen?.length) return;
-    if (role === 'Salesman') {
-      const own = salesmen.find(s => s.profile_id === user?.id);
-      if (own) setSelectedId(own.id);
-    } else if (!selectedId) {
-      setSelectedId(salesmen[0].id);
-    }
-  }, [salesmen, role, user]);
-
-  const { data: stats, loading: tl } = useAsync(() => sid ? fetchSalesmanStats(sid) : Promise.resolve(null), [sid]);
-  const { data: stock, loading: stL } = useAsync(() => sid ? fetchSalesmanStockLedger(sid) : Promise.resolve([]), [sid, activeTab]);
-  const { data: fin,   loading: fL } = useAsync(() => sid ? fetchSalesmanFinLedger(sid) : Promise.resolve([]), [sid, activeTab]);
-  const { data: exp,   loading: eL } = useAsync(() => sid ? fetchSalesmanExpLedger(sid) : Promise.resolve([]), [sid, activeTab]);
-
-  useEffect(() => { setPage(1); }, [activeTab, statusFilter, localSearch, searchTerm]);
-
-  if (sl) return <Spinner/>;
-  const st = stats || {};
-
-  const query = (localSearch || searchTerm).trim().toLowerCase();
-
-  const filteredStock = (stock || []).filter(r => {
-    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
-    if (!query) return true;
-    return (
-      (r.reference_number || '').toLowerCase().includes(query) ||
-      (r.transaction_type || '').toLowerCase().includes(query) ||
-      (r.status || '').toLowerCase().includes(query) ||
-      fmtDate(r.transaction_date).toLowerCase().includes(query)
-    );
-  });
-
-  const filteredFin = (fin || []).filter(r => {
-    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
-    if (!query) return true;
-    return (
-      (r.ref || '').toLowerCase().includes(query) ||
-      (r.type || '').toLowerCase().includes(query) ||
-      (r.status || '').toLowerCase().includes(query) ||
-      fmtDate(r.date).toLowerCase().includes(query)
-    );
-  });
-
-  const filteredExp = (exp || []).filter(r => {
-    if (statusFilter !== 'All' && r.status !== statusFilter) return false;
-    if (!query) return true;
-    return (
-      (r.category || '').toLowerCase().includes(query) ||
-      (r.description || '').toLowerCase().includes(query) ||
-      (r.status || '').toLowerCase().includes(query) ||
-      fmtDate(r.expense_date).toLowerCase().includes(query)
-    );
-  });
-
-  const paginatedStock = filteredStock.slice((page - 1) * pageSize, page * pageSize);
-  const paginatedFin = filteredFin.slice((page - 1) * pageSize, page * pageSize);
-  const paginatedExp = filteredExp.slice((page - 1) * pageSize, page * pageSize);
-
-  const isFiltered = localSearch || statusFilter !== 'All';
-  const resetFilters = () => { setLocalSearch(''); setStatusFilter('All'); setPage(1); };
-
-  return (
-    <>
-      <div className="panel" style={{marginBottom:20}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:14}}>
-          <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <div className="avatar" style={{width:52,height:52,fontSize:17}}>{selected?.profiles?.full_name?.substring(0,2)?.toUpperCase()||'--'}</div>
-            <div>
-              <div style={{fontSize:16,fontWeight:600}}>{selected?.profiles?.full_name||'-'} - #{selected?.code||'-'}</div>
-              <div style={{fontSize:12,color:'var(--text-dim)'}}>Route: {selected?.route||'-'}</div>
-            </div>
-          </div>
-          <div className="chip-list">
-            {role === 'Salesman' ? (
-              <div className="chip active">{selected?.profiles?.full_name||selected?.code}</div>
-            ) : (
-              (salesmen||[]).map(s => (
-                <div key={s.id} className={`chip${s.id===selectedId?' active':''}`} onClick={() => setSelectedId(s.id)}>
-                  {s.profiles?.full_name||s.code}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {tl ? <Spinner/> : (
-        <div className="grid g4" style={{marginBottom:20}}>
-          <div className="tile teal"><div className="bar"/><div className="label">Current stock</div><div className="num">{fmtNum(st.stock)} pkts</div></div>
-          <div className="tile green"><div className="bar"/><div className="label">Today's sales</div><div className="num">Rs. {fmtNum(st.todaySalesAmt)}</div></div>
-          <div className="tile amber"><div className="bar"/><div className="label">Outstanding</div><div className="num">Rs. {fmtNum(st.outstanding)}</div></div>
-          <div className="tile red"><div className="bar"/><div className="label">Pending reimbursement</div><div className="num">Rs. {fmtNum(st.pendingReimb)}</div></div>
-        </div>
-      )}
-
-      <div className="panel">
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,borderBottom:'1px solid var(--line)',paddingBottom:12,marginBottom:16}}>
-          <div className="tabs" style={{margin:0,border:0}}>
-            {[['stockLedger','Stock Ledger'],['finLedger','Financial Ledger'],['expLedger','Expense Ledger']].map(([k,l]) => (
-              <div key={k} className={`tab${activeTab===k?' active':''}`} onClick={() => setActiveTab(k)}>{l}</div>
-            ))}
-          </div>
-
-          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-            <input 
-              type="text" 
-              placeholder="Filter by ref, type, date..." 
-              value={localSearch} 
-              onChange={e => setLocalSearch(e.target.value)} 
-              style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:190}}
-            />
-            <div className="chip-list" style={{gap:4}}>
-              {['All', 'Approved', 'Pending'].map(st => (
-                <div key={st} className={`chip${statusFilter===st?' active':''}`} onClick={() => setStatusFilter(st)} style={{padding:'4px 10px',fontSize:11}}>
-                  {st}
-                </div>
-              ))}
-            </div>
-            {isFiltered && (
-              <span className="link" onClick={resetFilters} style={{color:'var(--red)',fontSize:12}}>Reset</span>
-            )}
-          </div>
-        </div>
-
-        {activeTab === 'stockLedger' && (
-          stL ? <Spinner/> : (
-            <div>
-              <table>
-                <thead><tr><th>Date</th><th>Transaction</th><th>Reference</th><th>In</th><th>Out</th><th>Status</th></tr></thead>
-                <tbody>
-                  {paginatedStock.length===0 ? <Empty msg={isFiltered || query ? "No matching stock transactions found." : "No stock transactions yet."}/> :
-                    paginatedStock.map(r => (
-                      <tr key={r.id}>
-                        <td>{fmtDate(r.transaction_date)}</td>
-                        <td>{r.transaction_type?.replace(/_/g,' ')}</td>
-                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.reference_number}</td>
-                        <td className="num-cell">{r.transaction_type==='Salesman_Issue'?r.quantity:'-'}</td>
-                        <td className="num-cell">{['Sale','Salesman_Good_Return','Salesman_Damaged_Return'].includes(r.transaction_type)?r.quantity:'-'}</td>
-                        <td>{statusBadge(r.status)}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-              <Pagination page={page} pageSize={pageSize} total={filteredStock.length} onPageChange={setPage} />
-            </div>
-          )
-        )}
-
-        {activeTab === 'finLedger' && (
-          fL ? <Spinner/> : (
-            <div>
-              <table>
-                <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Debit</th><th>Credit</th><th>Balance</th><th>Status</th></tr></thead>
-                <tbody>
-                  {paginatedFin.length===0 ? <Empty msg={isFiltered || query ? "No matching financial records found." : "No financial transactions yet."}/> :
-                    paginatedFin.map((r,i) => (
-                      <tr key={i}>
-                        <td>{fmtDate(r.date)}</td>
-                        <td>{r.type}</td>
-                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.ref}</td>
-                        <td className="num-cell">{r.debit?`Rs. ${fmtNum(r.debit)}`:'-'}</td>
-                        <td className="num-cell">{r.credit?`Rs. ${fmtNum(r.credit)}`:'-'}</td>
-                        <td className="num-cell" style={{color:r.balance>0?'var(--red)':'var(--green)'}}>Rs. {fmtNum(Math.abs(r.balance))}</td>
-                        <td>{statusBadge(r.status)}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-              <Pagination page={page} pageSize={pageSize} total={filteredFin.length} onPageChange={setPage} />
-            </div>
-          )
-        )}
-
-        {activeTab === 'expLedger' && (
-          eL ? <Spinner/> : (
-            <div>
-              <table>
-                <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Description</th><th>Status</th></tr></thead>
-                <tbody>
-                  {paginatedExp.length===0 ? <Empty msg={isFiltered || query ? "No matching expenses found." : "No expenses yet."}/> :
-                    paginatedExp.map(r => (
-                      <tr key={r.id}>
-                        <td>{fmtDate(r.expense_date)}</td>
-                        <td>{r.category}</td>
-                        <td className="num-cell">Rs. {fmtNum(r.amount)}</td>
-                        <td style={{fontSize:11,color:'var(--text-dim)'}}>{r.description||'-'}</td>
-                        <td>{statusBadge(r.status)}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-              <Pagination page={page} pageSize={pageSize} total={filteredExp.length} onPageChange={setPage} />
-            </div>
-          )
-        )}
-      </div>
-    </>
-  );
-}
 
 function Pagination({ page, pageSize, total, onPageChange }) {
   if (total <= pageSize) return null;
@@ -585,7 +349,7 @@ function ProductPage({ searchTerm = '' }) {
     <>
       <div className="grid g4" style={{marginBottom:20}}>
         <div className="tile teal"><div className="bar"/><div className="label">Production</div><div className="num">{fmtNum(mv.production)}</div></div>
-        <div className="tile green"><div className="bar"/><div className="label">Good returns (distributor / legacy)</div><div className="num">{fmtNum(mv.salesman_returns)}</div></div>
+        <div className="tile green"><div className="bar"/><div className="label">Good returns (distributor)</div><div className="num">{fmtNum(mv.salesman_returns)}</div></div>
         <div className="tile amber"><div className="bar"/><div className="label">Damaged / adjustments</div><div className="num">{fmtNum(mv.damaged)}</div></div>
         <div className="tile red"><div className="bar"/><div className="label">Closing stock (warehouse)</div><div className="num">{fmtNum(mv.closing)}</div></div>
       </div>
@@ -596,9 +360,8 @@ function ProductPage({ searchTerm = '' }) {
           <table>
             <tbody>
               <tr><td>Production</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.production)}</td></tr>
-              <tr><td>Stock issued (dispatched to distributors)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_issues)}</td></tr>
-              <tr><td>Good returns (distributor / legacy)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_returns)}</td></tr>
-              <tr><td>Legacy customer returns</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.customer_returns)}</td></tr>
+              <tr><td>Stock issued (distributors)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_issues)}</td></tr>
+              <tr><td>Good returns (distributor)</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.salesman_returns)}</td></tr>
               <tr><td>Damaged</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.damaged)}</td></tr>
               <tr><td>Adjustments</td><td className="num-cell" style={{textAlign:'right'}}>{fmtNum(mv.adjustments)}</td></tr>
               <tr><td><strong>Closing stock</strong></td><td className="num-cell" style={{textAlign:'right'}}><strong>{fmtNum(mv.closing)}</strong></td></tr>

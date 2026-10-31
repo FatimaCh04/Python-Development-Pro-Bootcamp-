@@ -204,7 +204,6 @@ export default function SalesPage({ searchTerm = '' }) {
       await submitSale({
         distributorId: selDist.id,
         salesmanId: null,
-        customerId: null,
         items,
         totalAmount,
         saleDate: new Date().toISOString()

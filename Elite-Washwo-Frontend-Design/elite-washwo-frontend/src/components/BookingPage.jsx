@@ -40,7 +40,7 @@ export default function BookingPage() {
 
   // ── List filters ──────────────────────────────────────────────────────────
   const [filterDate,        setFilterDate]        = useState(todayISO());
-  const [allDates,          setAllDates]          = useState(false);
+  const [allDates,          setAllDates]          = useState(true);
   const [filterDistributor, setFilterDistributor] = useState('');
   const [filterSearch,      setFilterSearch]      = useState('');
 
@@ -218,7 +218,7 @@ async function ensureBookingItems(b) {
     const { data, error } = await supabase
       .from('sale_items')
       .select('*, product_packaging(name, products(name))')
-      .eq('sales_order_id', b.id);
+      .eq('sale_order_id', b.id);
     if (!error && data && data.length > 0) {
       return { ...b, sale_items: data };
     }
@@ -412,7 +412,7 @@ async function ensureBookingItems(b) {
           ) : (
             <>
               <div style={{ padding: '8px 12px', background: '#F5F3ED', border: '1px solid var(--line)', borderRadius: 6, fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>
-                ℹ️ <strong>Booking Ledger Notice:</strong> Bookings represent customer order reservations. Values below track <em>Advance Deposits</em> and do not post to trade debt receivables until fulfilled as an approved Delivery Bill (<code>SAL-</code>).
+                ℹ️ <strong>Booking Ledger Notice:</strong> Bookings represent distributor order reservations. Values below track <em>Advance Deposits</em> and do not post to trade debt receivables until fulfilled as an approved Delivery Bill (<code>SAL-</code>).
               </div>
               <table>
                 <thead>
@@ -436,7 +436,7 @@ async function ensureBookingItems(b) {
                     return (
                       <tr key={b.id}>
                         <td>
-                          <div style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 13 }}>Bill #{b.formattedBillNo || '01'}</div>
+                          <div style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 13 }}>{b.formattedBillNo ? `Bill #${b.formattedBillNo}` : 'Bill (Not Assigned)'}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>{b.reference_number}</div>
                         </td>
                         <td>{fmtDate(b.sale_date)}</td>
@@ -736,16 +736,8 @@ async function ensureBookingItems(b) {
                           <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>({r.booking_distributor.code})</span>
                           <span style={{ display: 'block', fontSize: 10, color: 'var(--teal)' }}>(via Linked Booking)</span>
                         </span>
-                      ) : r.salesmen?.profiles?.full_name ? (
-                        <span>
-                          {r.salesmen.profiles.full_name}{' '}
-                          <span className="badge gray" style={{ fontSize: 10, padding: '2px 5px' }}>Legacy Salesman</span>
-                        </span>
-                      ) : r.customers?.name ? (
-                        <span>
-                          {r.customers.name}{' '}
-                          <span className="badge gray" style={{ fontSize: 10, padding: '2px 5px' }}>Customer</span>
-                        </span>
+
+
                       ) : (
                         <span style={{ color: 'var(--text-dim)', fontStyle: 'italic', fontSize: 12 }}>Unassigned (Legacy)</span>
                       )}
@@ -791,7 +783,7 @@ async function ensureBookingItems(b) {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div className="panel" style={{ width: 440, maxWidth: '90%' }}>
             <div className="section-head">
-              <h2>Record Booking Advance — {recoveryBooking.reference_number}</h2>
+              <h2>Record Booking Advance — {recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : ''} ({recoveryBooking.reference_number})</h2>
               <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => { setShowRecovery(false); setMsg(''); }}>✕</button>
             </div>
 

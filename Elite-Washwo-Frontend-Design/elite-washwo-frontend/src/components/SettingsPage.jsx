@@ -50,7 +50,7 @@ function StaffManager({ globalSearch = '' }) {
   const pageSize = 15;
 
   const [form, setForm] = useState({
-    email: '', password: '', full_name: '', role: 'Manager', code: '', route: ''
+    email: '', password: '', full_name: '', role: 'Manager'
   });
   const [saving, setSaving] = useState(false);
 
@@ -59,10 +59,8 @@ function StaffManager({ globalSearch = '' }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          id, full_name, role, is_active,
-          salesmen(code, route)
-        `)
+        .select('id, full_name, role, is_active')
+        .in('role', ['Super_Admin', 'Manager'])
         .order('created_at', { ascending: false });
       if (error) throw error;
       setStaff(data || []);
@@ -77,8 +75,8 @@ function StaffManager({ globalSearch = '' }) {
     setSaving(true); setMsg('');
     try {
       await invokeCreateUser(form);
-      setMsg('ok:User created successfully.');
-      setForm({ email: '', password: '', full_name: '', role: 'Manager', code: '', route: '' });
+      setMsg('ok:Manager account created successfully.');
+      setForm({ email: '', password: '', full_name: '', role: 'Manager' });
       setShowAdd(false);
       fetchStaff();
     } catch(e) {
@@ -101,9 +99,7 @@ function StaffManager({ globalSearch = '' }) {
     if (!query) return true;
     return (
       (s.full_name || '').toLowerCase().includes(query) ||
-      (s.role || '').toLowerCase().includes(query) ||
-      (s.salesmen?.[0]?.code || '').toLowerCase().includes(query) ||
-      (s.salesmen?.[0]?.route || '').toLowerCase().includes(query)
+      (s.role || '').toLowerCase().includes(query)
     );
   });
 
@@ -116,23 +112,23 @@ function StaffManager({ globalSearch = '' }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,marginBottom: 16}}>
         <div>
           <h2 style={{fontSize:18, margin:0}}>Staff Directory</h2>
-          <p style={{fontSize:12.5,color:'var(--text-dim)',margin:0}}>Manage Manager accounts.</p>
+          <p style={{fontSize:12.5,color:'var(--text-dim)',margin:0}}>Manage Manager accounts and Super Admin permissions.</p>
         </div>
-        <button className="btn primary" onClick={()=>setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : 'Add Staff'}</button>
+        <button className="btn primary" onClick={()=>setShowAdd(!showAdd)}>{showAdd ? 'Cancel' : '+ Add Manager'}</button>
       </div>
 
       <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',marginBottom:16}}>
         <input 
           type="text" 
-          placeholder="Filter staff by name, code, route..." 
+          placeholder="Filter staff by name or role..." 
           value={localSearch} 
           onChange={e => { setLocalSearch(e.target.value); setPage(1); }} 
           style={{padding:'5px 10px',fontSize:12,border:'1px solid var(--line)',borderRadius:6,background:'var(--panel)',color:'var(--text)',outline:'none',width:220}}
         />
         <div className="chip-list" style={{gap:4}}>
-          {['All', 'Manager'].map(r => (
+          {['All', 'Manager', 'Super_Admin'].map(r => (
             <div key={r} className={`chip${roleFilter===r?' active':''}`} onClick={() => { setRoleFilter(r); setPage(1); }} style={{padding:'4px 10px',fontSize:11}}>
-              {r}
+              {r === 'Super_Admin' ? 'Super Admin' : r}
             </div>
           ))}
         </div>
@@ -154,11 +150,11 @@ function StaffManager({ globalSearch = '' }) {
           <div className="form-grid">
             <div className="field">
               <label>Full Name *</label>
-              <input required placeholder="e.g. Ali Raza" value={form.full_name} onChange={e=>setForm({...form, full_name: e.target.value})} />
+              <input required placeholder="e.g. Muhammad Raza" value={form.full_name} onChange={e=>setForm({...form, full_name: e.target.value})} />
             </div>
             <div className="field">
               <label>Email *</label>
-              <input required type="email" placeholder="ali@washwo.com" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
+              <input required type="email" placeholder="manager@elitewash.com" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
             </div>
             <div className="field">
               <label>Password *</label>
@@ -172,7 +168,7 @@ function StaffManager({ globalSearch = '' }) {
             </div>
           </div>
           <button type="submit" className="btn primary" style={{marginTop:12}} disabled={saving}>
-            {saving ? 'Creating...' : 'Create Account'}
+            {saving ? 'Creating...' : 'Create Manager Account'}
           </button>
         </form>
       )}
@@ -183,7 +179,6 @@ function StaffManager({ globalSearch = '' }) {
             <tr>
               <th>Name</th>
               <th>Role</th>
-              <th>Assignment</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -191,7 +186,7 @@ function StaffManager({ globalSearch = '' }) {
           <tbody>
             {paginatedStaff.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{textAlign:'center',color:'var(--text-dim)',padding:24,fontSize:12}}>
+                <td colSpan="4" style={{textAlign:'center',color:'var(--text-dim)',padding:24,fontSize:12}}>
                   {isFiltered || query ? 'No staff found matching search criteria.' : 'No staff accounts yet.'}
                 </td>
               </tr>
@@ -199,23 +194,17 @@ function StaffManager({ globalSearch = '' }) {
               paginatedStaff.map(s => (
                 <tr key={s.id}>
                   <td><div style={{fontWeight:600}}>{s.full_name}</div></td>
-                  <td><span className={`badge ${s.role==='Manager'?'teal':'amber'}`}>{s.role}</span></td>
-                  <td>
-                    {s.salesmen?.[0] ? (
-                      <div style={{fontSize:11.5}}>
-                        Code: {s.salesmen[0].code}<br/>
-                        <span style={{color:'var(--text-dim)'}}>Route: {s.salesmen[0].route || 'N/A'}</span>
-                      </div>
-                    ) : '—'}
-                  </td>
+                  <td><span className={`badge ${s.role==='Manager'?'teal':'amber'}`}>{s.role.replace(/_/g, ' ')}</span></td>
                   <td>
                     <span className={`badge ${s.is_active?'green':'gray'}`}>{s.is_active ? 'Active' : 'Disabled'}</span>
                   </td>
                   <td>
-                    {s.role !== 'Super_Admin' && (
+                    {s.role !== 'Super_Admin' ? (
                       <span className="link" onClick={()=>toggleStatus(s.id, s.is_active)} style={{color: s.is_active ? 'var(--red)' : 'var(--green)'}}>
                         {s.is_active ? 'Disable' : 'Enable'}
                       </span>
+                    ) : (
+                      <span style={{color:'var(--text-dim)',fontSize:12}}>Protected</span>
                     )}
                   </td>
                 </tr>
@@ -315,7 +304,7 @@ function ChangePasswordSection() {
 
 // ── Distributor Settings Section ─────────────────────────────────────────
 function DistributorSettingsSection({ role }) {
-  const isReadOnly = role === 'Salesman';
+  const isReadOnly = role !== 'Super_Admin' && role !== 'Manager';
   const [distributors, setDistributors] = useState([]);
   const [search, setSearch]             = useState('');
   const [selected, setSelected]         = useState(null);

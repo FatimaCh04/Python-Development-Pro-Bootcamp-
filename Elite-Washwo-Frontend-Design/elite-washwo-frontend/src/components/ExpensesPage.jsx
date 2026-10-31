@@ -173,7 +173,6 @@ export default function ExpensesPage({ searchTerm = '' }) {
       (r.distributors?.name || '').toLowerCase().includes(query) ||
       (r.distributors?.code || '').toLowerCase().includes(query) ||
       (r.persons?.name || '').toLowerCase().includes(query) ||
-      (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(query) ||
       (r.account_detail || '').toLowerCase().includes(query) ||
       (r.tid || '').toLowerCase().includes(query) ||
       (r.description || '').toLowerCase().includes(query)
@@ -415,7 +414,6 @@ export default function ExpensesPage({ searchTerm = '' }) {
                 displayExpenses.map(r => {
                   const distName = r.distributors ? `${r.distributors.code} — ${r.distributors.name}` : null;
                   const personName = r.persons?.name ? `${r.persons.name} (${r.persons.category || r.persons.code || 'Person'})` : null;
-                  const smName = r.salesmen?.profiles?.full_name;
                   const isPersonLinked = !!r.originating_ledger_entry_id;
                   
                   return (
@@ -428,7 +426,7 @@ export default function ExpensesPage({ searchTerm = '' }) {
                       <td>
                         {distName ? <span style={{ fontWeight: 600, color: 'var(--teal)' }}>{distName}</span> : 
                          personName ? <span>{personName}</span> :
-                         smName ? <span style={{ color: 'var(--text-dim)' }}>{smName} (Legacy)</span> : '—'}
+                         '—'}
                         {isPersonLinked && (
                           <div style={{ marginTop: 2 }}>
                             <span className="badge teal" style={{ fontSize: 9, padding: '2px 4px' }}>Person Payment</span>

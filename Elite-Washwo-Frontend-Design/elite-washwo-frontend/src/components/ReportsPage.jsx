@@ -346,7 +346,7 @@ export default function ReportsPage() {
           r.reference_number,
           r.transaction_type,
           r.product_packaging?.products?.name ? `${r.product_packaging.products.name} (${r.product_packaging.name})` : 'Surf',
-          r.distributors?.name || r.salesmen?.profiles?.full_name || 'Company',
+          r.distributors?.name || 'Company Internal',
           r.quantity,
           r.status
         ]);
@@ -414,7 +414,7 @@ export default function ReportsPage() {
           const cashVar = (c.submitted_cash !== null && c.submitted_cash !== undefined) ? (Number(c.submitted_cash) - Number(c.expected_cash || 0)) : 'Unreconciled';
           return [
             fmtDate(c.closing_date),
-            c.distributors?.name || c.salesmen?.profiles?.full_name || '—',
+            c.distributors?.name || '—',
             c.expected_cash,
             c.submitted_cash ?? '—',
             cashVar,
@@ -489,7 +489,7 @@ export default function ReportsPage() {
         const cashVar = (c.submitted_cash !== null && c.submitted_cash !== undefined) ? (Number(c.submitted_cash) - Number(c.expected_cash || 0)) : null;
         return [
           fmtDate(c.closing_date),
-          c.distributors?.name || c.salesmen?.profiles?.full_name || '—',
+          c.distributors?.name || '—',
           `PKR ${fmtNum(c.expected_cash)}`,
           c.submitted_cash !== null ? `PKR ${fmtNum(c.submitted_cash)}` : '—',
           cashVar !== null ? `PKR ${fmtNum(cashVar)}` : 'Unreconciled',
@@ -1026,7 +1026,7 @@ export default function ReportsPage() {
                             </span>
                           </td>
                           <td>{r.product_packaging?.products?.name ? `${r.product_packaging.products.name} (${r.product_packaging.name})` : 'Surf'}</td>
-                          <td>{r.distributors?.name || r.salesmen?.profiles?.full_name || 'Company Internal'}</td>
+                          <td>{r.distributors?.name || 'Company Internal'}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtNum(r.quantity)} pkts</td>
                           <td><span className="badge green">{r.status}</span></td>
                         </tr>
@@ -1388,7 +1388,7 @@ export default function ReportsPage() {
                         return (
                           <tr key={c.id}>
                             <td>{fmtDate(c.closing_date)}</td>
-                            <td>{c.distributors?.name || c.salesmen?.profiles?.full_name || '—'}</td>
+                            <td>{c.distributors?.name || '—'}</td>
                             <td style={{ textAlign: 'right' }}>PKR {fmtNum(c.expected_cash)}</td>
                             <td style={{ textAlign: 'right' }}>
                               {hasSubmitted ? `PKR ${fmtNum(c.submitted_cash)}` : <span style={{ color: 'var(--text-dim)' }}>Uncounted</span>}
@@ -1505,7 +1505,7 @@ export default function ReportsPage() {
             </div>
             
             <div style={{ marginBottom: 16, fontSize: 13 }}>
-              Party: <strong>{reconcileModal.distributors?.name || reconcileModal.salesmen?.profiles?.full_name || '—'}</strong>
+              Party: <strong>{reconcileModal.distributors?.name || '—'}</strong>
             </div>
 
             <div className="grid g2" style={{ marginBottom: 16 }}>

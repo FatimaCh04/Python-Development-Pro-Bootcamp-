@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchDistributors,
-  fetchSalesmen,
   fetchProducts,
   fetchInventoryTransactions,
   fetchStockBalances,
@@ -48,7 +47,6 @@ export default function StockPage({ searchTerm = '' }) {
   
   // Data State
   const [distributors, setDistributors] = useState([]);
-  const [salesmen, setSalesmen] = useState([]);
   const [products, setProducts] = useState([]);
   const [txns, setTxns] = useState([]);
   const [balances, setBalances] = useState({
@@ -116,15 +114,13 @@ export default function StockPage({ searchTerm = '' }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [d, s, p, t, b] = await Promise.all([
+      const [d, p, t, b] = await Promise.all([
         fetchDistributors(),
-        fetchSalesmen(),
         fetchProducts(),
         fetchInventoryTransactions(),
         fetchStockBalances()
       ]);
       setDistributors(d || []);
-      setSalesmen(s || []);
       setProducts(p || []);
       setTxns(t || []);
       setBalances(b || {
@@ -336,33 +332,22 @@ export default function StockPage({ searchTerm = '' }) {
       : null;
 
     let targetPhone = null;
-    let entityName = 'Unknown';
-    let entityLabel = isDist ? 'Distributor' : 'Salesman';
+    let entityName = 'Distributor';
+    const entityLabel = 'Distributor';
 
-    if (isDist) {
-      if (!distObj) {
-        const warn = 'Cannot open WhatsApp: No distributor is linked to this transaction.';
-        setMsg('err:' + warn);
-        if (typeof alert === 'function') alert(warn);
-        return;
-      }
-      entityName = distObj.name || 'Unknown';
-      targetPhone = formatPakistaniPhoneForWhatsApp(distObj.phone);
-      if (!targetPhone) {
-        const warn = `Cannot open WhatsApp: Distributor ${distObj.name} has no valid registered phone number.`;
-        setMsg('err:' + warn);
-        if (typeof alert === 'function') alert(warn);
-        return;
-      }
-    } else {
-      entityName = r.salesmen?.profiles?.full_name || 'Unknown';
-      targetPhone = formatPakistaniPhoneForWhatsApp(r.salesmen?.profiles?.phone || r.salesmen?.phone);
-      if (!targetPhone) {
-        const warn = `Cannot open WhatsApp: Salesman ${entityName} has no valid registered phone number.`;
-        setMsg('err:' + warn);
-        if (typeof alert === 'function') alert(warn);
-        return;
-      }
+    if (!distObj) {
+      const warn = 'Cannot open WhatsApp: No distributor is linked to this transaction.';
+      setMsg('err:' + warn);
+      if (typeof alert === 'function') alert(warn);
+      return;
+    }
+    entityName = distObj.name || 'Unknown';
+    targetPhone = formatPakistaniPhoneForWhatsApp(distObj.phone);
+    if (!targetPhone) {
+      const warn = `Cannot open WhatsApp: Distributor ${distObj.name} has no valid registered phone number.`;
+      setMsg('err:' + warn);
+      if (typeof alert === 'function') alert(warn);
+      return;
     }
 
     setMsg('');
@@ -382,10 +367,10 @@ export default function StockPage({ searchTerm = '' }) {
 
   const handlePrint = (r) => {
     const isDist = !!r.distributor_id;
-    const entityLabel = isDist ? 'Distributor' : 'Salesman';
+    const entityLabel = 'Distributor';
     const entityName = isDist 
       ? `${r.distributors?.name || ''} (${r.distributors?.code || ''})`
-      : `${r.salesmen?.profiles?.full_name || ''}`;
+      : 'Company Internal';
 
     const win = window.open('', '_blank');
     win.document.write(`<html><head><title>${r.reference_number}</title>
@@ -394,7 +379,7 @@ export default function StockPage({ searchTerm = '' }) {
         <h2>Elite Wash — Inventory Voucher</h2>
         <p><strong>Ref #:</strong> ${r.reference_number} &nbsp; <strong>Date:</strong> ${fmtDate(r.transaction_date)} &nbsp; <strong>Status:</strong> ${r.status}</p>
         <p><strong>Movement Type:</strong> ${r.transaction_type.replace(/_/g, ' ')}</p>
-        ${(r.distributor_id || r.salesman_id) ? `<p><strong>${entityLabel}:</strong> ${entityName}</p>` : ''}
+        ${r.distributor_id ? `<p><strong>${entityLabel}:</strong> ${entityName}</p>` : ''}
         ${r.notes ? `<p><strong>Notes:</strong> ${r.notes}</p>` : ''}
         <table>
           <tr><th>Product Variant</th><th>Category</th><th>Quantity</th></tr>
@@ -422,12 +407,11 @@ export default function StockPage({ searchTerm = '' }) {
     if (!query) return true;
     
     const distMatch = (r.distributors?.name || '').toLowerCase().includes(query) || (r.distributors?.code || '').toLowerCase().includes(query);
-    const smMatch = (r.salesmen?.profiles?.full_name || '').toLowerCase().includes(query);
     const prodMatch = (r.product_packaging?.products?.name || '').toLowerCase().includes(query) || (r.product_packaging?.name || '').toLowerCase().includes(query);
     
     return (
       (r.reference_number || '').toLowerCase().includes(query) ||
-      distMatch || smMatch || prodMatch ||
+      distMatch || prodMatch ||
       (r.transaction_type || '').toLowerCase().includes(query) ||
       (r.status || '').toLowerCase().includes(query) ||
       (r.notes || '').toLowerCase().includes(query) ||
@@ -834,8 +818,6 @@ export default function StockPage({ searchTerm = '' }) {
                         <td>
                           {r.distributors ? (
                             <span><span className="badge teal" style={{ marginRight: 4, padding: '1px 4px', fontSize: 9 }}>Dist</span>{r.distributors.name}</span>
-                          ) : r.salesmen ? (
-                            <span><span className="badge" style={{ marginRight: 4, padding: '1px 4px', fontSize: 9 }}>SM</span>{r.salesmen.profiles?.full_name}</span>
                           ) : (
                             <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Company Internal</span>
                           )}
