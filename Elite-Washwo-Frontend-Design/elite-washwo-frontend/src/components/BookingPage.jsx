@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { fetchBookings, fetchProducts, fetchDistributors, submitBooking, addBookingRecovery, fetchRecoveries } from '../lib/db';
