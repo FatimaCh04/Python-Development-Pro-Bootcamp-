@@ -102,7 +102,7 @@ export default function BookingPage() {
       setBookings(data || []);
     } catch (e) {
       console.error(e);
-      setMsg('err:Failed to load bookings.');
+      setMsg('err:Failed to load bookings: ' + (e.message || 'Unknown error'));
     }
     setLoading(false);
   }, [filterDate, allDates, filterDistributor]);
@@ -124,7 +124,7 @@ export default function BookingPage() {
   function handleSelectDist(d) {
     setSelectedDistributor(d);
     setDistSearch('');
-    setCommissionRate(d.commission !== undefined && d.commission !== null ? String(d.commission) : '30');
+    setCommissionRate(d.commission !== undefined && d.commission !== null ? String(d.commission) : '');
   }
   function handleClearDist() {
     setSelectedDistributor(null);
@@ -225,19 +225,23 @@ export default function BookingPage() {
     if (amt > Number(recoveryBooking.remaining_balance || 0)) {
       setMsg(`err:Amount exceeds remaining pending balance of Rs. ${fmtNum(recoveryBooking.remaining_balance)}.`); return;
     }
+    const commPct = Number(recoveryBooking.commission_percentage || 0);
+    const commEarned = (amt * commPct) / 100;
+
     try {
       setLoading(true); setMsg('');
       await addBookingRecovery({
-        bookingId:     recoveryBooking.id,
-        bookingRef:    recoveryBooking.reference_number,
-        distributorId: recoveryBooking.distributor_id || null,
-        amount:        amt,
+        bookingId:            recoveryBooking.id,
+        bookingRef:           recoveryBooking.reference_number,
+        distributorId:        recoveryBooking.distributor_id || null,
+        amount:               amt,
         paymentMethod,
         recoveryDate,
-        notes:         recoveryNotes,
-        receiptNo:     receiptNo || null
+        notes:                recoveryNotes,
+        receiptNo:            receiptNo || null,
+        commissionPercentage: commPct
       });
-      setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} recorded successfully against ${recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : recoveryBooking.reference_number}.`);
+      setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} recorded successfully against ${recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : recoveryBooking.reference_number}. Commission earned: Rs. ${fmtNum(commEarned)} (${commPct}%).`);
       await loadBookings();
       await loadRecoveries();
       setTimeout(() => { setShowRecovery(false); setMsg(''); }, 1500);
@@ -491,13 +495,14 @@ async function ensureBookingItems(b) {
                     <th style={{ textAlign: 'right' }}>Booking Value</th>
                     <th style={{ textAlign: 'right' }}>Advance Paid</th>
                     <th style={{ textAlign: 'right' }}>Advance Remaining</th>
+                    <th>Commission</th>
                     <th>Booking Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayBookings.length === 0 ? (
-                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)' }}>No bookings found for selected filters.</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)' }}>No bookings found for selected filters.</td></tr>
                   ) : displayBookings.map(b => {
                     const pkts = (b.sale_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
                     return (
@@ -513,6 +518,10 @@ async function ensureBookingItems(b) {
                         <td style={{ textAlign: 'right', color: 'var(--green)', fontWeight: 600 }}>Rs. {fmtNum(b.total_recovered)}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: b.remaining_balance > 0 ? 'var(--red)' : 'var(--green)' }}>
                           Rs. {fmtNum(b.remaining_balance)}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--teal)' }}>{b.commission_percentage || 0}%</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Earned: Rs. {fmtNum(b.commission_earned)}</div>
                         </td>
                         <td>
                           <span className={`badge ${b.remaining_balance <= 0 ? 'green' : b.total_recovered > 0 ? 'amber' : 'gray'}`}>
@@ -643,7 +652,7 @@ async function ensureBookingItems(b) {
                 <th style={{ textAlign: 'right' }}>Booking Value</th>
                 <th style={{ textAlign: 'right' }}>Advance Paid</th>
                 <th style={{ textAlign: 'right' }}>Remaining Pending</th>
-                <th>Commission Rate</th>
+                <th>Commission Rate & Earned</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -657,9 +666,6 @@ async function ensureBookingItems(b) {
               ) : (
                 displayPending.map(b => {
                   const pkts = (b.sale_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-                  const comm = b.commission_rate_snapshot !== null && b.commission_rate_snapshot !== undefined
-                    ? `Rs. ${b.commission_rate_snapshot}/pkt`
-                    : b.distributors?.commission ? `Rs. ${b.distributors.commission}/pkt` : '—';
                   return (
                     <tr key={b.id}>
                       <td>
@@ -680,7 +686,17 @@ async function ensureBookingItems(b) {
                       <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red)', fontSize: 13.5 }}>
                         Rs. {fmtNum(b.remaining_balance)}
                       </td>
-                      <td style={{ fontSize: 12 }}>{comm}</td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--teal)', fontSize: 13 }}>
+                          {b.commission_percentage || 0}%
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                          Earned: Rs. {fmtNum(b.commission_earned)}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>
+                          Potential: Rs. {fmtNum(b.potential_commission)}
+                        </div>
+                      </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button
@@ -884,48 +900,52 @@ async function ensureBookingItems(b) {
             <div className="panel" style={{ marginTop: 16, marginBottom: 16, background: '#F8FAF9', border: '1px solid var(--teal-light)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: 14, color: 'var(--teal)' }}>💰 Distributor Commission Configuration</h4>
+                  <h4 style={{ margin: 0, fontSize: 14, color: 'var(--teal)' }}>💰 Agreed Distributor Commission (%)</h4>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                    Manual commission rate per packet for #{selectedDistributor.code} ({selectedDistributor.name})
+                    Percentage-based progressive commission for #{selectedDistributor.code} ({selectedDistributor.name})
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Total Calculated Commission</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Potential Commission (at 100% recovery)</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--teal)' }}>
-                    Rs. {fmtNum(totalPackets * (Number(commissionRate) || 0))}
+                    Rs. {fmtNum(totalAmount * ((Number(commissionRate) || 0) / 100))}
                   </div>
                 </div>
               </div>
 
-              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                 <div className="field">
-                  <label>Agreed Rate (Rs. / packet) *</label>
+                  <label>Agreed Commission Percentage (%) *</label>
                   <input 
                     type="number" 
                     min="0" 
+                    max="100"
                     step="0.01" 
                     value={commissionRate} 
                     onChange={e => setCommissionRate(e.target.value)} 
-                    placeholder="e.g. 30"
+                    placeholder="e.g. 5 for 5%"
                     required
                   />
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                    Enter any percentage agreed with distributor (e.g. 2%, 5%, 7%, 10%). Commission is earned progressively as recoveries are received.
+                  </div>
                 </div>
                 <div className="field">
-                  <label>Total Order Packets</label>
+                  <label>Total Booking Amount</label>
                   <input 
                     type="text" 
-                    value={`${fmtNum(totalPackets)} pkts`} 
+                    value={`Rs. ${fmtNum(totalAmount)}`} 
                     disabled 
                     style={{ background: '#F0F0EE', fontWeight: 600 }}
                   />
                 </div>
                 <div className="field">
-                  <label>Commission Payable on Fulfilled Sale</label>
+                  <label>Progressive Example</label>
                   <input 
                     type="text" 
-                    value={`Rs. ${fmtNum(totalPackets * (Number(commissionRate) || 0))}`} 
+                    value={`Rs. 20,000 recovery = Rs. ${fmtNum(20000 * ((Number(commissionRate) || 0) / 100))} earned`} 
                     disabled 
-                    style={{ background: '#F0F0EE', fontWeight: 700, color: 'var(--teal)' }}
+                    style={{ background: '#F0F0EE', fontSize: 12, color: 'var(--teal)', fontWeight: 600 }}
                   />
                 </div>
               </div>
@@ -979,13 +999,14 @@ async function ensureBookingItems(b) {
                 <th>Linked Booking / Ref</th>
                 <th>Payment Mode</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
+                <th style={{ textAlign: 'right' }}>Commission Earned</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {displayRecoveries.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
                     No recoveries found for selected filters.
                   </td>
                 </tr>
@@ -1039,6 +1060,9 @@ async function ensureBookingItems(b) {
                     <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>
                       Rs. {fmtNum(r.amount)}
                     </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--teal)' }}>
+                      Rs. {fmtNum(r.earned_commission || 0)} <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>({r.commission_percentage || 0}%)</span>
+                    </td>
                     <td>
                       <span className={`badge ${['Approved','Posted'].includes(r.status) ? 'green' : 'amber'}`}>
                         {r.status || 'Approved'}
@@ -1061,12 +1085,18 @@ async function ensureBookingItems(b) {
               <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => { setShowRecovery(false); setMsg(''); }}>✕</button>
             </div>
 
-            <div style={{ marginBottom: 14, fontSize: 13, lineHeight: 1.7, background: '#FAFBF8', padding: 10, borderRadius: 6, border: '1px solid var(--line)' }}>
-              <strong>Distributor:</strong> {recoveryBooking.distributors?.name || 'Not Assigned'}<br />
-              {recoveryBooking.distributors?.code && <><strong>Code:</strong> {recoveryBooking.distributors.code}<br /></>}
-              <strong>Booking Value:</strong> Rs. {fmtNum(recoveryBooking.total_amount)}<br />
-              <strong>Advance Paid:</strong> <span style={{ color: 'var(--green)' }}>Rs. {fmtNum(recoveryBooking.total_recovered)}</span><br />
-              <strong>Advance Remaining:</strong> <span style={{ color: 'var(--amber)' }}>Rs. {fmtNum(recoveryBooking.remaining_balance)}</span>
+            <div style={{ marginBottom: 14, fontSize: 13, lineHeight: 1.7, background: '#FAFBF8', padding: 12, borderRadius: 6, border: '1px solid var(--line)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                <div><strong>Distributor:</strong> {recoveryBooking.distributors?.name || 'Not Assigned'}</div>
+                <div><strong>Booking Value:</strong> Rs. {fmtNum(recoveryBooking.total_amount)}</div>
+                <div><strong>Advance Paid:</strong> <span style={{ color: 'var(--green)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.total_recovered)}</span></div>
+                <div><strong>Advance Remaining:</strong> <span style={{ color: 'var(--red)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.remaining_balance)}</span></div>
+                <div><strong>Commission Rate:</strong> <span style={{ color: 'var(--teal)', fontWeight: 600 }}>{recoveryBooking.commission_percentage || 0}%</span></div>
+                <div><strong>Earned so far:</strong> <span style={{ color: 'var(--teal)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.commission_earned || 0)}</span></div>
+              </div>
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--line)', fontSize: 12, color: 'var(--teal)', fontWeight: 600 }}>
+                💡 Progressive Commission earned on this recovery: Rs. {fmtNum((Number(recoveryAmount || 0) * Number(recoveryBooking.commission_percentage || 0)) / 100)}
+              </div>
             </div>
 
             <Msg msg={msg} />

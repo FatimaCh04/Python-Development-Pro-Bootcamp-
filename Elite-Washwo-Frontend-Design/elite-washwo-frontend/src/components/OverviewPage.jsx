@@ -186,12 +186,12 @@ export default function OverviewPage({ navigate = () => {} }) {
                 onClick={() => navigate('stock')}
               />
 
-              {/* 2. Sales (PKR) */}
+              {/* 2. Collections Received & Sales (PKR) */}
               <KPICard 
-                title="2. Sales" 
-                value={fmtNum(data.salesAmount)} 
+                title="2. Collections Received" 
+                value={fmtNum(data.collectionsReceived || data.recoverySelectedDateAmount || 0)} 
                 unit="PKR" 
-                context={`Period: ${fmtNum(data.salesSelectedDatePackets || 0)} pkts · Cumulative: PKR ${fmtNum(data.salesCumulativeAmount || 0)}`} 
+                context={`Period Collections: PKR ${fmtNum(data.collectionsReceived || 0)} · Delivered Sales: PKR ${fmtNum(data.salesAmount || 0)} · Cumulative: PKR ${fmtNum(data.collectionsCumulative || 0)}`} 
                 icon={<IconMoney/>} 
                 color="green" 
                 accent={true} 
@@ -251,7 +251,7 @@ export default function OverviewPage({ navigate = () => {} }) {
                 title="7. Distributors Commission" 
                 value={fmtNum(data.commissionAmount)} 
                 unit="PKR" 
-                context={`Earned in period · Outstanding Payable: PKR ${fmtNum(data.commissionPayable)}`} 
+                context={`Earned in Period: PKR ${fmtNum(data.commissionAmount)} · Total Paid: PKR ${fmtNum(data.commissionPaidCumulative || 0)} · Pending Payable: PKR ${fmtNum(data.commissionPayable)}`} 
                 icon={<IconPercent/>} 
                 color="teal" 
                 accent={false} 

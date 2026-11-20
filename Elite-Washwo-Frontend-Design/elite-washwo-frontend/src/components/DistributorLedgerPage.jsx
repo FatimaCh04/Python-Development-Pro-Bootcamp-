@@ -357,20 +357,10 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 13, color: 'var(--ink)' }}>Distributor Commission Position</strong>
-                {stats.hasUnreconciledRates && (
-                  <span className="badge amber" style={{ fontSize: 10.5 }} title="Historical sales orders in database lack commission_rate_snapshot values">
-                    Snapshot Missing in DB ({stats.unreconciledPackets} pkts)
-                  </span>
-                )}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                Verified Snapshot Accrued: <strong style={{ color: 'var(--ink)' }}>Rs. {fmtNum(stats.accruedCommission)}</strong>
-                {' · '}Settled/Paid: <strong style={{ color: 'var(--green)' }}>Rs. {fmtNum(stats.settledCommission)}</strong>
-                {stats.hasUnreconciledRates && (
-                  <span style={{ color: 'var(--text-dim)', marginLeft: 6 }}>
-                    · Registered rate: Rs. {selectedDist?.commission || 0}/pkt (Requires DB snapshot reconciliation)
-                  </span>
-                )}
+                Progressive Commission Earned: <strong style={{ color: 'var(--ink)' }}>Rs. {fmtNum(stats.accruedCommission)}</strong>
+                {' · '}Commission Paid: <strong style={{ color: 'var(--green)' }}>Rs. {fmtNum(stats.settledCommission)}</strong>
               </div>
             </div>
           </div>
@@ -845,26 +835,15 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
                     <table style={{ width: '100%' }}>
                       <tbody>
                         <tr>
-                          <td>Verified Snapshot Accrued Commission:</td>
+                          <td>Progressive Commission Earned (Recoveries):</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>Rs. {fmtNum(stats.accruedCommission)}</td>
                         </tr>
-                        {stats.hasUnreconciledRates && (
-                          <tr style={{ color: 'var(--amber)' }}>
-                            <td>
-                              Unreconciled Historical Sales ({stats.unreconciledPackets} pkts):
-                              <span style={{ fontSize: 11, display: 'block', color: 'var(--text-dim)' }}>
-                                Rate snapshot missing in DB. Registered rate: Rs. {selectedDist?.commission || 0}/pkt (Est. Rs. {fmtNum(stats.estimatedUnreconciledCommission)} pending DB snapshot reconciliation)
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>Snapshot Missing</td>
-                          </tr>
-                        )}
                         <tr>
                           <td>Commission Paid Out (Settlements):</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>− Rs. {fmtNum(stats.settledCommission)}</td>
                         </tr>
                         <tr style={{ borderTop: '1px solid var(--line)', fontWeight: 700 }}>
-                          <td>Net Verified Commission Payable:</td>
+                          <td>Net Commission Payable:</td>
                           <td style={{ textAlign: 'right', color: 'var(--green)' }}>Rs. {fmtNum(stats.commissionPayable)}</td>
                         </tr>
                       </tbody>

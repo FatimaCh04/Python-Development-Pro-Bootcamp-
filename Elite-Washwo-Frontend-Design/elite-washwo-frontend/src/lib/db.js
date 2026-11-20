@@ -855,7 +855,7 @@ export async function submitBooking({ salesmanId, distributorId, bookingDate, it
 export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   let q = supabase
     .from('sales_orders')
-    .select('id, reference_number, sale_date, total_amount, status, salesman_id, distributor_id, commission_rate_snapshot, salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone, commission), sale_items(*, product_packaging(name, products(name)))')
+    .select('id, reference_number, sale_date, total_amount, status, distributor_id, commission_rate_snapshot, distributors(id, code, name, id_card, phone, commission), sale_items(*, product_packaging(name, products(name)))')
     .like('reference_number', 'BKG-%')
     .order('sale_date', { ascending: true });
   if (dateFrom) q = q.gte('sale_date', dateFrom);
@@ -865,13 +865,18 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   if (error) throw error;
 
   // Stable sequential numbering across all assigned bookings chronologically
-  // Only assigned distributor bookings qualify for Bill #01..#08.. sequential numbering
-  const { data: allBookings } = await supabase
-    .from('sales_orders')
-    .select('id, sale_date, distributor_id')
-    .like('reference_number', 'BKG-%')
-    .not('distributor_id', 'is', null)
-    .order('sale_date', { ascending: true });
+  let allBookings = [];
+  try {
+    const { data: bData, error: bErr } = await supabase
+      .from('sales_orders')
+      .select('id, sale_date, distributor_id')
+      .like('reference_number', 'BKG-%')
+      .not('distributor_id', 'is', null)
+      .order('sale_date', { ascending: true });
+    if (!bErr && bData) allBookings = bData;
+  } catch (err) {
+    console.warn('Could not fetch allBookings sequence:', err);
+  }
 
   const sortedBookings = (allBookings || []).slice().sort((a, b) => {
     const tA = new Date(a.sale_date).getTime() || 0;
@@ -885,12 +890,16 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
     seqMap.set(b.id, idx + 1);
   });
 
-  const { data: recs, error: rErr } = await supabase
-    .from('recoveries')
-    .select('amount, reference_number, sale_order_id')
-    .like('reference_number', '%|%');
-    
-  if (rErr) throw rErr;
+  let recs = [];
+  try {
+    const { data: rData, error: rErr } = await supabase
+      .from('recoveries')
+      .select('amount, reference_number, sale_order_id, distributor_id, status')
+      .in('status', ['Approved', 'Posted']);
+    if (!rErr && rData) recs = rData;
+  } catch (err) {
+    console.warn('Could not fetch recoveries for bookings:', err);
+  }
 
   const results = (data || []).map(b => {
     const bookingRecs = (recs || []).filter(r => 
@@ -903,12 +912,20 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
     const totalRecovered = bookingRecs.reduce((sum, r) => sum + Number(r.amount), 0);
     const isAssigned = Boolean(b.distributor_id);
     const seq = isAssigned ? (seqMap.get(b.id) || 1) : null;
+    const commPct = Number(b.commission_rate_snapshot !== null && b.commission_rate_snapshot !== undefined ? b.commission_rate_snapshot : (b.distributors?.commission || 0));
+    const commEarned = totalRecovered * (commPct / 100);
+    const potComm = Number(b.total_amount || 0) * (commPct / 100);
+    const remaining = Math.max(0, Number(b.total_amount) - totalRecovered);
+
     return {
       ...b,
       sequential_no: seq,
       formattedBillNo: seq ? String(seq).padStart(2, '0') : null,
       total_recovered: totalRecovered,
-      remaining_balance: Math.max(0, Number(b.total_amount) - totalRecovered)
+      remaining_balance: remaining,
+      commission_percentage: commPct,
+      commission_earned: commEarned,
+      potential_commission: potComm
     };
   });
 
@@ -921,16 +938,25 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   });
 }
 
-export async function addBookingRecovery({ bookingId, bookingRef, salesmanId, distributorId, amount, paymentMethod, recoveryDate, notes, receiptNo }) {
+export async function addBookingRecovery({ bookingId, bookingRef, salesmanId, distributorId, amount, paymentMethod, recoveryDate, notes, receiptNo, commissionPercentage }) {
   const identifier = bookingRef || bookingId;
   const ref = refNum('REC') + '|' + identifier;
+  const numAmt = Number(amount);
+  const commPct = commissionPercentage !== undefined && commissionPercentage !== null ? Number(commissionPercentage) : null;
+  const commEarned = commPct !== null ? (numAmt * commPct) / 100 : null;
+
+  let finalNotes = notes || `Advance payment on booking ${identifier}`;
+  if (commPct !== null && !finalNotes.includes('Commission Earned:')) {
+    finalNotes += ` | Commission Earned: Rs. ${Number(commEarned).toLocaleString('en-PK')} (${commPct}%)`;
+  }
+
   const payload = {
     reference_number: ref,
-    amount: Number(amount),
+    amount: numAmt,
     payment_method: paymentMethod || 'Cash',
     recovery_date: recoveryDate ? new Date(recoveryDate).toISOString() : new Date().toISOString(),
     status: 'Approved',
-    notes: notes || `Advance payment on booking ${identifier}`
+    notes: finalNotes
   };
   if (bookingId) payload.sale_order_id = bookingId;
   if (distributorId) payload.distributor_id = distributorId;
@@ -965,7 +991,7 @@ export async function addDistributorRecovery({ distributorId, amount, paymentMet
 export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status, limit = 200 } = {}) {
   let directQ = supabase
     .from('recoveries')
-    .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name))')
+    .select('*, distributors(id, name, code, phone, commission)')
     .order('recovery_date', { ascending: false })
     .limit(limit);
   if (distributorId) directQ = directQ.eq('distributor_id', distributorId);
@@ -977,7 +1003,7 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
   if (distributorId) {
     unassignedQ = supabase
       .from('recoveries')
-      .select('*, distributors(id, name, code, phone), salesmen(profiles(full_name))')
+      .select('*, distributors(id, name, code, phone, commission)')
       .is('distributor_id', null)
       .like('reference_number', '%|%')
       .order('recovery_date', { ascending: false })
@@ -1019,7 +1045,7 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
     fetchPromises.push(
       supabase
         .from('sales_orders')
-        .select('id, reference_number, distributor_id, distributors(id, name, code, phone)')
+        .select('id, reference_number, distributor_id, commission_rate_snapshot, distributors(id, name, code, phone, commission)')
         .in('id', Array.from(uuidSet))
         .then(res => {
           (res.data || []).forEach(o => {
@@ -1033,7 +1059,7 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
     fetchPromises.push(
       supabase
         .from('sales_orders')
-        .select('id, reference_number, distributor_id, distributors(id, name, code, phone)')
+        .select('id, reference_number, distributor_id, commission_rate_snapshot, distributors(id, name, code, phone, commission)')
         .in('reference_number', Array.from(refSet))
         .then(res => {
           (res.data || []).forEach(o => {
@@ -1066,15 +1092,16 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target);
       let linkedRef = null;
       let linkedDist = null;
+      let linkedOrder = null;
 
       if (orderById.has(target)) {
-        const ord = orderById.get(target);
-        linkedRef = ord.reference_number;
-        linkedDist = ord.distributors;
+        linkedOrder = orderById.get(target);
+        linkedRef = linkedOrder.reference_number;
+        linkedDist = linkedOrder.distributors;
       } else if (orderByRef.has(target)) {
-        const ord = orderByRef.get(target);
-        linkedRef = ord.reference_number;
-        linkedDist = ord.distributors;
+        linkedOrder = orderByRef.get(target);
+        linkedRef = linkedOrder.reference_number;
+        linkedDist = linkedOrder.distributors;
       } else if (!isUuid && target) {
         linkedRef = target;
       }
@@ -1087,23 +1114,38 @@ export async function fetchRecoveries({ dateFrom, dateTo, distributorId, status,
         }
       }
 
+      const effectiveDist = r.distributors || linkedDist || null;
+      const commPct = Number(
+        (linkedOrder && linkedOrder.commission_rate_snapshot !== null && linkedOrder.commission_rate_snapshot !== undefined)
+          ? linkedOrder.commission_rate_snapshot
+          : (effectiveDist?.commission || 0)
+      );
+      const earned = (Number(r.amount || 0) * commPct) / 100;
+
       mapped.push({
         ...r,
         clean_recovery_ref: cleanRef,
         raw_linked_id: target,
         linked_order_ref: linkedRef,
         booking_distributor: linkedDist || null,
-        distributors: r.distributors || linkedDist || null,
-        is_linked_uuid: isUuid
+        distributors: effectiveDist,
+        is_linked_uuid: isUuid,
+        commission_percentage: commPct,
+        earned_commission: earned
       });
     } else {
+      const commPct = Number(r.distributors?.commission || 0);
+      const earned = (Number(r.amount || 0) * commPct) / 100;
+
       mapped.push({
         ...r,
         clean_recovery_ref: r.reference_number,
         raw_linked_id: null,
         linked_order_ref: null,
         booking_distributor: null,
-        is_linked_uuid: false
+        is_linked_uuid: false,
+        commission_percentage: commPct,
+        earned_commission: earned
       });
     }
   });
@@ -1314,30 +1356,46 @@ export async function fetchDistributorOutstanding(distributorId) {
   const outstanding = Math.max(0, netBalance);
   const advanceBalance = Math.max(0, -netBalance);
 
-  // Commission Analysis: Separate verified immutable rate snapshots from historical missing snapshots
+  // Progressive Recovery-Based Commission Calculation:
+  // Commission Earned = Recovery Amount Received × Booking Commission Percentage / 100
+  const distOrdersMap = new Map();
+  (salesRes.data || []).forEach(o => {
+    distOrdersMap.set(o.id, o);
+    if (o.reference_number) distOrdersMap.set(o.reference_number, o);
+  });
+  (pendingBookingsRes.data || []).forEach(b => {
+    distOrdersMap.set(b.id, b);
+    if (b.reference_number) distOrdersMap.set(b.reference_number, b);
+  });
+
+  const defaultDistComm = Number(distRes?.data?.commission || 0);
+
+  let accruedCommission = 0;
+  (allRecoveries || []).forEach(r => {
+    const amt = Number(r.amount || 0);
+    let pct = defaultDistComm;
+    if (r.sale_order_id && distOrdersMap.has(r.sale_order_id)) {
+      const ord = distOrdersMap.get(r.sale_order_id);
+      if (ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined) {
+        pct = Number(ord.commission_rate_snapshot);
+      }
+    } else if (r.reference_number && r.reference_number.includes('|')) {
+      const target = r.reference_number.split('|')[1]?.trim();
+      if (target && distOrdersMap.has(target)) {
+        const ord = distOrdersMap.get(target);
+        if (ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined) {
+          pct = Number(ord.commission_rate_snapshot);
+        }
+      }
+    }
+    accruedCommission += (amt * pct) / 100;
+  });
+
   let unreconciledCount = 0;
   let unreconciledPackets = 0;
-  (salesRes.data || []).forEach(order => {
-    if (order.commission_rate_snapshot === null || order.commission_rate_snapshot === undefined) {
-      unreconciledCount++;
-    }
-  });
-
-  // Accrued commission based strictly on immutable sale-specific rate snapshots
-  let accruedCommission = 0;
-  (saleItemsRes.data || []).forEach(item => {
-    const qty = Number(item.quantity) || 0;
-    const snap = item.sales_orders?.commission_rate_snapshot;
-    if (snap !== null && snap !== undefined) {
-      accruedCommission += (qty * Number(snap));
-    } else {
-      unreconciledPackets += qty;
-    }
-  });
-
-  const hasUnreconciledRates = unreconciledCount > 0;
-  const distCommissionRate = Number(distRes?.data?.commission || 0);
-  const estimatedUnreconciledCommission = unreconciledPackets * distCommissionRate;
+  const hasUnreconciledRates = false;
+  const distCommissionRate = defaultDistComm;
+  const estimatedUnreconciledCommission = 0;
 
   // Settled commission from approved settlements
   const settledCommission = (settlementsRes.data || []).reduce((acc, s) => acc + Number(s.amount || 0), 0);
@@ -1601,47 +1659,67 @@ export async function fetchDistributorFinLedger(distributorId) {
 // ── Distributor commission ledger records ─────────────────────────────────────
 export async function fetchDistributorCommissionLedger(distributorId) {
   if (!distributorId) return [];
-  const [salesRes, settsRes] = await Promise.all([
-    supabase
-      .from('sales_orders')
-      .select('id, reference_number, sale_date, status, commission_rate_snapshot, sale_items(quantity)')
-      .eq('distributor_id', distributorId)
-      .not('reference_number', 'like', 'BKG-%') // Exclude bookings from commission ledger!
-      .order('sale_date', { ascending: false }),
+  const [distRes, recs, settsRes, ordersRes] = await Promise.all([
+    supabase.from('distributors').select('id, name, code, commission').eq('id', distributorId).maybeSingle(),
+    fetchDistributorApprovedRecoveries(distributorId, { approvedOnly: false }),
     supabase
       .from('distributor_settlements')
       .select('id, reference_number, settlement_date, amount, settlement_type, payment_method, status, notes')
       .eq('distributor_id', distributorId)
-      .order('settlement_date', { ascending: false })
+      .order('settlement_date', { ascending: false }),
+    supabase
+      .from('sales_orders')
+      .select('id, reference_number, commission_rate_snapshot')
+      .eq('distributor_id', distributorId)
   ]);
 
+  const defaultPct = Number(distRes?.data?.commission || 0);
+  const orderMap = new Map();
+  (ordersRes.data || []).forEach(o => {
+    orderMap.set(o.id, o);
+    if (o.reference_number) orderMap.set(o.reference_number, o);
+  });
+
   const rows = [];
-  (salesRes.data || []).forEach(s => {
-    const pkts = (s.sale_items || []).reduce((acc, item) => acc + Number(item.quantity || 0), 0);
-    const snap = s.commission_rate_snapshot;
-    const hasSnap = snap !== null && snap !== undefined;
-    const rate = hasSnap ? Number(snap) : null;
-    const earned = hasSnap ? (pkts * rate) : 0;
-    const isApproved = ['Approved', 'Posted'].includes(s.status);
+
+  // 1. Commission Earned progressively from received recoveries
+  (recs || []).forEach(r => {
+    let pct = defaultPct;
+    if (r.sale_order_id && orderMap.has(r.sale_order_id)) {
+      const ord = orderMap.get(r.sale_order_id);
+      if (ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined) {
+        pct = Number(ord.commission_rate_snapshot);
+      }
+    } else if (r.reference_number && r.reference_number.includes('|')) {
+      const target = r.reference_number.split('|')[1]?.trim();
+      if (target && orderMap.has(target)) {
+        const ord = orderMap.get(target);
+        if (ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined) {
+          pct = Number(ord.commission_rate_snapshot);
+        }
+      }
+    }
+
+    const amt = Number(r.amount || 0);
+    const earned = (amt * pct) / 100;
+    const isApproved = ['Approved', 'Posted'].includes(r.status);
 
     rows.push({
-      id: s.id,
-      date: s.sale_date,
-      type: 'Commission Accrued',
-      ref: s.reference_number,
-      packets: pkts,
-      rate: rate,
+      id: r.id,
+      date: r.recovery_date,
+      type: 'Commission Earned',
+      ref: r.clean_recovery_ref || r.reference_number,
+      amount: amt,
+      rate: `${pct}%`,
       earned: earned,
       paid: 0,
-      status: s.status,
-      isMissingSnapshot: !hasSnap,
+      status: r.status,
       isApproved,
-      notes: hasSnap 
-        ? `Accrued from sale ${s.reference_number} (${pkts} pkts @ Rs. ${rate})`
-        : `Sale ${s.reference_number} (${pkts} pkts) — Rate snapshot missing in DB`
+      notes: r.notes || `Recovery collection Rs. ${amt.toLocaleString('en-PK')} (${pct}% commission)`
     });
   });
 
+  // 2. Commission Paid out via settlements
   (settsRes.data || []).forEach(st => {
     const isApproved = ['Approved', 'Posted'].includes(st.status);
     rows.push({
@@ -1649,12 +1727,11 @@ export async function fetchDistributorCommissionLedger(distributorId) {
       date: st.settlement_date,
       type: `Commission Paid (${st.payment_method || 'Cash'})`,
       ref: st.reference_number,
-      packets: 0,
+      amount: Number(st.amount || 0),
       rate: null,
       earned: 0,
       paid: Number(st.amount || 0),
       status: st.status,
-      isMissingSnapshot: false,
       isApproved,
       notes: st.notes || `Settlement payout (${st.settlement_type})`
     });
@@ -1771,10 +1848,8 @@ export async function fetchDashboardMetrics(params) {
 
   let salesSelectedDateAmount = 0;
   let salesSelectedDatePackets = 0;
-  let commissionSelectedDate = 0;
   let cumulativeDistSalesAmount = 0;
   let cumulativePkts = 0;
-  let cumulativeCommissionEarned = 0;
   let cumulativeAdvAllocation = 0;
   let cumulativeWelfAllocation = 0;
 
@@ -1782,11 +1857,6 @@ export async function fetchDashboardMetrics(params) {
     const isSelectedDate = sale.sale_date >= sodIso && sale.sale_date <= eodIso;
     const pkts = (sale.sale_items || []).reduce((a, item) => a + Number(item.quantity || 0), 0);
     const amt = Number(sale.total_amount) || 0;
-
-    // Use verified immutable snapshots
-    const commRate = (sale.commission_rate_snapshot !== null && sale.commission_rate_snapshot !== undefined)
-      ? Number(sale.commission_rate_snapshot)
-      : (Number(sale.distributors?.commission) || 0);
 
     const advRate = (sale.advertisement_rate_snapshot !== null && sale.advertisement_rate_snapshot !== undefined)
       ? Number(sale.advertisement_rate_snapshot)
@@ -1798,37 +1868,76 @@ export async function fetchDashboardMetrics(params) {
 
     cumulativePkts += pkts;
     cumulativeDistSalesAmount += amt;
-    cumulativeCommissionEarned += (pkts * commRate);
     cumulativeAdvAllocation += (pkts * advRate);
     cumulativeWelfAllocation += (pkts * welfRate);
 
     if (isSelectedDate) {
       salesSelectedDateAmount += amt;
       salesSelectedDatePackets += pkts;
-      commissionSelectedDate += (pkts * commRate);
     }
   });
 
-  // 4. RECOVERIES (Cumulative for Outstanding & Selected Date)
+  // 4. RECOVERIES & PROGRESSIVE COMMISSION EARNED
+  // Commission is earned progressively as recoveries are received: Recovery Amount Received × Commission % / 100
   const { data: allRecs, error: recsErr } = await supabase
     .from('recoveries')
-    .select('amount, distributor_id, recovery_date, reference_number')
+    .select('id, amount, distributor_id, recovery_date, reference_number, sale_order_id')
     .in('status', ['Approved', 'Posted'])
     .lte('recovery_date', eodIso);
 
   if (recsErr) throw recsErr;
 
+  const { data: allOrdersForRates } = await supabase
+    .from('sales_orders')
+    .select('id, reference_number, commission_rate_snapshot, distributor_id, distributors(commission)')
+    .lte('sale_date', eodIso);
+
+  const orderSnapMap = new Map();
+  (allOrdersForRates || []).forEach(o => {
+    orderSnapMap.set(o.id, o);
+    if (o.reference_number) orderSnapMap.set(o.reference_number, o);
+  });
+
+  const { data: distList } = await supabase.from('distributors').select('id, commission');
+  const distCommMap = new Map();
+  (distList || []).forEach(d => distCommMap.set(d.id, Number(d.commission || 0)));
+
   let cumulativeDistRecAmount = 0;
   let recoverySelectedDateAmount = 0;
-  (allRecs || [])
-    .filter(r => !r.reference_number || (!r.reference_number.includes('|') && !r.reference_number.includes('|BKG-')))
-    .forEach(r => {
-      const amt = Number(r.amount || 0);
-      cumulativeDistRecAmount += amt;
-      if (r.recovery_date >= sodIso && r.recovery_date <= eodIso) {
-        recoverySelectedDateAmount += amt;
+  let commissionSelectedDate = 0;
+  let cumulativeCommissionEarned = 0;
+
+  (allRecs || []).forEach(r => {
+    const amt = Number(r.amount || 0);
+    cumulativeDistRecAmount += amt;
+    const isSelectedDate = r.recovery_date >= sodIso && r.recovery_date <= eodIso;
+    if (isSelectedDate) {
+      recoverySelectedDateAmount += amt;
+    }
+
+    // Determine progressive commission %
+    let commPct = 0;
+    if (r.sale_order_id && orderSnapMap.has(r.sale_order_id)) {
+      const ord = orderSnapMap.get(r.sale_order_id);
+      commPct = Number(ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined ? ord.commission_rate_snapshot : (ord.distributors?.commission || 0));
+    } else if (r.reference_number && r.reference_number.includes('|')) {
+      const target = r.reference_number.split('|')[1]?.trim();
+      if (target && orderSnapMap.has(target)) {
+        const ord = orderSnapMap.get(target);
+        commPct = Number(ord.commission_rate_snapshot !== null && ord.commission_rate_snapshot !== undefined ? ord.commission_rate_snapshot : (ord.distributors?.commission || 0));
+      } else if (r.distributor_id && distCommMap.has(r.distributor_id)) {
+        commPct = distCommMap.get(r.distributor_id);
       }
-    });
+    } else if (r.distributor_id && distCommMap.has(r.distributor_id)) {
+      commPct = distCommMap.get(r.distributor_id);
+    }
+
+    const earned = (amt * commPct) / 100;
+    cumulativeCommissionEarned += earned;
+    if (isSelectedDate) {
+      commissionSelectedDate += earned;
+    }
+  });
 
   const distributorsOutstanding = Math.max(0, cumulativeDistSalesAmount - cumulativeDistRecAmount);
 
@@ -1893,6 +2002,8 @@ export async function fetchDashboardMetrics(params) {
     salesSelectedDatePackets,
     salesCumulativeAmount: cumulativeDistSalesAmount,
     salesCumulativePackets: cumulativePkts,
+    collectionsReceived: recoverySelectedDateAmount,
+    collectionsCumulative: cumulativeDistRecAmount,
     distributorsOutstanding,
     recoverySelectedDateAmount,
     recoveryCumulativeAmount: cumulativeDistRecAmount,

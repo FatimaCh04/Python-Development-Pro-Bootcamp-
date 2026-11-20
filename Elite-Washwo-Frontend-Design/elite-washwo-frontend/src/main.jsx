@@ -474,6 +474,7 @@ function SettlementPage({ searchTerm = '' }) {
 
   // Commission settlement form
   const [settleAmt,   setSettleAmt]   = useState('');
+  const [settleDate,  setSettleDate]  = useState(new Date().toISOString().split('T')[0]);
   const [settleType,  setSettleType]  = useState('Commission_Cash_Paid');
   const [settleNotes, setSettleNotes] = useState('');
   const [showForm,    setShowForm]    = useState(false);
@@ -508,9 +509,7 @@ function SettlementPage({ searchTerm = '' }) {
 
   const commissionPayable = (() => {
     if (!outstanding) return 0;
-    const accrued = outstanding.accruedCommission !== undefined && outstanding.accruedCommission > 0
-      ? outstanding.accruedCommission
-      : (outstanding.totalPackets || 0) * Number(selected?.commission || 0);
+    const accrued = Number(outstanding.accruedCommission || 0);
     const paid = settlements
       .filter(s => s.status === 'Approved')
       .reduce((a, s) => a + Number(s.amount || 0), 0);
@@ -518,20 +517,25 @@ function SettlementPage({ searchTerm = '' }) {
   })();
 
   const handleCommissionSettle = async () => {
-    if (!selectedId || !settleAmt || Number(settleAmt) <= 0) {
-      setMsg('err:Enter a valid settlement amount.');
+    const amt = Number(settleAmt);
+    if (!selectedId || !amt || amt <= 0) {
+      setMsg('err:Enter a valid settlement payment amount.');
+      return;
+    }
+    if (amt > commissionPayable) {
+      setMsg(`err:Payment amount (Rs. ${fmtNum(amt)}) cannot exceed remaining payable commission of Rs. ${fmtNum(commissionPayable)}.`);
       return;
     }
     setSaving(true); setMsg('');
     try {
       await submitDistributorCommissionSettlement({
         distributorId: selectedId,
-        amount: Number(settleAmt),
+        amount: amt,
         settlementType: settleType,
         paymentMethod: settleType === 'Commission_Cash_Paid' ? 'Cash' : settleType === 'Commission_Bank_Paid' ? 'Bank' : 'Adjustment',
         notes: settleNotes
       });
-      setMsg('ok:Commission settlement recorded successfully.');
+      setMsg('ok:Commission payment recorded successfully.');
       setSettleAmt(''); setSettleNotes(''); setShowForm(false);
       // Refresh both settlements and outstanding balances atomically
       await reloadDistributorData(selectedId);
@@ -604,12 +608,12 @@ function SettlementPage({ searchTerm = '' }) {
               </div>
             </div>
             <div className="panel-flat">
-              <div style={{fontSize:12,color:'var(--text-dim)',marginBottom:4}}>💰 Commission Payable</div>
+              <div style={{fontSize:12,color:'var(--text-dim)',marginBottom:4}}>💰 Pending Commission Payable</div>
               <div className="num" style={{fontSize:22,color:commissionPayable > 0 ? 'var(--amber)':'var(--green)'}}>
                 Rs. {fmtNum(commissionPayable)}
               </div>
               <div style={{fontSize:11,color:'var(--text-dim)',marginTop:4}}>
-                Rate: Rs. {selected?.commission}/pkt &nbsp;|&nbsp; Packets: {outstanding?.totalPackets || 0}
+                Earned: Rs. {fmtNum(outstanding?.accruedCommission)} &nbsp;|&nbsp; Paid: Rs. {fmtNum(outstanding?.settledCommission)}
               </div>
             </div>
           </div>
@@ -690,32 +694,49 @@ function SettlementPage({ searchTerm = '' }) {
           {/* New commission settlement form */}
           {!showForm ? (
             <div className="btn-row">
-              <button className="btn primary" onClick={() => setShowForm(true)}>+ Record Commission Settlement</button>
+              <button className="btn primary" onClick={() => setShowForm(true)}>+ Record Commission Paid</button>
             </div>
           ) : (
             <div className="panel-flat" style={{marginTop:12,padding:16}}>
-              <div style={{fontWeight:600,fontSize:13,marginBottom:12}}>New Commission Settlement Entry</div>
+              <div style={{fontWeight:600,fontSize:14,marginBottom:8}}>Record Commission Paid</div>
+              
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14, background: '#FAFBF8', padding: '10px 14px', borderRadius: 6, border: '1px solid var(--line)', fontSize: 12.5 }}>
+                <div><strong>Total Earned:</strong> <span style={{ color: 'var(--teal)', fontWeight: 600 }}>Rs. {fmtNum(outstanding?.accruedCommission)}</span></div>
+                <div><strong>Already Paid:</strong> <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Rs. {fmtNum(outstanding?.settledCommission)}</span></div>
+                <div><strong>Remaining Payable:</strong> <span style={{ color: 'var(--green)', fontWeight: 700 }}>Rs. {fmtNum(commissionPayable)}</span></div>
+              </div>
+
               <div className="form-grid" style={{marginBottom:12}}>
                 <div className="field">
-                  <label>Settlement Type</label>
+                  <label>Payment Method *</label>
                   <select value={settleType} onChange={e=>setSettleType(e.target.value)}>
-                    <option value="Commission_Cash_Paid">Commission Cash Paid (Reduces Commission Only)</option>
-                    <option value="Commission_Bank_Paid">Commission Bank Paid (Reduces Commission Only)</option>
+                    <option value="Commission_Cash_Paid">Cash Payment (Reduces Commission Payable)</option>
+                    <option value="Commission_Bank_Paid">Bank Transfer (Reduces Commission Payable)</option>
                     <option value="Commission_Against_Outstanding">Offset Against Sales Outstanding (Reduces Both)</option>
                   </select>
                 </div>
                 <div className="field">
-                  <label>Amount (Rs.)</label>
-                  <input type="number" min="0" value={settleAmt} onChange={e=>setSettleAmt(e.target.value)} placeholder="Enter amount paid" />
+                  <label>Payment Amount (Rs.) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={commissionPayable}
+                    value={settleAmt}
+                    onChange={e=>setSettleAmt(e.target.value)}
+                    placeholder="Enter amount paid"
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Max payable: Rs. {fmtNum(commissionPayable)}
+                  </div>
                 </div>
                 <div className="field" style={{gridColumn:'1/-1'}}>
-                  <label>Notes / References</label>
+                  <label>Notes / Cheque / Bank TID (Optional)</label>
                   <input type="text" value={settleNotes} onChange={e=>setSettleNotes(e.target.value)} placeholder="e.g. Bank transfer reference, cheque #, or settlement notes" />
                 </div>
               </div>
               <div className="btn-row">
                 <button className="btn primary" onClick={handleCommissionSettle} disabled={saving}>
-                  {saving ? 'Saving...' : 'Submit Settlement'}
+                  {saving ? 'Saving...' : 'Submit Payment'}
                 </button>
                 <button className="btn" onClick={() => { setShowForm(false); setSettleAmt(''); setSettleNotes(''); }}>Cancel</button>
               </div>
