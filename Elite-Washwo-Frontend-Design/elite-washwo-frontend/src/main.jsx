@@ -58,7 +58,51 @@ function Msg({ msg }) {
 
 
 
-function Root() { return <AuthProvider><AppRouter /></AuthProvider>; }
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F3ED', padding: 24, fontFamily: 'Inter, sans-serif' }}>
+          <div style={{ maxWidth: 480, width: '100%', background: '#fff', padding: 28, borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', textAlign: 'center', border: '1px solid #DEDACD' }}>
+            <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#FBE6E3', color: '#C1483C', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, margin: '0 auto 14px' }}>⚠️</div>
+            <h2 style={{ fontSize: 17, color: '#0F1B2B', marginBottom: 8, fontFamily: 'Space Grotesk, sans-serif' }}>Application Encountered an Issue</h2>
+            <p style={{ fontSize: 12.5, color: '#6B7280', marginBottom: 16, lineHeight: 1.5 }}>
+              {this.state.error?.message || 'An unexpected rendering error occurred. Please reload to continue.'}
+            </p>
+            <button
+              className="btn primary"
+              style={{ padding: '7px 18px', fontSize: 12.5, cursor: 'pointer' }}
+              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function Root() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </ErrorBoundary>
+  );
+}
 
 function AppRouter() {
   const { session, loading } = useAuth();
@@ -209,9 +253,11 @@ function App() {
       </aside>
       <div className="main">
         <div className="content">
-          <div className="page-enter" key={activePage}>
-            {renderPage()}
-          </div>
+          <ErrorBoundary>
+            <div className="page-enter" key={activePage}>
+              {renderPage()}
+            </div>
+          </ErrorBoundary>
         </div>
         <footer className="note">Elite Wash ERP — All balances derived from transactions. No manual overwrite.</footer>
       </div>

@@ -181,15 +181,63 @@ export default function BookingPage() {
     setItems(prev => prev.filter((_, i) => i !== idx));
   }
 
-  const totalPackets = items.reduce((s, i) => s + i.qty,           0);
-  const totalAmount  = items.reduce((s, i) => s + i.qty * i.price, 0);
+  function handleUpdateItemQty(idx, newQty) {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, qty: newQty === '' ? '' : Math.max(0, Number(newQty)) };
+    }));
+  }
+
+  function handleUpdateItemPrice(idx, newPrice) {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, price: newPrice === '' ? '' : Math.max(0, Number(newPrice)) };
+    }));
+  }
+
+  // Strictly validated line item calculations
+  const validItems = useMemo(() => {
+    return items.map(item => {
+      const q = Number(item.qty);
+      const p = Number(item.price);
+      const isValid = !isNaN(q) && q > 0 && !isNaN(p) && p > 0;
+      return {
+        ...item,
+        numericQty: isValid ? q : 0,
+        numericPrice: isValid ? p : 0,
+        lineTotal: isValid ? q * p : 0,
+        isValid
+      };
+    });
+  }, [items]);
+
+  const totalPackets = useMemo(() => {
+    return validItems.reduce((s, i) => s + (i.isValid ? i.numericQty : 0), 0);
+  }, [validItems]);
+
+  const totalAmount = useMemo(() => {
+    return validItems.reduce((s, i) => s + (i.isValid ? i.lineTotal : 0), 0);
+  }, [validItems]);
+
+  const potentialCommission = useMemo(() => {
+    const rate = Number(commissionRate);
+    if (isNaN(rate) || rate <= 0 || totalAmount <= 0) return 0;
+    return (totalAmount * rate) / 100;
+  }, [totalAmount, commissionRate]);
 
   // ── Save booking ──────────────────────────────────────────────────────────
   async function handleSaveBooking() {
     if (!selectedDistributor)  { setMsg('err:Please select a distributor.'); return; }
     if (items.length === 0)    { setMsg('err:Add at least one item.'); return; }
-    if (items.some(i => i.qty <= 0)) { setMsg('err:All items must have qty > 0.'); return; }
-    if (items.some(i => i.price <= 0)) { setMsg('err:All items must have unit price > 0.'); return; }
+    if (items.some(i => i.qty === '' || isNaN(Number(i.qty)) || Number(i.qty) <= 0)) {
+      setMsg('err:All items must have a valid quantity greater than 0.'); return;
+    }
+    if (items.some(i => i.price === '' || isNaN(Number(i.price)) || Number(i.price) <= 0)) {
+      setMsg('err:All items must have a valid agreed unit price greater than 0.'); return;
+    }
+    if (totalAmount <= 0) {
+      setMsg('err:Total Booking Amount must be greater than Rs. 0.'); return;
+    }
 
     try {
       setLoading(true); setMsg('');
@@ -197,7 +245,7 @@ export default function BookingPage() {
         distributorId: selectedDistributor.id,
         bookingDate,
         commissionRate: commissionRate !== '' ? Number(commissionRate) : undefined,
-        items: items.map(i => ({ packagingId: i.packagingId, quantity: i.qty, price: i.price })),
+        items: validItems.map(i => ({ packagingId: i.packagingId, quantity: i.numericQty, price: i.numericPrice })),
         totalAmount
       });
       setMsg('ok:Booking saved successfully.');
@@ -863,31 +911,73 @@ async function ensureBookingItems(b) {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th style={{ textAlign: 'right' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Agreed Unit Price</th>
-                    <th style={{ textAlign: 'right' }}>Line Total</th>
-                    <th></th>
+                    <th style={{ textAlign: 'right', width: 140 }}>Qty (Packets)</th>
+                    <th style={{ textAlign: 'right', width: 180 }}>Agreed Price / Pkt (Rs.)</th>
+                    <th style={{ textAlign: 'right', width: 160 }}>Line Total</th>
+                    <th style={{ width: 80, textAlign: 'center' }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td>{item.name}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtNum(item.qty)}</td>
-                      <td style={{ textAlign: 'right' }}>Rs. {fmtNum(item.price)}</td>
-                      <td style={{ textAlign: 'right' }}>Rs. {fmtNum(item.qty * item.price)}</td>
-                      <td>
-                        <span className="link" style={{ color: 'var(--red)', fontSize: 12, cursor: 'pointer' }} onClick={() => handleRemoveItem(idx)}>Remove</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item, idx) => {
+                    const q = Number(item.qty);
+                    const p = Number(item.price);
+                    const isRowValid = !isNaN(q) && q > 0 && !isNaN(p) && p > 0;
+                    const rowLineTotal = isRowValid ? q * p : 0;
+                    return (
+                      <tr key={idx}>
+                        <td><strong>{item.name}</strong></td>
+                        <td style={{ textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={item.qty}
+                            onChange={e => handleUpdateItemQty(idx, e.target.value)}
+                            style={{
+                              width: 100,
+                              textAlign: 'right',
+                              padding: '5px 8px',
+                              fontSize: 13,
+                              fontWeight: 600,
+                              border: !isNaN(q) && q > 0 ? '1px solid var(--line)' : '1px solid var(--red)'
+                            }}
+                          />
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            step="any"
+                            value={item.price}
+                            onChange={e => handleUpdateItemPrice(idx, e.target.value)}
+                            style={{
+                              width: 130,
+                              textAlign: 'right',
+                              padding: '5px 8px',
+                              fontSize: 13,
+                              fontWeight: 600,
+                              border: !isNaN(p) && p > 0 ? '1px solid var(--line)' : '1px solid var(--red)'
+                            }}
+                          />
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: isRowValid ? 'var(--teal)' : 'var(--red)' }}>
+                          {isRowValid ? ("Rs. " + fmtNum(rowLineTotal)) : "Rs. 0"}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="link" style={{ color: 'var(--red)', fontSize: 12, cursor: 'pointer' }} onClick={() => handleRemoveItem(idx)}>Remove</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ fontWeight: 600, borderTop: '2px solid var(--line)' }}>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid var(--line)', background: '#FAF9F5' }}>
                     <td>Total</td>
                     <td style={{ textAlign: 'right' }}>{fmtNum(totalPackets)} pkts</td>
                     <td></td>
-                    <td style={{ textAlign: 'right', color: 'var(--teal)' }}>Rs. {fmtNum(totalAmount)}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--teal)', fontSize: 14 }}>
+                      {totalAmount > 0 ? ("Rs. " + fmtNum(totalAmount)) : "Rs. 0"}
+                    </td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -908,7 +998,7 @@ async function ensureBookingItems(b) {
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Potential Commission (at 100% recovery)</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--teal)' }}>
-                    Rs. {fmtNum(totalAmount * ((Number(commissionRate) || 0) / 100))}
+                    {potentialCommission > 0 ? ("Rs. " + fmtNum(potentialCommission)) : "Rs. 0"}
                   </div>
                 </div>
               </div>
@@ -919,7 +1009,7 @@ async function ensureBookingItems(b) {
                   <input 
                     type="number" 
                     min="0" 
-                    max="100"
+                    max="100" 
                     step="0.01" 
                     value={commissionRate} 
                     onChange={e => setCommissionRate(e.target.value)} 
@@ -931,21 +1021,23 @@ async function ensureBookingItems(b) {
                   </div>
                 </div>
                 <div className="field">
-                  <label>Total Booking Amount</label>
+                  <label>Total Booking Amount (Read-Only)</label>
                   <input 
                     type="text" 
-                    value={`Rs. ${fmtNum(totalAmount)}`} 
+                    value={totalAmount > 0 ? ("Rs. " + fmtNum(totalAmount)) : "Rs. 0"} 
                     disabled 
-                    style={{ background: '#F0F0EE', fontWeight: 600 }}
+                    readOnly
+                    style={{ background: '#F0F0EE', fontWeight: 700, color: 'var(--teal)', cursor: 'not-allowed' }}
                   />
                 </div>
                 <div className="field">
                   <label>Progressive Example</label>
                   <input 
                     type="text" 
-                    value={`Rs. 20,000 recovery = Rs. ${fmtNum(20000 * ((Number(commissionRate) || 0) / 100))} earned`} 
+                    value={"Rs. 20,000 recovery = Rs. " + fmtNum(20000 * ((Number(commissionRate) || 0) / 100)) + " earned"} 
                     disabled 
-                    style={{ background: '#F0F0EE', fontSize: 12, color: 'var(--teal)', fontWeight: 600 }}
+                    readOnly
+                    style={{ background: '#F0F0EE', fontSize: 12, color: 'var(--teal)', fontWeight: 600, cursor: 'not-allowed' }}
                   />
                 </div>
               </div>
