@@ -44,13 +44,40 @@ function KPICard({ title, value, unit, context, icon, color = 'teal', accent = f
 export default function OverviewPage({ navigate = () => {} }) {
   const { user, role } = useAuth();
   
-  // Date selector (default to today)
+  // Date selector (default: first of current month to today)
   const todayStr = new Date().toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const firstOfMonthStr = () => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  };
+
+  const [fromDate, setFromDate] = useState(firstOfMonthStr());
+  const [toDate, setToDate] = useState(todayStr);
+  const [activeRange, setActiveRange] = useState({ dateFrom: firstOfMonthStr(), dateTo: todayStr });
+  const [validationErr, setValidationErr] = useState('');
   
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const handleApplyFilter = () => {
+    if (fromDate && toDate && fromDate > toDate) {
+      setValidationErr('From Date cannot be later than To Date.');
+      return;
+    }
+    setValidationErr('');
+    setActiveRange({ dateFrom: fromDate, dateTo: toDate });
+  };
+
+  const handleResetFilter = () => {
+    const d1 = firstOfMonthStr();
+    const d2 = todayStr;
+    setFromDate(d1);
+    setToDate(d2);
+    setValidationErr('');
+    setActiveRange({ dateFrom: d1, dateTo: d2 });
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -58,7 +85,7 @@ export default function OverviewPage({ navigate = () => {} }) {
       setLoading(true);
       setError(null);
       try {
-        const metrics = await fetchDashboardMetrics(selectedDate);
+        const metrics = await fetchDashboardMetrics(activeRange);
         if (mounted) setData(metrics);
       } catch (err) {
         console.error(err);
@@ -69,7 +96,7 @@ export default function OverviewPage({ navigate = () => {} }) {
     }
     load();
     return () => { mounted = false; };
-  }, [selectedDate]);
+  }, [activeRange]);
 
   return (
     <div className="dashboard-container">
@@ -77,22 +104,49 @@ export default function OverviewPage({ navigate = () => {} }) {
       <div className="dash-header">
         <div>
           <h1>Dashboard</h1>
-          <p>Real-time transaction-derived overview · Selected Date: <strong>{fmtDate(selectedDate)}</strong></p>
+          <p>Real-time transaction-derived overview · Filtered Period: <strong>{fmtDate(activeRange.dateFrom)}</strong> – <strong>{fmtDate(activeRange.dateTo)}</strong></p>
         </div>
-        <div className="dash-date-control">
-          <input 
-            type="date" 
-            value={selectedDate} 
-            onChange={(e) => setSelectedDate(e.target.value || todayStr)}
-          />
+        <div className="dash-date-control" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)' }}>From:</label>
+            <input 
+              type="date" 
+              value={fromDate} 
+              onChange={(e) => { setFromDate(e.target.value); setValidationErr(''); }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)' }}>To:</label>
+            <input 
+              type="date" 
+              value={toDate} 
+              onChange={(e) => { setToDate(e.target.value); setValidationErr(''); }}
+            />
+          </div>
           <button 
-            className="btn-today" 
-            onClick={() => setSelectedDate(todayStr)}
+            type="button"
+            className="btn primary" 
+            style={{ padding: '6px 14px', fontSize: 12 }}
+            onClick={handleApplyFilter}
           >
-            Today
+            Apply Filter
+          </button>
+          <button 
+            type="button"
+            className="btn ghost" 
+            style={{ padding: '6px 12px', fontSize: 12 }}
+            onClick={handleResetFilter}
+          >
+            Reset
           </button>
         </div>
       </div>
+
+      {validationErr && (
+        <div className="panel" style={{ padding: '10px 16px', marginBottom: 16, color: 'var(--red)', background: 'var(--red-soft)', border: '1px solid #f0c8c4', fontSize: 13 }}>
+          ⚠️ {validationErr}
+        </div>
+      )}
 
       {loading ? (
         <div className="panel" style={{ padding: 60, textAlign: 'center', color: 'var(--text-dim)', border: 'none', background: 'transparent' }}>
@@ -137,11 +191,11 @@ export default function OverviewPage({ navigate = () => {} }) {
                 title="2. Sales" 
                 value={fmtNum(data.salesAmount)} 
                 unit="PKR" 
-                context={`Daily: ${fmtNum(data.salesSelectedDatePackets || 0)} pkts · Cumulative: PKR ${fmtNum(data.salesCumulativeAmount || 0)}`} 
+                context={`Period: ${fmtNum(data.salesSelectedDatePackets || 0)} pkts · Cumulative: PKR ${fmtNum(data.salesCumulativeAmount || 0)}`} 
                 icon={<IconMoney/>} 
                 color="green" 
                 accent={true} 
-                onClick={() => navigate('sales')}
+                onClick={() => navigate('booking')}
               />
 
               {/* 3. Distributors Outstanding (PKR) */}
@@ -161,7 +215,7 @@ export default function OverviewPage({ navigate = () => {} }) {
                 title="4. Expenses" 
                 value={fmtNum(data.expensesAmount)} 
                 unit="PKR" 
-                context={`Daily approved on ${fmtDate(selectedDate)} · Cumulative: PKR ${fmtNum(data.expensesCumulativeAmount || 0)}`} 
+                context={`Period: ${fmtDate(activeRange.dateFrom)} to ${fmtDate(activeRange.dateTo)} · Cumulative: PKR ${fmtNum(data.expensesCumulativeAmount || 0)}`} 
                 icon={<IconMoney/>} 
                 color="red" 
                 accent={false} 
@@ -197,7 +251,7 @@ export default function OverviewPage({ navigate = () => {} }) {
                 title="7. Distributors Commission" 
                 value={fmtNum(data.commissionAmount)} 
                 unit="PKR" 
-                context={`Earned on ${fmtDate(selectedDate)} · Outstanding Payable: PKR ${fmtNum(data.commissionPayable)}`} 
+                context={`Earned in period · Outstanding Payable: PKR ${fmtNum(data.commissionPayable)}`} 
                 icon={<IconPercent/>} 
                 color="teal" 
                 accent={false} 
@@ -209,7 +263,7 @@ export default function OverviewPage({ navigate = () => {} }) {
                 title="8. Distributors Return Stock" 
                 value={fmtNum(data.distReturnStock)} 
                 unit="pkts" 
-                context={`Cumulative approved returns · Daily: ${fmtNum(data.distReturnSelectedDate || 0)} pkts`} 
+                context={`Cumulative approved returns · In period: ${fmtNum(data.distReturnSelectedDate || 0)} pkts`} 
                 icon={<IconRotate/>} 
                 color="amber" 
                 accent={false} 

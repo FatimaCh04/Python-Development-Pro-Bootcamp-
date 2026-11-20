@@ -52,6 +52,7 @@ export default function BookingPage() {
   const [selectedDistributor, setSelectedDistributor] = useState(null);
   const [distSearch,          setDistSearch]          = useState('');
   const [bookingDate,         setBookingDate]         = useState(todayISO());
+  const [commissionRate,      setCommissionRate]      = useState('');
   const [items,               setItems]               = useState([]); // [{packagingId, name, qty, price}]
 
   // Item picker (with editable unit price)
@@ -65,6 +66,13 @@ export default function BookingPage() {
   const [recoveryBooking, setRecoveryBooking] = useState(null);
   const [recoveryAmount,  setRecoveryAmount]  = useState('');
   const [paymentMethod,   setPaymentMethod]   = useState('Cash');
+  const [recoveryDate,    setRecoveryDate]    = useState(todayISO());
+  const [recoveryNotes,   setRecoveryNotes]   = useState('');
+  const [receiptNo,       setReceiptNo]       = useState('');
+
+  // ── Pending tab filters ───────────────────────────────────────────────────
+  const [pendingSearch,     setPendingSearch]     = useState('');
+  const [pendingDistFilter, setPendingDistFilter] = useState('');
 
   // ── WhatsApp PDF sharing state ──────────────────────────────────────────
   const [sharingBookingId, setSharingBookingId] = useState(null);
@@ -113,8 +121,27 @@ export default function BookingPage() {
       )
     : activeDistributors;
 
-  function handleSelectDist(d) { setSelectedDistributor(d); setDistSearch(''); }
-  function handleClearDist()   { setSelectedDistributor(null); setDistSearch(''); }
+  function handleSelectDist(d) {
+    setSelectedDistributor(d);
+    setDistSearch('');
+    setCommissionRate(d.commission !== undefined && d.commission !== null ? String(d.commission) : '30');
+  }
+  function handleClearDist() {
+    setSelectedDistributor(null);
+    setDistSearch('');
+    setCommissionRate('');
+  }
+
+  function openRecoveryModal(b) {
+    setRecoveryBooking(b);
+    setRecoveryAmount(b.remaining_balance || '');
+    setPaymentMethod('Cash');
+    setRecoveryDate(todayISO());
+    setRecoveryNotes('');
+    setReceiptNo('');
+    setMsg('');
+    setShowRecovery(true);
+  }
 
   // ── Load recoveries whenever recDistFilter changes ───────────────────────
   const loadRecoveries = useCallback(async () => {
@@ -169,6 +196,7 @@ export default function BookingPage() {
       await submitBooking({
         distributorId: selectedDistributor.id,
         bookingDate,
+        commissionRate: commissionRate !== '' ? Number(commissionRate) : undefined,
         items: items.map(i => ({ packagingId: i.packagingId, quantity: i.qty, price: i.price })),
         totalAmount
       });
@@ -176,6 +204,7 @@ export default function BookingPage() {
       // Reset form
       setSelectedDistributor(null); setDistSearch('');
       setBookingDate(todayISO()); setItems([]);
+      setCommissionRate('');
       setSelProduct(''); setSelPkg(''); setSelQty(''); setInputPrice('');
       await loadBookings();
       setTimeout(() => { setActiveTab('list'); setMsg(''); }, 1500);
@@ -186,11 +215,15 @@ export default function BookingPage() {
 
   // ── Save recovery ─────────────────────────────────────────────────────────
   async function handleSaveRecovery() {
-    if (!recoveryAmount || Number(recoveryAmount) <= 0) {
+    if (!recoveryDate) {
+      setMsg('err:Recovery date is required.'); return;
+    }
+    const amt = Number(recoveryAmount);
+    if (!amt || amt <= 0) {
       setMsg('err:Amount must be greater than zero.'); return;
     }
-    if (Number(recoveryAmount) > recoveryBooking.remaining_balance) {
-      setMsg('err:Amount exceeds remaining balance.'); return;
+    if (amt > Number(recoveryBooking.remaining_balance || 0)) {
+      setMsg(`err:Amount exceeds remaining pending balance of Rs. ${fmtNum(recoveryBooking.remaining_balance)}.`); return;
     }
     try {
       setLoading(true); setMsg('');
@@ -198,13 +231,16 @@ export default function BookingPage() {
         bookingId:     recoveryBooking.id,
         bookingRef:    recoveryBooking.reference_number,
         distributorId: recoveryBooking.distributor_id || null,
-        amount:        recoveryAmount,
-        paymentMethod
+        amount:        amt,
+        paymentMethod,
+        recoveryDate,
+        notes:         recoveryNotes,
+        receiptNo:     receiptNo || null
       });
-      setMsg(`ok:Recovery of Rs. ${fmtNum(recoveryAmount)} recorded successfully. View in Recovery History tab.`);
+      setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} recorded successfully against ${recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : recoveryBooking.reference_number}.`);
       await loadBookings();
       await loadRecoveries();
-      setTimeout(() => { setShowRecovery(false); }, 1500);
+      setTimeout(() => { setShowRecovery(false); setMsg(''); }, 1500);
     } catch (e) {
       setMsg('err:' + e.message);
     } finally { setLoading(false); }
@@ -334,6 +370,30 @@ async function ensureBookingItems(b) {
     : recoveries;
   const totalRecAmt = displayRecoveries.reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
+  // ── Pending Bookings filters & stats ─────────────────────────────────────
+  const pendingBookings = useMemo(() => {
+    return bookings.filter(b => (b.remaining_balance || 0) > 0 && b.status !== 'Cancelled');
+  }, [bookings]);
+
+  const displayPending = useMemo(() => {
+    return pendingBookings.filter(b => {
+      if (pendingDistFilter && b.distributor_id !== pendingDistFilter) return false;
+      if (pendingSearch) {
+        const q = pendingSearch.toLowerCase();
+        const ref = (b.reference_number || '').toLowerCase();
+        const bill = (b.formattedBillNo ? `bill #${b.formattedBillNo}` : '').toLowerCase();
+        const dName = (b.distributors?.name || '').toLowerCase();
+        const dCode = (b.distributors?.code || '').toLowerCase();
+        if (!ref.includes(q) && !bill.includes(q) && !dName.includes(q) && !dCode.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [pendingBookings, pendingDistFilter, pendingSearch]);
+
+  const totalPendingValue     = displayPending.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+  const totalPendingRecovered = displayPending.reduce((sum, b) => sum + Number(b.total_recovered || 0), 0);
+  const totalPendingBalance   = displayPending.reduce((sum, b) => sum + Number(b.remaining_balance || 0), 0);
+
   function distLabel(b) {
     if (!b.distributors) return <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>Not Assigned</span>;
     return (
@@ -351,6 +411,13 @@ async function ensureBookingItems(b) {
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="tabs">
           <div className={`tab${activeTab === 'list'       ? ' active' : ''}`} onClick={() => setActiveTab('list')}>Booking Ledger</div>
+          <div className={`tab${activeTab === 'pending'    ? ' active' : ''}`} onClick={() => setActiveTab('pending')}>
+            Pending Recovery {pendingBookings.length > 0 && (
+              <span className="badge amber" style={{ marginLeft: 6, fontSize: 11, padding: '2px 7px' }}>
+                {pendingBookings.length}
+              </span>
+            )}
+          </div>
           <div className={`tab${activeTab === 'create'     ? ' active' : ''}`} onClick={() => setActiveTab('create')}>Create Booking</div>
           <div className={`tab${activeTab === 'recoveries' ? ' active' : ''}`} onClick={() => setActiveTab('recoveries')}>
             Recovery History ({recoveries.length})
@@ -458,15 +525,9 @@ async function ensureBookingItems(b) {
                               <button
                                 className="btn"
                                 style={{ padding: '3px 8px', fontSize: 11.5 }}
-                                onClick={() => {
-                                  setRecoveryBooking(b);
-                                  setRecoveryAmount(b.remaining_balance);
-                                  setPaymentMethod('Cash');
-                                  setShowRecovery(true);
-                                  setMsg('');
-                                }}
+                                onClick={() => openRecoveryModal(b)}
                               >
-                                + Record Advance
+                                + Record Recovery
                               </button>
                             )}
                           <button className="btn" style={{ padding: '3px 8px', fontSize: 11.5 }} onClick={() => handlePrintBooking(b)}>Print</button>
@@ -496,6 +557,166 @@ async function ensureBookingItems(b) {
             </table>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── PENDING RECOVERY TAB ──────────────────────────────────────────── */}
+      {activeTab === 'pending' && (
+        <div className="panel">
+          {/* Top KPI Cards for Pending Recoveries */}
+          <div className="grid g4" style={{ marginBottom: 20 }}>
+            <div className="tile amber">
+              <div className="bar" />
+              <div className="label">Pending Bookings</div>
+              <div className="num">{fmtNum(displayPending.length)}</div>
+              <div className="delta" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                Unrecovered advance reservations
+              </div>
+            </div>
+
+            <div className="tile teal">
+              <div className="bar" />
+              <div className="label">Total Booking Value</div>
+              <div className="num">Rs. {fmtNum(totalPendingValue)}</div>
+              <div className="delta" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                Gross value of orders
+              </div>
+            </div>
+
+            <div className="tile green">
+              <div className="bar" />
+              <div className="label">Advance Recovered</div>
+              <div className="num">Rs. {fmtNum(totalPendingRecovered)}</div>
+              <div className="delta" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                Deposits collected so far
+              </div>
+            </div>
+
+            <div className="tile red">
+              <div className="bar" />
+              <div className="label">Total Pending Balance</div>
+              <div className="num" style={{ color: 'var(--red)' }}>Rs. {fmtNum(totalPendingBalance)}</div>
+              <div className="delta" style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                Remaining advance due
+              </div>
+            </div>
+          </div>
+
+          {/* Filters row */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div className="field" style={{ flex: '1 1 200px', margin: 0 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Distributor</label>
+              <select value={pendingDistFilter} onChange={e => setPendingDistFilter(e.target.value)}>
+                <option value="">All Distributors</option>
+                {distributors.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ flex: '2 1 240px', margin: 0 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Search</label>
+              <input 
+                placeholder="Booking #, distributor, bill #..." 
+                value={pendingSearch} 
+                onChange={e => setPendingSearch(e.target.value)} 
+              />
+            </div>
+            <button className="btn" onClick={loadBookings} style={{ alignSelf: 'flex-end' }}>Refresh</button>
+          </div>
+
+          <div className="section-head">
+            <h2>
+              {pendingDistFilter
+                ? (distributors.find(d => d.id === pendingDistFilter)?.name || 'Distributor') + ' — Pending Recoveries'
+                : 'Pending Recovery Bookings'}
+            </h2>
+            <span className="link" style={{ fontSize: 12 }}>
+              {displayPending.length} pending record{displayPending.length !== 1 ? 's' : ''} · Remaining: Rs. {fmtNum(totalPendingBalance)}
+            </span>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Bill # / Ref</th>
+                <th>Booking Date</th>
+                <th>Distributor</th>
+                <th style={{ textAlign: 'right' }}>Packets</th>
+                <th style={{ textAlign: 'right' }}>Booking Value</th>
+                <th style={{ textAlign: 'right' }}>Advance Paid</th>
+                <th style={{ textAlign: 'right' }}>Remaining Pending</th>
+                <th>Commission Rate</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayPending.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>
+                    ✅ All bookings are fully recovered! No pending recovery amounts.
+                  </td>
+                </tr>
+              ) : (
+                displayPending.map(b => {
+                  const pkts = (b.sale_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                  const comm = b.commission_rate_snapshot !== null && b.commission_rate_snapshot !== undefined
+                    ? `Rs. ${b.commission_rate_snapshot}/pkt`
+                    : b.distributors?.commission ? `Rs. ${b.distributors.commission}/pkt` : '—';
+                  return (
+                    <tr key={b.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--teal)', fontSize: 13 }}>
+                          {b.formattedBillNo ? `Bill #${b.formattedBillNo}` : 'Bill (Not Assigned)'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
+                          {b.reference_number}
+                        </div>
+                      </td>
+                      <td>{fmtDate(b.sale_date)}</td>
+                      <td>{distLabel(b)}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtNum(pkts)} pkts</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>Rs. {fmtNum(b.total_amount)}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--green)', fontWeight: 600 }}>
+                        Rs. {fmtNum(b.total_recovered)}
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--red)', fontSize: 13.5 }}>
+                        Rs. {fmtNum(b.remaining_balance)}
+                      </td>
+                      <td style={{ fontSize: 12 }}>{comm}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            className="btn primary"
+                            style={{ padding: '4px 10px', fontSize: 11.5 }}
+                            onClick={() => openRecoveryModal(b)}
+                          >
+                            + Record Recovery
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ padding: '4px 8px', fontSize: 11.5 }}
+                            onClick={() => {
+                              setRecSearch(b.reference_number || '');
+                              if (b.distributor_id) setRecDistFilter(b.distributor_id);
+                              setActiveTab('recoveries');
+                            }}
+                            title="View all recoveries recorded for this booking"
+                          >
+                            History
+                          </button>
+                          <button 
+                            className="btn" 
+                            style={{ padding: '4px 8px', fontSize: 11.5 }} 
+                            onClick={() => handlePrintBooking(b)}
+                          >
+                            Print
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -658,6 +879,59 @@ async function ensureBookingItems(b) {
             </div>
           )}
 
+          {/* Commission Configuration Section */}
+          {selectedDistributor && (
+            <div className="panel" style={{ marginTop: 16, marginBottom: 16, background: '#F8FAF9', border: '1px solid var(--teal-light)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: 14, color: 'var(--teal)' }}>💰 Distributor Commission Configuration</h4>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Manual commission rate per packet for #{selectedDistributor.code} ({selectedDistributor.name})
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Total Calculated Commission</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--teal)' }}>
+                    Rs. {fmtNum(totalPackets * (Number(commissionRate) || 0))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                <div className="field">
+                  <label>Agreed Rate (Rs. / packet) *</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    value={commissionRate} 
+                    onChange={e => setCommissionRate(e.target.value)} 
+                    placeholder="e.g. 30"
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Total Order Packets</label>
+                  <input 
+                    type="text" 
+                    value={`${fmtNum(totalPackets)} pkts`} 
+                    disabled 
+                    style={{ background: '#F0F0EE', fontWeight: 600 }}
+                  />
+                </div>
+                <div className="field">
+                  <label>Commission Payable on Fulfilled Sale</label>
+                  <input 
+                    type="text" 
+                    value={`Rs. ${fmtNum(totalPackets * (Number(commissionRate) || 0))}`} 
+                    disabled 
+                    style={{ background: '#F0F0EE', fontWeight: 700, color: 'var(--teal)' }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="btn-row" style={{ marginTop: 16 }}>
             <button className="btn primary" onClick={handleSaveBooking} disabled={loading}>
               {loading ? 'Saving...' : 'Save Booking'}
@@ -797,32 +1071,73 @@ async function ensureBookingItems(b) {
 
             <Msg msg={msg} />
 
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="field">
-                <label>Recovery Amount (Rs.) *</label>
-                <input
-                  type="number"
-                  max={recoveryBooking.remaining_balance}
-                  value={recoveryAmount}
-                  onChange={e => setRecoveryAmount(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label>Payment Method</label>
-                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                  <option>Cash</option>
-                  <option>Bank Transfer</option>
-                  <option>Cheque</option>
-                </select>
-              </div>
-            </div>
+            <form onSubmit={e => { e.preventDefault(); handleSaveRecovery(); }}>
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: 12 }}>
+                <div className="field">
+                  <label>Recovery Date *</label>
+                  <input
+                    type="date"
+                    value={recoveryDate}
+                    onChange={e => setRecoveryDate(e.target.value)}
+                    required
+                  />
+                </div>
 
-            <div className="btn-row" style={{ marginTop: 20 }}>
-              <button className="btn primary" onClick={handleSaveRecovery} disabled={loading}>
-                {loading ? 'Processing...' : 'Save Recovery'}
-              </button>
-              <button className="btn ghost" onClick={() => { setShowRecovery(false); setMsg(''); }}>Cancel</button>
-            </div>
+                <div className="field">
+                  <label>Recovery Amount (Rs.) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    max={recoveryBooking.remaining_balance}
+                    placeholder="e.g. 50000"
+                    value={recoveryAmount}
+                    onChange={e => setRecoveryAmount(e.target.value)}
+                    required
+                    style={{ fontSize: 15, fontWeight: 700 }}
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Maximum payable against this booking: Rs. {fmtNum(recoveryBooking.remaining_balance)}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Payment Method *</label>
+                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+
+                <div className="field">
+                  <label>Receipt / Reference # / TID (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. REC-1234, Bank TID, Online Ref"
+                    value={receiptNo}
+                    onChange={e => setReceiptNo(e.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>Notes / Cheque / Bank Details (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. HBL deposit, Cheque #123456"
+                    value={recoveryNotes}
+                    onChange={e => setRecoveryNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="btn-row" style={{ marginTop: 20 }}>
+                <button type="submit" className="btn primary" disabled={loading}>
+                  {loading ? 'Processing...' : 'Save Recovery'}
+                </button>
+                <button type="button" className="btn ghost" onClick={() => { setShowRecovery(false); setMsg(''); }}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

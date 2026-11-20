@@ -7,8 +7,7 @@ import {
   fetchDistributorStockStats,
   fetchDistributorStockLedger,
   fetchDistributorFinLedger,
-  fetchDistributorCommissionLedger,
-  addDistributorRecovery
+  fetchDistributorCommissionLedger
 } from '../lib/db';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('en-PK');
@@ -58,15 +57,6 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
   const [finLedger, setFinLedger] = useState([]);
   const [stockLedger, setStockLedger] = useState([]);
   const [commLedger, setCommLedger] = useState([]);
-
-  // Direct Recovery recording state
-  const [showRecModal, setShowRecModal] = useState(false);
-  const [recAmount, setRecAmount] = useState('');
-  const [recMethod, setRecMethod] = useState('Cash');
-  const [recNotes, setRecNotes] = useState('');
-  const [recDate, setRecDate] = useState(new Date().toISOString().split('T')[0]);
-  const [recSaving, setRecSaving] = useState(false);
-  const [recMsg, setRecMsg] = useState('');
 
   // Filters & Pagination
   const [localSearch, setLocalSearch] = useState('');
@@ -221,37 +211,6 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
     window.print();
   };
 
-  const handleSaveRecovery = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!selectedId) return;
-    const amt = Number(recAmount);
-    if (!amt || amt <= 0) {
-      setRecMsg('err:Enter a valid recovery amount.');
-      return;
-    }
-    setRecSaving(true);
-    setRecMsg('');
-    try {
-      await addDistributorRecovery({
-        distributorId: selectedId,
-        amount: amt,
-        paymentMethod: recMethod,
-        recoveryDate: recDate,
-        notes: recNotes
-      });
-      setRecMsg('ok:Recovery recorded successfully.');
-      await loadDistributorData(selectedId);
-      setTimeout(() => {
-        setShowRecModal(false);
-        setRecMsg('');
-      }, 1200);
-    } catch (err) {
-      setRecMsg('err:' + (err.message || 'Failed to record recovery.'));
-    } finally {
-      setRecSaving(false);
-    }
-  };
-
   if (loadingDist) {
     return (
       <div className="panel" style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>
@@ -325,21 +284,6 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
                 <span style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 8px' }}>No matches</span>
               )}
             </div>
-            <button
-              className="btn primary"
-              style={{ fontSize: 12, padding: '6px 12px', whiteSpace: 'nowrap' }}
-              onClick={() => {
-                setRecAmount('');
-                setRecMethod('Cash');
-                setRecNotes('');
-                setRecDate(new Date().toISOString().split('T')[0]);
-                setRecMsg('');
-                setShowRecModal(true);
-              }}
-              disabled={!selectedId}
-            >
-              + Record Recovery
-            </button>
           </div>
         </div>
       </div>
@@ -944,88 +888,6 @@ export default function DistributorLedgerPage({ searchTerm = '' }) {
           </>
         )}
       </div>
-
-      {/* ── DIRECT RECOVERY MODAL ────────────────────────────────────────── */}
-      {showRecModal && selectedDist && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="panel" style={{ width: 440, maxWidth: '92%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid var(--line)', paddingBottom: 10 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16 }}>Record Recovery — {selectedDist.name}</h3>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                  Distributor Code: #{selectedDist.code} · Current Outstanding: Rs. {fmtNum(stats.outstanding)} {stats.advanceBalance > 0 ? `(Advance Held: Rs. ${fmtNum(stats.advanceBalance)})` : ''}
-                </div>
-              </div>
-              <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => setShowRecModal(false)}>✕</button>
-            </div>
-
-            {recMsg && (
-              <div style={{
-                padding: '8px 12px',
-                marginBottom: 12,
-                borderRadius: 4,
-                fontSize: 12,
-                background: recMsg.startsWith('err:') ? 'var(--red-soft)' : 'var(--green-soft)',
-                color: recMsg.startsWith('err:') ? 'var(--red)' : 'var(--green)'
-              }}>
-                {recMsg.replace(/^(ok|err):/, '')}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveRecovery} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="field">
-                <label>Recovery Date *</label>
-                <input
-                  type="date"
-                  value={recDate}
-                  onChange={e => setRecDate(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="field">
-                <label>Amount (Rs.) *</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  placeholder="e.g. 50000"
-                  value={recAmount}
-                  onChange={e => setRecAmount(e.target.value)}
-                  required
-                  style={{ fontSize: 15, fontWeight: 700 }}
-                />
-              </div>
-
-              <div className="field">
-                <label>Payment Method *</label>
-                <select value={recMethod} onChange={e => setRecMethod(e.target.value)}>
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
-              </div>
-
-              <div className="field">
-                <label>Notes / Cheque / Bank Details (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. HBL deposit, Cheque #123456"
-                  value={recNotes}
-                  onChange={e => setRecNotes(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-                <button type="button" className="btn ghost" onClick={() => setShowRecModal(false)}>Cancel</button>
-                <button type="submit" className="btn primary" disabled={recSaving}>
-                  {recSaving ? 'Saving...' : 'Save Recovery'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -782,7 +782,7 @@ export async function deleteProduct(pkgId, productId) {
 }
 
 
-export async function submitBooking({ salesmanId, distributorId, bookingDate, items, totalAmount }) {
+export async function submitBooking({ salesmanId, distributorId, bookingDate, items, totalAmount, commissionRate }) {
   const ref = refNum('BKG');
   const effectiveDate = bookingDate ? new Date(bookingDate).toISOString() : new Date().toISOString();
 
@@ -804,6 +804,14 @@ export async function submitBooking({ salesmanId, distributorId, bookingDate, it
     });
 
     if (!rpcErr && rpcRes) {
+      if (commissionRate !== undefined && commissionRate !== null && commissionRate !== '') {
+        const cRate = Number(commissionRate);
+        await supabase
+          .from('sales_orders')
+          .update({ commission_rate_snapshot: cRate })
+          .eq('id', rpcRes.id);
+        rpcRes.commission_rate_snapshot = cRate;
+      }
       return rpcRes;
     }
     if (rpcErr && rpcErr.code !== 'PGRST202') {
@@ -814,14 +822,19 @@ export async function submitBooking({ salesmanId, distributorId, bookingDate, it
   }
 
   // Fallback for non-migrated environment:
-  const { data: order, error: orderErr } = await supabase.from('sales_orders').insert({
+  const orderPayload = {
     reference_number: ref,
     salesman_id: salesmanId || null,
     distributor_id: distributorId || null,
     total_amount: totalAmount,
     sale_date: effectiveDate,
     status: 'Pending'
-  }).select().single();
+  };
+  if (commissionRate !== undefined && commissionRate !== null && commissionRate !== '') {
+    orderPayload.commission_rate_snapshot = Number(commissionRate);
+  }
+
+  const { data: order, error: orderErr } = await supabase.from('sales_orders').insert(orderPayload).select().single();
   
   if (orderErr) throw orderErr;
 
@@ -842,7 +855,7 @@ export async function submitBooking({ salesmanId, distributorId, bookingDate, it
 export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   let q = supabase
     .from('sales_orders')
-    .select('id, reference_number, sale_date, total_amount, status, salesman_id, distributor_id, salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone), sale_items(*, product_packaging(name, products(name)))')
+    .select('id, reference_number, sale_date, total_amount, status, salesman_id, distributor_id, commission_rate_snapshot, salesmen(profiles(full_name)), distributors(id, code, name, id_card, phone, commission), sale_items(*, product_packaging(name, products(name)))')
     .like('reference_number', 'BKG-%')
     .order('sale_date', { ascending: true });
   if (dateFrom) q = q.gte('sale_date', dateFrom);
@@ -908,19 +921,21 @@ export async function fetchBookings({ dateFrom, dateTo, distributorId } = {}) {
   });
 }
 
-export async function addBookingRecovery({ bookingId, bookingRef, salesmanId, distributorId, amount, paymentMethod }) {
+export async function addBookingRecovery({ bookingId, bookingRef, salesmanId, distributorId, amount, paymentMethod, recoveryDate, notes, receiptNo }) {
   const identifier = bookingRef || bookingId;
   const ref = refNum('REC') + '|' + identifier;
   const payload = {
     reference_number: ref,
     amount: Number(amount),
     payment_method: paymentMethod || 'Cash',
-    recovery_date: new Date().toISOString(),
+    recovery_date: recoveryDate ? new Date(recoveryDate).toISOString() : new Date().toISOString(),
     status: 'Approved',
-    notes: `Advance payment on booking ${identifier}`
+    notes: notes || `Advance payment on booking ${identifier}`
   };
+  if (bookingId) payload.sale_order_id = bookingId;
   if (distributorId) payload.distributor_id = distributorId;
   if (salesmanId) payload.salesman_id = salesmanId;
+  if (receiptNo) payload.tid = receiptNo;
 
   const { data, error } = await supabase.from('recoveries').insert(payload).select().single();
   if (error) throw error;
@@ -1667,16 +1682,26 @@ export async function fetchDistributorCommissionLedger(distributorId) {
 }
 
 
-export async function fetchDashboardMetrics(selectedDateStr) {
-  const dateObj = selectedDateStr ? new Date(selectedDateStr + 'T00:00:00') : new Date();
+export async function fetchDashboardMetrics(params) {
+  let dateFromStr, dateToStr;
+  if (typeof params === 'string') {
+    dateFromStr = params;
+    dateToStr = params;
+  } else if (params && typeof params === 'object') {
+    dateFromStr = params.dateFrom || params.selectedDateStr;
+    dateToStr = params.dateTo || params.selectedDateStr || dateFromStr;
+  }
   
-  const endOfDay = new Date(dateObj);
-  endOfDay.setHours(23, 59, 59, 999);
-  const eodIso = endOfDay.toISOString();
-  
-  const startOfDay = new Date(dateObj);
+  const fromObj = dateFromStr ? new Date(dateFromStr + 'T00:00:00') : new Date();
+  const toObj = dateToStr ? new Date(dateToStr + 'T00:00:00') : new Date(fromObj);
+
+  const startOfDay = new Date(fromObj);
   startOfDay.setHours(0, 0, 0, 0);
   const sodIso = startOfDay.toISOString();
+
+  const endOfDay = new Date(toObj);
+  endOfDay.setHours(23, 59, 59, 999);
+  const eodIso = endOfDay.toISOString();
 
   // 1. INVENTORY TRANSACTIONS (Cumulative up to EOD)
   const { data: invRows, error: invErr } = await supabase
