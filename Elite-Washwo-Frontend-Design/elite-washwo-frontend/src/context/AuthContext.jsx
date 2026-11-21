@@ -19,6 +19,9 @@ export const AuthProvider = ({ children }) => {
       } else {
         setLoading(false);
       }
+    }).catch((err) => {
+      console.error('Error fetching session:', err);
+      setLoading(false);
     });
 
     // Listen for changes on auth state

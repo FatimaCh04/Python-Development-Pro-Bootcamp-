@@ -242,83 +242,194 @@ export function shareOnWhatsApp({ title, lines = [], phone = '' }) {
 
 
 // --- EMBEDDED OFFICIAL BILL PAD ASSETS ---
-import { RECEIPT_TEMPLATE_BASE64, CEO_SIGNATURE_BASE64 } from './receiptAssets.js';
+import {
+  RECEIPT_WATERMARK_BASE64,
+  MANAGER_SIGNATURE_BASE64,
+  MANAGER_STAMP_BASE64,
+  CEO_SIGNATURE_BASE64,
+  CEO_STAMP_BASE64,
+  RECEIPT_TEMPLATE_BASE64
+} from './receiptAssets.js';
 
-// --- BOOKING PAD (OFFICIAL ELITEWASH DETERGENT BILL PAD) HTML TEMPLATE ---
-export function getBookingPadHtml(booking, options = {}) {
-  const { isForPdf = false } = options;
-  const receiptUrl = (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '') + "/receipt.jpeg";
-  const signatureUrl = (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '') + "/ceo-signature.png";
+// --- OFFICIAL RED-ORANGE ELITE WASH BILL PAD HTML GENERATOR ---
+function generateOfficialReceiptHtml({
+  padTitle,
+  billNo,
+  refNo,
+  formattedBillNo,
+  dateStr,
+  distName,
+  distCode = '',
+  distPhone = '',
+  rawItems = [],
+  total = 0,
+  isForPdf = false
+}) {
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+  const watermarkUrl = origin ? `${origin}/assets/receipt/receipt-watermark-red.png` : RECEIPT_WATERMARK_BASE64;
+  const managerSigUrl = origin ? `${origin}/assets/receipt/manager-signature.png` : MANAGER_SIGNATURE_BASE64;
+  const managerStampUrl = origin ? `${origin}/assets/receipt/manager-stamp.png` : MANAGER_STAMP_BASE64;
+  const ceoSigUrl = origin ? `${origin}/assets/receipt/ceo-signature.png` : CEO_SIGNATURE_BASE64;
+  const ceoStampUrl = origin ? `${origin}/assets/receipt/ceo-stamp.png` : CEO_STAMP_BASE64;
 
-  const refNo = booking.reference_number || booking.ref || "";
-  const displayBillNo = booking.formattedBillNo || booking.sequential_no || booking.display_bill_no || booking.bill_no || (refNo.startsWith('BKG-') ? refNo.replace(/^BKG-0*/, '') : refNo);
-  const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
-  const dateStr = booking.sale_date ? new Date(booking.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK");
-  const distName = booking.distributors?.name || booking.distributorName || "—";
-  
-  const rawItems = booking.items || (booking.sale_items || []).map(i => ({
-    description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
-    quantity: i.quantity,
-    price: i.unit_price,
-    amount: (i.quantity || 0) * (i.unit_price || 0)
-  }));
-
-  const total = booking.total_amount || booking.totalAmount || 0;
-
-  // Exact coordinates matching the official 668 x 1024 px ELITEWASH DETERGENT bill pad template:
-  const ROW_START_PCT = 36.5;
-  const ROW_HEIGHT_PCT = 3.65;
   const MAX_ROWS = 13;
-
-  let rowsHtml = "";
+  let rowsHtml = '';
   for (let i = 0; i < MAX_ROWS; i++) {
-    const item   = rawItems[i];
-    const top    = ROW_START_PCT + (i * ROW_HEIGHT_PCT);
-    const srNo   = item ? (i + 1) : "";
-    const desc   = item ? (item.description || item.name || "") : "";
-    const qty    = item ? (item.quantity ?? item.qty ?? "") : "";
-    const price  = item ? (item.unit_price ?? item.price ?? "") : "";
-    const amount = item ? (item.amount ?? ((Number(qty) || 0) * (Number(price) || 0))) : "";
+    const item = rawItems[i];
+    const srNo = item ? (i + 1) : '';
+    const desc = item ? (item.description || item.name || '') : '';
+    const qty = item ? (item.quantity ?? item.qty ?? '') : '';
+    const price = item ? (item.unit_price ?? item.price ?? '') : '';
+    const amount = item ? (item.amount ?? ((Number(qty) || 0) * (Number(price) || 0))) : '';
 
     rowsHtml += `
-      <div style="position:absolute; top:${top}%; left:4.6%; width:9.3%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#111;">${srNo}</div>
-      <div style="position:absolute; top:${top}%; left:14.5%; width:36.0%; height:3.4%; font-size:12px; font-weight:600; display:flex; align-items:center; padding-left:6px; color:#111; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${desc}</div>
-      <div style="position:absolute; top:${top}%; left:51.5%; width:8.5%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#111;">${qty !== '' ? Number(qty).toLocaleString('en-PK') : ''}</div>
-      <div style="position:absolute; top:${top}%; left:60.5%; width:12.0%; height:3.4%; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#111;">${price !== '' ? Number(price).toLocaleString('en-PK') : ''}</div>
-      <div style="position:absolute; top:${top}%; left:73.5%; width:21.5%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:flex-end; padding-right:12px; color:#111;">${amount !== '' ? Number(amount).toLocaleString('en-PK') : ''}</div>
+      <tr style="height:36px; border-bottom:1px solid #D83220;">
+        <td style="text-align:center; font-weight:700; color:#111827; border-right:1px solid #D83220; padding:2px 4px; font-size:12px;">${srNo}</td>
+        <td style="text-align:left; font-weight:700; color:#111827; border-right:1px solid #D83220; padding:2px 10px; font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:280px;">${desc}</td>
+        <td style="text-align:center; font-weight:700; color:#111827; border-right:1px solid #D83220; padding:2px 4px; font-size:12px;">${qty !== '' ? Number(qty).toLocaleString('en-PK') : ''}</td>
+        <td style="text-align:right; font-weight:700; color:#111827; border-right:1px solid #D83220; padding:2px 10px; font-size:12px;">${price !== '' ? Number(price).toLocaleString('en-PK') : ''}</td>
+        <td style="text-align:right; font-weight:700; color:#111827; padding:2px 12px; font-size:12px;">${amount !== '' ? Number(amount).toLocaleString('en-PK') : ''}</td>
+      </tr>
     `;
   }
 
   const containerStyle = isForPdf
-    ? `position:relative; width:100%; aspect-ratio:668/1024; background:#ffffff; margin:0; padding:0; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;`
-    : `position:relative; width:100%; max-width:668px; aspect-ratio:668/1024; margin:0 auto; background:#ffffff; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;`;
+    ? `position:relative; width:792px; height:1024px; max-width:792px; aspect-ratio:792/1024; background:#ffffff; margin:0; padding:32px 38px 24px 38px; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display:flex; flex-direction:column; justify-content:space-between;`
+    : `position:relative; width:100%; max-width:792px; aspect-ratio:792/1024; margin:0 auto; background:#ffffff; padding:32px 38px 24px 38px; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display:flex; flex-direction:column; justify-content:space-between;`;
+
+  const formattedTitle = padTitle === 'DELIVERY BILL PAD' ? 'D E L I V E R Y &nbsp; B I L L &nbsp; P A D' : 'B O O K I N G &nbsp; P A D';
 
   const bodyContent = `
-    <div class="receipt-wrapper" style="position:relative; width:100%; height:100%; aspect-ratio:668/1024;">
-      <img src="${receiptUrl}" alt="Elite Wash Official Bill Pad" style="width:100%; height:100%; display:block; object-fit:fill;" />
-      <div class="overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
-        <!-- Official Title: BOOKING PAD -->
-        <div style="position:absolute; top:20.2%; left:0; width:100%; text-align:center; font-size:15px; font-weight:800; letter-spacing:0.14em; color:#111827; text-transform:uppercase;">BOOKING PAD</div>
-
-        <!-- Bill No. (Sequential Bill # + Traceable Ref) -->
-        <div style="position:absolute; top:24.3%; left:16.5%; font-size:13px; font-weight:700; color:#111827; letter-spacing:0.02em;">
-          ${formattedBillNo} <span style="font-size:10px; font-weight:500; color:#4b5563;">(${refNo})</span>
+    <div class="receipt-wrapper" style="${containerStyle}">
+      <!-- Top Header -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+        <div style="flex:1;">
+          <div style="font-size:27px; font-weight:900; color:#D83220; letter-spacing:0.02em; line-height:1.1; font-family:Arial, sans-serif;">
+            ELITEWASH DETERGENT
+          </div>
+          <!-- 3 Parallel Red Lines flanking Chak No: 56/W.B. Vehari -->
+          <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0;">
+            <div style="display:flex; flex-direction:column; gap:2.5px; width:75px;">
+              <div style="height:1.5px; background:#D83220;"></div>
+              <div style="height:1.5px; background:#D83220;"></div>
+              <div style="height:1.5px; background:#D83220;"></div>
+            </div>
+            <span style="font-size:15px; font-weight:800; color:#D83220; white-space:nowrap;">Chak No: 56/W.B. Vehari</span>
+            <div style="display:flex; flex-direction:column; gap:2.5px; width:75px;">
+              <div style="height:1.5px; background:#D83220;"></div>
+              <div style="height:1.5px; background:#D83220;"></div>
+              <div style="height:1.5px; background:#D83220;"></div>
+            </div>
+          </div>
+          <!-- Contacts -->
+          <div style="font-size:11.5px; color:#D83220; line-height:1.4;">
+            <div><span style="font-weight:700;">Chief Executive Officer</span> &nbsp;0324-0106056</div>
+            <div><span style="font-weight:700; font-style:italic; font-family:Georgia, serif;">Shoaib Mehmood</span> &nbsp;0300-2791243</div>
+          </div>
         </div>
-        
-        <!-- Date -->
-        <div style="position:absolute; top:24.3%; left:77.5%; font-size:13px; font-weight:700; color:#111827;">${dateStr}</div>
-        
-        <!-- M/s Distributor Name -->
-        <div style="position:absolute; top:29.2%; left:12.0%; width:82%; font-size:13.5px; font-weight:700; color:#111827; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${distName}</div>
-        
-        <!-- Dynamic Line Items -->
-        ${rowsHtml}
-        
-        <!-- Grand Total -->
-        <div style="position:absolute; top:83.0%; left:73.5%; width:21.5%; height:3.4%; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:flex-end; padding-right:12px; color:#111827;">${Number(total).toLocaleString('en-PK')}</div>
-        
-        <!-- Authentic Handwritten CEO Signature above Chief Executive Officer line -->
-        <img src="${signatureUrl}" alt="CEO Signature" class="ceo-sig-img" style="position:absolute; left:74.0%; top:84.8%; width:16.0%; max-height:8.5%; object-fit:contain;" />
+
+        <!-- Registration Box -->
+        <div style="border:1.5px solid #D83220; border-radius:8px; padding:6px 12px; text-align:left; min-width:180px; background:#ffffff;">
+          <div style="font-size:11px; font-weight:700; color:#D83220; line-height:1.35;">Registration No:</div>
+          <div style="font-size:11px; font-weight:700; color:#D83220; line-height:1.35;">36603-0283828-3</div>
+          <div style="font-size:11px; font-weight:700; color:#D83220; line-height:1.35; margin-top:2px;">Ref. No: J895834</div>
+        </div>
+      </div>
+
+      <!-- Title Banner -->
+      <div style="text-align:center; margin:4px 0 8px 0;">
+        <span style="font-size:14px; font-weight:800; color:#D83220; letter-spacing:0.22em; text-transform:uppercase;">
+          ${formattedTitle}
+        </span>
+      </div>
+
+      <!-- Meta Bar: Bill No & Date -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:8px; font-size:12.5px;">
+        <div>
+          <span style="color:#D83220; font-weight:800; font-size:13px;">Bill No:</span>
+          <span style="color:#111827; font-weight:800; font-size:13px; margin-left:6px;">${formattedBillNo}</span>
+          <span style="color:#111827; font-weight:700; font-size:11px; margin-left:4px;">(${refNo})</span>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <span style="color:#D83220; font-weight:800; font-size:13px; margin-right:6px;">Date:</span>
+          <div style="min-width:130px; border-bottom:1.5px solid #D83220; padding-bottom:1px; text-align:center;">
+            <span style="color:#111827; font-weight:800; font-size:12.5px;">${dateStr}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distributor Box: M/s underlined in red -->
+      <div style="display:flex; align-items:flex-end; margin-bottom:10px; font-size:12.5px;">
+        <span style="color:#D83220; font-weight:800; font-size:13px; margin-right:8px; white-space:nowrap;">M/s</span>
+        <div style="flex:1; border-bottom:1.5px solid #D83220; padding-bottom:1px;">
+          <span style="color:#111827; font-weight:800; font-size:12.5px;">${distName}${distCode ? ` (${distCode})` : ''}</span>
+        </div>
+      </div>
+
+      <!-- Items Table Container with Watermark -->
+      <div style="position:relative; flex:1; display:flex; flex-direction:column;">
+        <!-- Watermark -->
+        <div style="position:absolute; top:48%; left:50%; transform:translate(-50%, -50%); width:440px; height:440px; pointer-events:none; opacity:0.32; z-index:1; display:flex; align-items:center; justify-content:center;">
+          <img src="${watermarkUrl}" alt="Watermark Logo" style="width:100%; height:100%; object-fit:contain;" />
+        </div>
+
+        <!-- Table -->
+        <table style="width:100%; border-collapse:collapse; position:relative; z-index:2; border:1.5px solid #D83220;">
+          <thead>
+            <tr style="height:34px; background:#ffffff; border-bottom:2px solid #D83220;">
+              <th style="width:10.25%; text-align:center; font-size:12px; font-weight:800; color:#D83220; border-right:1px solid #D83220; padding:2px 4px;">Sr. No:</th>
+              <th style="width:40.72%; text-align:center; font-size:12px; font-weight:800; color:#D83220; border-right:1px solid #D83220; padding:2px 8px;">Description</th>
+              <th style="width:9.83%; text-align:center; font-size:12px; font-weight:800; color:#D83220; border-right:1px solid #D83220; padding:2px 4px;">Qty</th>
+              <th style="width:14.13%; text-align:center; font-size:12px; font-weight:800; color:#D83220; border-right:1px solid #D83220; padding:2px 6px;">Price</th>
+              <th style="width:25.07%; text-align:center; font-size:12px; font-weight:800; color:#D83220; padding:2px 8px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr style="height:36px; border-top:1px solid #D83220;">
+              <td style="border-right:1px solid #D83220;"></td>
+              <td style="border-right:1px solid #D83220;"></td>
+              <td style="border-right:1px solid #D83220;"></td>
+              <td style="background:#D83220; text-align:center; border-right:1px solid #D83220; padding:2px 4px;">
+                <span style="font-size:13px; font-weight:900; color:#ffffff; letter-spacing:0.05em;">TOTAL</span>
+              </td>
+              <td style="text-align:right; font-size:13px; font-weight:800; color:#111827; padding:2px 12px;">
+                ${Number(total).toLocaleString('en-PK')}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Signatures and Stamps Authorization Area -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:16px; padding:0 6px;">
+        <!-- Manager Authorization (Left) -->
+        <div style="width:250px; text-align:center; position:relative;">
+          <div style="height:76px; position:relative; margin-bottom:-10px;">
+            <!-- Manager Circular Stamp (Blue Ink) -->
+            <img src="${managerStampUrl}" alt="Manager Stamp" style="position:absolute; left:95px; bottom:6px; width:80px; height:80px; object-fit:contain; mix-blend-mode:multiply; opacity:0.94;" />
+            <!-- Ghazanfar Handwritten Signature -->
+            <img src="${managerSigUrl}" alt="Manager Signature" style="position:absolute; left:0px; bottom:10px; width:140px; max-height:60px; object-fit:contain; mix-blend-mode:multiply; z-index:2;" />
+          </div>
+          <div style="border-top:1.5px solid #D83220; padding-top:5px;">
+            <div style="font-size:12.5px; font-weight:800; color:#D83220;">Manager Signature</div>
+          </div>
+        </div>
+
+        <!-- CEO Authorization (Right) -->
+        <div style="width:250px; text-align:center; position:relative;">
+          <div style="height:76px; position:relative; margin-bottom:-10px;">
+            <!-- CEO Circular Stamp (Blue Ink) -->
+            <img src="${ceoStampUrl}" alt="CEO Stamp" style="position:absolute; right:15px; bottom:6px; width:80px; height:80px; object-fit:contain; mix-blend-mode:multiply; opacity:0.94;" />
+            <!-- Shoaib Mehmood Handwritten Signature -->
+            <img src="${ceoSigUrl}" alt="CEO Signature" style="position:absolute; right:25px; bottom:8px; width:105px; max-height:62px; object-fit:contain; mix-blend-mode:multiply; z-index:2;" />
+          </div>
+          <div style="border-top:1.5px solid #D83220; padding-top:5px;">
+            <div style="font-size:12.5px; font-weight:800; color:#D83220;">Chief Executive Officer</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -331,89 +442,71 @@ export function getBookingPadHtml(booking, options = {}) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Official Bill Pad - ${refNo}</title>
+  <title>${padTitle} - ${refNo}</title>
   <style>
-    @page {
-      size: portrait;
-      margin: 0;
-    }
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    @page { size: portrait; margin: 0; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      background: #ffffff;
-      overflow: hidden;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;
+      width: 100%; height: 100%; margin: 0; padding: 0; background: #ffffff; overflow: hidden;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
+    body { display: flex; justify-content: center; align-items: flex-start; }
     .receipt-wrapper {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      max-height: 100vh;
-      aspect-ratio: 668 / 1024;
-      background: #ffffff;
-      margin: 0 auto;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    .receipt-wrapper img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: fill;
+      position: relative; width: 100%; height: 100vh; max-height: 100vh; aspect-ratio: 792 / 1024;
+      background: #ffffff; margin: 0 auto; page-break-inside: avoid; break-inside: avoid;
     }
     @media screen {
-      body {
-        background: #f3f4f6;
-        padding: 10px 0;
-      }
-      .receipt-wrapper {
-        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-        max-width: 668px;
-        height: auto;
-      }
+      body { background: #f3f4f6; padding: 10px 0; }
+      .receipt-wrapper { box-shadow: 0 4px 20px rgba(0,0,0,0.12); max-width: 792px; height: auto; }
     }
     @media print {
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-      }
-      .receipt-wrapper {
-        box-shadow: none !important;
-        margin: 0 auto !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
-        page-break-after: avoid !important;
-        break-after: avoid !important;
-      }
+      html, body { width: 100%; height: 100%; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+      .receipt-wrapper { box-shadow: none !important; margin: 0 auto !important; height: 100vh !important; max-height: 100vh !important; page-break-after: avoid !important; break-after: avoid !important; }
     }
   </style>
 </head>
 <body>
   ${bodyContent}
   <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 400);
-    };
+    window.onload = function() { setTimeout(function() { window.print(); }, 400); };
   </script>
 </body>
 </html>`;
+}
+
+// --- BOOKING PAD (OFFICIAL ELITEWASH DETERGENT BILL PAD) HTML TEMPLATE ---
+export function getBookingPadHtml(booking, options = {}) {
+  const refNo = booking.reference_number || booking.ref || "";
+  const displayBillNo = booking.formattedBillNo || booking.sequential_no || booking.display_bill_no || booking.bill_no || (refNo.startsWith('BKG-') ? refNo.replace(/^BKG-0*/, '') : refNo);
+  const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
+  const dateStr = booking.sale_date ? new Date(booking.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK");
+  const distName = booking.distributors?.name || booking.distributorName || "—";
+  const distCode = booking.distributors?.code || "";
+  const distPhone = booking.distributors?.phone || "";
+  
+  const rawItems = booking.items || (booking.sale_items || []).map(i => ({
+    description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
+    quantity: i.quantity,
+    price: i.unit_price,
+    amount: (i.quantity || 0) * (i.unit_price || 0)
+  }));
+
+  const total = booking.total_amount || booking.totalAmount || 0;
+
+  return generateOfficialReceiptHtml({
+    padTitle: 'BOOKING PAD',
+    billNo: refNo,
+    refNo,
+    formattedBillNo,
+    dateStr,
+    distName,
+    distCode,
+    distPhone,
+    rawItems,
+    total,
+    isForPdf: options.isForPdf || false
+  });
 }
 
 // --- BOOKING PAD (PRINT WINDOW) ---
@@ -428,6 +521,276 @@ export function printBookingPad(booking) {
   win.document.write(html);
   win.document.close();
 }
+
+// --- SHARED DIRECT JSPDF RENDERER FOR OFFICIAL BILL PAD TEMPLATES ---
+function renderOfficialReceiptToJsPdf(doc, {
+  padTitle,
+  billNo,
+  refNo,
+  formattedBillNo,
+  dateStr,
+  distName,
+  rawItems = [],
+  total = 0
+}) {
+  const pdfWidth = doc.internal.pageSize.getWidth();
+  const pdfHeight = doc.internal.pageSize.getHeight();
+
+  // White Background
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pdfWidth, pdfHeight, 'F');
+
+  const marginX = 28.5;
+  const rightMargin = 24;
+  const tableWidth = pdfWidth - marginX - rightMargin;
+
+  // 1. Header (Left: Brand Name, 3 parallel lines, Contacts)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(216, 50, 32);
+  doc.text('ELITEWASH DETERGENT', marginX, 46);
+
+  // 3 Parallel Red Lines flanking Chak No: 56/W.B. Vehari
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1.2);
+  const leftLineW = 50;
+  doc.line(marginX, 58, marginX + leftLineW, 58);
+  doc.line(marginX, 60.5, marginX + leftLineW, 60.5);
+  doc.line(marginX, 63, marginX + leftLineW, 63);
+
+  doc.setFontSize(11);
+  doc.text('Chak No: 56/W.B. Vehari', marginX + leftLineW + 6, 62);
+  const subTextW = doc.getTextWidth('Chak No: 56/W.B. Vehari');
+  const rightLineX = marginX + leftLineW + 6 + subTextW + 6;
+  doc.line(rightLineX, 58, rightLineX + leftLineW, 58);
+  doc.line(rightLineX, 60.5, rightLineX + leftLineW, 60.5);
+  doc.line(rightLineX, 63, rightLineX + leftLineW, 63);
+
+  // Contacts
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Chief Executive Officer', marginX, 76);
+  doc.setFont('helvetica', 'normal');
+  doc.text('0324-0106056', marginX + 96, 76);
+
+  doc.setFont('times', 'bolditalic');
+  doc.text('Shoaib Mehmood', marginX, 88);
+  doc.setFont('helvetica', 'normal');
+  doc.text('0300-2791243', marginX + 85, 88);
+
+  // Registration Box (Top Right)
+  const regBoxW = 135;
+  const regBoxH = 46;
+  const regBoxX = pdfWidth - rightMargin - regBoxW;
+  const regBoxY = 28;
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1.2);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(regBoxX, regBoxY, regBoxW, regBoxH, 4, 4, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(216, 50, 32);
+  doc.text('Registration No:', regBoxX + 8, regBoxY + 14);
+  doc.text('36603-0283828-3', regBoxX + 8, regBoxY + 25);
+  doc.text('Ref. No: J895834', regBoxX + 8, regBoxY + 38);
+
+  // 2. Pad Title (Center)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.setTextColor(216, 50, 32);
+  const formattedTitle = padTitle === 'DELIVERY BILL PAD' ? 'D E L I V E R Y   B I L L   P A D' : 'B O O K I N G   P A D';
+  doc.text(formattedTitle, pdfWidth / 2, 108, { align: 'center' });
+
+  // 3. Meta Bar: Bill No (Left) & Date (Right)
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(216, 50, 32);
+  doc.text('Bill No:', marginX, 130);
+  doc.setTextColor(17, 24, 39); // BLACK
+  doc.text(String(formattedBillNo) + ' (' + refNo + ')', marginX + 38, 130);
+
+  doc.setTextColor(216, 50, 32);
+  doc.text('Date:', pdfWidth - rightMargin - 120, 130);
+  doc.setTextColor(17, 24, 39); // BLACK
+  doc.text(String(dateStr), pdfWidth - rightMargin - 90, 130);
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1);
+  doc.line(pdfWidth - rightMargin - 94, 133, pdfWidth - rightMargin, 133);
+
+  // 4. Distributor Box: M/s underlined in red
+  doc.setTextColor(216, 50, 32);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text('M/s', marginX, 148);
+  doc.setTextColor(17, 24, 39); // BLACK
+  doc.text(String(distName), marginX + 22, 148);
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1);
+  doc.line(marginX + 20, 151, pdfWidth - rightMargin, 151);
+
+  // 5. Items Table with Watermark
+  const tableX = marginX;
+  const tableY = 160;
+  const tw = tableWidth;
+  const colW = [tw * 0.1025, tw * 0.4072, tw * 0.0983, tw * 0.1413, tw * 0.2507];
+  const colX = [
+    tableX,
+    tableX + colW[0],
+    tableX + colW[0] + colW[1],
+    tableX + colW[0] + colW[1] + colW[2],
+    tableX + colW[0] + colW[1] + colW[2] + colW[3],
+    tableX + tw
+  ];
+
+  // Watermark in Table Center
+  try {
+    const wmW = 240;
+    const wmH = 240;
+    const wmX = tableX + (tw - wmW) / 2;
+    const wmY = tableY + 80;
+    doc.addImage(RECEIPT_WATERMARK_BASE64, 'PNG', wmX, wmY, wmW, wmH);
+  } catch (e) {
+    console.warn('Could not add watermark:', e);
+  }
+
+  // Header Row
+  const headerH = 22;
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1.2);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(tableX, tableY, tw, headerH, 'FD');
+  doc.line(tableX, tableY + headerH, tableX + tw, tableY + headerH);
+
+  // Header Column Dividers
+  for (let c = 1; c < colX.length - 1; c++) {
+    doc.line(colX[c], tableY, colX[c], tableY + headerH);
+  }
+
+  // Header Text
+  doc.setTextColor(216, 50, 32);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.text('Sr. No:', colX[0] + colW[0] / 2, tableY + 14, { align: 'center' });
+  doc.text('Description', colX[1] + colW[1] / 2, tableY + 14, { align: 'center' });
+  doc.text('Qty', colX[2] + colW[2] / 2, tableY + 14, { align: 'center' });
+  doc.text('Price', colX[3] + colW[3] / 2, tableY + 14, { align: 'center' });
+  doc.text('Amount', colX[4] + colW[4] / 2, tableY + 14, { align: 'center' });
+
+  // 13 Data Rows
+  const ROW_START_Y = tableY + headerH;
+  const ROW_HEIGHT = 24;
+  const MAX_ROWS = 13;
+
+  for (let i = 0; i < MAX_ROWS; i++) {
+    const item = rawItems[i];
+    const y = ROW_START_Y + (i * ROW_HEIGHT);
+
+    // Horizontal Row Border
+    doc.setDrawColor(216, 50, 32);
+    doc.setLineWidth(0.8);
+    doc.line(tableX, y + ROW_HEIGHT, tableX + tw, y + ROW_HEIGHT);
+
+    // Vertical Column Borders
+    for (let c = 1; c < colX.length - 1; c++) {
+      doc.line(colX[c], y, colX[c], y + ROW_HEIGHT);
+    }
+
+    if (item) {
+      const srNo = String(i + 1);
+      const desc = String(item.description || item.name || '');
+      const qty = item.quantity !== undefined && item.quantity !== null && item.quantity !== ''
+        ? Number(item.quantity).toLocaleString('en-PK') : '';
+      const price = item.unit_price !== undefined ? Number(item.unit_price).toLocaleString('en-PK')
+        : (item.price ? Number(item.price).toLocaleString('en-PK') : '');
+      const amount = item.amount !== undefined ? Number(item.amount).toLocaleString('en-PK')
+        : (qty && price ? Number(Number(item.quantity) * Number(item.unit_price || item.price)).toLocaleString('en-PK') : '');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(17, 24, 39); // BLACK
+
+      // Sr No
+      doc.text(srNo, colX[0] + colW[0] / 2, y + 16, { align: 'center' });
+
+      // Description
+      const truncatedDesc = desc.length > 34 ? desc.substring(0, 32) + '...' : desc;
+      doc.text(truncatedDesc, colX[1] + 8, y + 16);
+
+      // Qty
+      if (qty) doc.text(qty, colX[2] + colW[2] / 2, y + 16, { align: 'center' });
+
+      // Price
+      if (price) doc.text(price, colX[4] - 8, y + 16, { align: 'right' });
+
+      // Amount
+      if (amount) doc.text(amount, tableX + tw - 8, y + 16, { align: 'right' });
+    }
+  }
+
+  // 6. 14th Row (Total Row)
+  const totalY = ROW_START_Y + (MAX_ROWS * ROW_HEIGHT);
+  // Column 1, 2, 3 vertical lines
+  for (let c = 1; c <= 3; c++) {
+    doc.line(colX[c], totalY, colX[c], totalY + ROW_HEIGHT);
+  }
+
+  // Column 4: Red filled box with white text TOTAL
+  doc.setFillColor(216, 50, 32);
+  doc.rect(colX[3], totalY, colW[3], ROW_HEIGHT, 'F');
+  doc.line(colX[4], totalY, colX[4], totalY + ROW_HEIGHT);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text('TOTAL', colX[3] + colW[3] / 2, totalY + 16, { align: 'center' });
+
+  // Column 5: Total Amount in BLACK
+  doc.setTextColor(17, 24, 39); // BLACK
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.text(Number(total).toLocaleString('en-PK'), tableX + tw - 8, totalY + 16, { align: 'right' });
+
+  // Outer Table Box
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1.2);
+  doc.rect(tableX, tableY, tw, headerH + (MAX_ROWS + 1) * ROW_HEIGHT);
+
+  // 7. Signatures & Stamps Authorization Area
+  const authY = totalY + ROW_HEIGHT + 14;
+  const colWidth = 170;
+
+  // Manager Authorization (Left)
+  const mgrLeft = marginX + 15;
+  try {
+    doc.addImage(MANAGER_STAMP_BASE64, 'JPEG', mgrLeft + 65, authY, 56, 56);
+    doc.addImage(MANAGER_SIGNATURE_BASE64, 'PNG', mgrLeft, authY + 6, 95, 46);
+  } catch (e) {
+    console.warn('Error adding manager assets:', e);
+  }
+  doc.setDrawColor(216, 50, 32);
+  doc.setLineWidth(1.2);
+  doc.line(mgrLeft, authY + 54, mgrLeft + colWidth, authY + 54);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(216, 50, 32);
+  doc.text('Manager Signature', mgrLeft + colWidth / 2, authY + 66, { align: 'center' });
+
+  // CEO Authorization (Right)
+  const ceoLeft = pdfWidth - rightMargin - 15 - colWidth;
+  try {
+    doc.addImage(CEO_STAMP_BASE64, 'JPEG', ceoLeft + 85, authY, 56, 56);
+    doc.addImage(CEO_SIGNATURE_BASE64, 'PNG', ceoLeft + 65, authY + 4, 80, 48);
+  } catch (e) {
+    console.warn('Error adding CEO assets:', e);
+  }
+  doc.line(ceoLeft, authY + 54, ceoLeft + colWidth, authY + 54);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(216, 50, 32);
+  doc.text('Chief Executive Officer', ceoLeft + colWidth / 2, authY + 66, { align: 'center' });
+
+  return doc;
+}
+
 
 // --- DIRECT JSPDF RENDERER FOR OFFICIAL BILL PAD TEMPLATE ---
 export function renderBookingPadToJsPdf(doc, booking) {
@@ -446,104 +809,16 @@ export function renderBookingPadToJsPdf(doc, booking) {
 
   const total = booking.total_amount || booking.totalAmount || 0;
 
-  const pdfWidth = doc.internal.pageSize.getWidth();
-  const pdfHeight = doc.internal.pageSize.getHeight();
-
-  // 1. Draw the official ELITEWASH DETERGENT bill pad template background
-  try {
-    doc.addImage(RECEIPT_TEMPLATE_BASE64, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-  } catch (err) {
-    console.warn('Failed to embed background receipt image in jsPDF:', err);
-  }
-
-  // 2. Overlay dynamic text fields with exact coordinates
-  // Official Title: BOOKING PAD (centered in blank strip between CEO line and Bill No)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(17, 24, 39);
-  doc.text('BOOKING PAD', pdfWidth / 2, pdfHeight * 0.220, { align: 'center' });
-
-  // Bill No. (left: 16.5%, y: 25.5%)
-  doc.setFontSize(10);
-  doc.text(String(formattedBillNo), pdfWidth * 0.165, pdfHeight * 0.255);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  doc.text(`(${refNo})`, pdfWidth * 0.21, pdfHeight * 0.255);
-
-  // Date (left: 77.5%, y: 25.5%)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(20, 20, 20);
-  doc.text(String(dateStr), pdfWidth * 0.775, pdfHeight * 0.255);
-
-  // M/s Distributor (left: 12.0%, y: 0.304)
-  doc.setFontSize(10);
-  doc.text(String(distName), pdfWidth * 0.120, pdfHeight * 0.304);
-
-  // Item Table Rows
-  const ROW_START_Y = pdfHeight * 0.380;
-  const ROW_STEP_Y = pdfHeight * 0.0365;
-  const MAX_ROWS = 13;
-
-  for (let i = 0; i < Math.min(rawItems.length, MAX_ROWS); i++) {
-    const item = rawItems[i];
-    const y = ROW_START_Y + (i * ROW_STEP_Y);
-
-    const srNo = String(i + 1);
-    const desc = String(item.description || item.name || "");
-    const qty = item.quantity !== undefined && item.quantity !== null && item.quantity !== ''
-      ? Number(item.quantity).toLocaleString('en-PK')
-      : '';
-    const price = item.price !== undefined && item.price !== null && item.price !== ''
-      ? Number(item.price).toLocaleString('en-PK')
-      : (item.unit_price !== undefined ? Number(item.unit_price).toLocaleString('en-PK') : '');
-    const amt = item.amount !== undefined && item.amount !== null && item.amount !== ''
-      ? Number(item.amount).toLocaleString('en-PK')
-      : (qty && price ? Number(Number(item.quantity) * Number(item.unit_price || item.price)).toLocaleString('en-PK') : '');
-
-    // Sr No (center around 9.25%)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(srNo, pdfWidth * 0.0925, y, { align: 'center' });
-
-    // Description (left at 14.8%)
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    const truncatedDesc = desc.length > 34 ? desc.substring(0, 32) + '...' : desc;
-    doc.text(truncatedDesc, pdfWidth * 0.148, y);
-
-    // Qty (center at 55.75%)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    if (qty) doc.text(qty, pdfWidth * 0.5575, y, { align: 'center' });
-
-    // Price (right at 71.5%)
-    doc.setFont('helvetica', 'normal');
-    if (price) doc.text(price, pdfWidth * 0.715, y, { align: 'right' });
-
-    // Amount (right at 94.0%)
-    doc.setFont('helvetica', 'bold');
-    if (amt) doc.text(amt, pdfWidth * 0.940, y, { align: 'right' });
-  }
-
-  // Grand Total (right at 94.0%, y: 84.8%)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.text(Number(total).toLocaleString('en-PK'), pdfWidth * 0.940, pdfHeight * 0.848, { align: 'right' });
-
-  // 3. Place Authentic Handwritten CEO Signature above Chief Executive Officer line
-  try {
-    const sigX = pdfWidth * 0.740;
-    const sigY = pdfHeight * 0.850;
-    const sigW = pdfWidth * 0.160;
-    const sigH = pdfHeight * 0.075;
-    doc.addImage(CEO_SIGNATURE_BASE64, 'PNG', sigX, sigY, sigW, sigH);
-  } catch (sigErr) {
-    console.warn('Failed to embed CEO signature image in jsPDF:', sigErr);
-  }
-
-  return doc;
+  return renderOfficialReceiptToJsPdf(doc, {
+    padTitle: 'BOOKING PAD',
+    billNo: refNo,
+    refNo,
+    formattedBillNo,
+    dateStr,
+    distName,
+    rawItems,
+    total
+  });
 }
 
 // --- COMPLETE SIGNED PDF GENERATOR FOR OFFICIAL BILL PAD ---
@@ -558,7 +833,7 @@ export async function generateBookingPadPdf(booking, distributor = null) {
   // Custom PDF dimensions matching exactly 668 x 1024 px bill pad aspect ratio
   // 595.28 pt width (A4 width) -> 912.48 pt height (1024 / 668 * 595.28)
   const padWidthPt = 595.28;
-  const padHeightPt = (1024 / 668) * 595.28;
+  const padHeightPt = (1024 / 792) * 595.28;
 
   // Server / headless environment fallback (for automated unit tests)
   if (typeof document === 'undefined' || typeof window === 'undefined') {
@@ -781,15 +1056,13 @@ export async function shareBookingPadOnWhatsApp({
 
 // --- DISTRIBUTOR PAD (OFFICIAL PRINTED BILL OVERLAY) HTML TEMPLATE ---
 export function getDistributorPadHtml(sale, options = {}) {
-  const { isForPdf = false } = options;
-  const receiptUrl = (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '') + "/receipt.jpeg";
-  const signatureUrl = (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '') + "/ceo-signature.png";
-
   const billNo       = sale.billNo || sale.reference_number || "";
   const displayBillNo = sale.display_bill_no || sale.bill_no || (billNo.startsWith('SAL-') ? billNo.replace(/^SAL-0*/, '') : billNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
-  const saleDate     = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
-  const distributor  = sale.distributorName || sale.distributors?.name || "—";
+  const dateStr     = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
+  const distName  = sale.distributorName || sale.distributors?.name || "—";
+  const distCode = sale.distributors?.code || "";
+  const distPhone = sale.distributors?.phone || "";
   const rawItems     = sale.items || (sale.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
     quantity: i.quantity,
@@ -798,101 +1071,19 @@ export function getDistributorPadHtml(sale, options = {}) {
   }));
   const total        = sale.totalAmount || sale.total_amount || 0;
 
-  const ROW_START_PCT = 36.5;
-  const ROW_HEIGHT_PCT = 3.65;
-  const MAX_ROWS = 13;
-
-  let rowsHtml = "";
-  for (let i = 0; i < MAX_ROWS; i++) {
-    const item   = rawItems[i];
-    const top    = ROW_START_PCT + (i * ROW_HEIGHT_PCT);
-    const srNo   = item ? (i + 1) : "";
-    const desc   = item ? (item.description || item.name || "") : "";
-    const qty    = item ? (item.quantity ?? item.qty ?? "") : "";
-    const price  = item ? (item.unit_price ?? item.price ?? "") : "";
-    const amount = item ? (item.amount ?? ((Number(qty) || 0) * (Number(price) || 0))) : "";
-
-    rowsHtml += `
-      <div style="position:absolute; top:${top}%; left:4.6%; width:9.3%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#111;">${srNo}</div>
-      <div style="position:absolute; top:${top}%; left:14.5%; width:36.0%; height:3.4%; font-size:12px; font-weight:600; display:flex; align-items:center; padding-left:6px; color:#111; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${desc}</div>
-      <div style="position:absolute; top:${top}%; left:51.5%; width:8.5%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; color:#111;">${qty !== '' ? Number(qty).toLocaleString('en-PK') : ''}</div>
-      <div style="position:absolute; top:${top}%; left:60.5%; width:12.0%; height:3.4%; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:#111;">${price !== '' ? Number(price).toLocaleString('en-PK') : ''}</div>
-      <div style="position:absolute; top:${top}%; left:73.5%; width:21.5%; height:3.4%; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:flex-end; padding-right:12px; color:#111;">${amount !== '' ? Number(amount).toLocaleString('en-PK') : ''}</div>
-    `;
-  }
-
-  const containerStyle = isForPdf
-    ? `position:relative; width:100%; aspect-ratio:668/1024; background:#ffffff; margin:0; padding:0; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;`
-    : `position:relative; width:100%; max-width:668px; aspect-ratio:668/1024; margin:0 auto; background:#ffffff; overflow:hidden; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;`;
-
-  const bodyContent = `
-    <div class="receipt-wrapper" style="position:relative; width:100%; height:100%; aspect-ratio:668/1024;">
-      <img src="${receiptUrl}" alt="Official Delivery Bill Pad" style="width:100%; height:100%; display:block; object-fit:fill;" />
-      <div class="overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
-        <!-- Official Title: DELIVERY PAD -->
-        <div style="position:absolute; top:20.2%; left:0; width:100%; text-align:center; font-size:15px; font-weight:800; letter-spacing:0.14em; color:#111827; text-transform:uppercase;">DELIVERY BILL PAD</div>
-
-        <!-- Bill No. -->
-        <div style="position:absolute; top:24.3%; left:16.5%; font-size:13px; font-weight:700; color:#111827; letter-spacing:0.02em;">
-          ${formattedBillNo} <span style="font-size:10px; font-weight:500; color:#4b5563;">(${billNo})</span>
-        </div>
-        <!-- Date -->
-        <div style="position:absolute; top:24.3%; left:77.5%; font-size:13px; font-weight:700; color:#111827;">${saleDate}</div>
-        <!-- M/s Distributor -->
-        <div style="position:absolute; top:29.2%; left:12.0%; width:82%; font-size:13.5px; font-weight:700; color:#111827; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${distributor}</div>
-
-        <!-- Item rows -->
-        ${rowsHtml}
-
-        <!-- Total value -->
-        <div style="position:absolute; top:83.0%; left:73.5%; width:21.5%; height:3.4%; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:flex-end; padding-right:12px; color:#111827;">${Number(total).toLocaleString('en-PK')}</div>
-
-        <!-- Authentic Handwritten CEO Signature above Chief Executive Officer line -->
-        <img src="${signatureUrl}" alt="CEO Signature" class="ceo-sig-img" style="position:absolute; left:74.0%; top:84.8%; width:16.0%; max-height:8.5%; object-fit:contain;" />
-      </div>
-    </div>
-  `;
-
-  if (isForPdf) {
-    return `<div style="${containerStyle}">${bodyContent}</div>`;
-  }
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Delivery Bill - ${billNo}</title>
-  <style>
-    @page { size: portrait; margin: 0; }
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%; margin: 0; padding: 0; background: #ffffff; overflow: hidden;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Space Grotesk", sans-serif;
-    }
-    body { display: flex; justify-content: center; align-items: flex-start; }
-    .receipt-wrapper {
-      position: relative; width: 100%; height: 100vh; max-height: 100vh; aspect-ratio: 668 / 1024;
-      background: #ffffff; margin: 0 auto; page-break-inside: avoid; break-inside: avoid;
-    }
-    .receipt-wrapper img { width: 100%; height: 100%; display: block; object-fit: fill; }
-    @media screen {
-      body { background: #f3f4f6; padding: 10px 0; }
-      .receipt-wrapper { box-shadow: 0 4px 20px rgba(0,0,0,0.12); max-width: 668px; height: auto; }
-    }
-    @media print {
-      html, body { width: 100%; height: 100%; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
-      .receipt-wrapper { box-shadow: none !important; margin: 0 auto !important; height: 100vh !important; max-height: 100vh !important; page-break-after: avoid !important; break-after: avoid !important; }
-    }
-  </style>
-</head>
-<body>
-  ${bodyContent}
-  <script>
-    window.onload = function() { setTimeout(function() { window.print(); }, 400); };
-  </script>
-</body>
-</html>`;
+  return generateOfficialReceiptHtml({
+    padTitle: 'DELIVERY BILL PAD',
+    billNo,
+    refNo: billNo,
+    formattedBillNo,
+    dateStr,
+    distName,
+    distCode,
+    distPhone,
+    rawItems,
+    total,
+    isForPdf: options.isForPdf || false
+  });
 }
 
 // --- PRINT DISTRIBUTOR DELIVERY PAD ---
@@ -916,8 +1107,8 @@ export function renderDistributorPadToJsPdf(doc, sale) {
   const billNo = sale.billNo || sale.reference_number || "SAL-INVOICE";
   const displayBillNo = sale.display_bill_no || sale.bill_no || (billNo.startsWith('SAL-') ? billNo.replace(/^SAL-0*/, '') : billNo);
   const formattedBillNo = displayBillNo ? String(displayBillNo).padStart(2, '0') : '01';
-  const saleDate = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
-  const distributor = sale.distributorName || sale.distributors?.name || "—";
+  const dateStr = sale.date || (sale.sale_date ? new Date(sale.sale_date).toLocaleDateString("en-PK") : new Date().toLocaleDateString("en-PK"));
+  const distName = sale.distributorName || sale.distributors?.name || "—";
   
   const rawItems = sale.items || (sale.sale_items || []).map(i => ({
     description: i.product_packaging?.name ? `Elite Wash Surf (${i.product_packaging.name})` : (i.description || i.name || "Elite Wash Surf"),
@@ -927,83 +1118,16 @@ export function renderDistributorPadToJsPdf(doc, sale) {
   }));
   const total = sale.totalAmount || sale.total_amount || 0;
 
-  const pdfWidth = doc.internal.pageSize.getWidth();
-  const pdfHeight = doc.internal.pageSize.getHeight();
-
-  try {
-    doc.addImage(RECEIPT_TEMPLATE_BASE64, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-  } catch (err) {
-    console.warn('Failed to embed background receipt image in jsPDF:', err);
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(17, 24, 39);
-  doc.text('DELIVERY BILL PAD', pdfWidth / 2, pdfHeight * 0.220, { align: 'center' });
-
-  doc.setFontSize(10);
-  doc.text(String(formattedBillNo), pdfWidth * 0.165, pdfHeight * 0.255);
-  doc.setFontSize(7.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
-  doc.text(`(${billNo})`, pdfWidth * 0.21, pdfHeight * 0.255);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(20, 20, 20);
-  doc.text(String(saleDate), pdfWidth * 0.775, pdfHeight * 0.255);
-
-  doc.setFontSize(10);
-  doc.text(String(distributor), pdfWidth * 0.120, pdfHeight * 0.304);
-
-  const ROW_START_Y = pdfHeight * 0.380;
-  const ROW_STEP_Y = pdfHeight * 0.0365;
-  const MAX_ROWS = 13;
-
-  for (let i = 0; i < Math.min(rawItems.length, MAX_ROWS); i++) {
-    const item = rawItems[i];
-    const y = ROW_START_Y + (i * ROW_STEP_Y);
-    const srNo = String(i + 1);
-    const desc = String(item.description || item.name || "");
-    const qty = item.quantity ? Number(item.quantity).toLocaleString('en-PK') : '';
-    const price = item.price ? Number(item.price).toLocaleString('en-PK') : (item.unit_price ? Number(item.unit_price).toLocaleString('en-PK') : '');
-    const amt = item.amount ? Number(item.amount).toLocaleString('en-PK') : '';
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(srNo, pdfWidth * 0.0925, y, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    const truncatedDesc = desc.length > 34 ? desc.substring(0, 32) + '...' : desc;
-    doc.text(truncatedDesc, pdfWidth * 0.148, y);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    if (qty) doc.text(qty, pdfWidth * 0.5575, y, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal');
-    if (price) doc.text(price, pdfWidth * 0.715, y, { align: 'right' });
-
-    doc.setFont('helvetica', 'bold');
-    if (amt) doc.text(amt, pdfWidth * 0.940, y, { align: 'right' });
-  }
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.text(Number(total).toLocaleString('en-PK'), pdfWidth * 0.940, pdfHeight * 0.848, { align: 'right' });
-
-  try {
-    const sigX = pdfWidth * 0.740;
-    const sigY = pdfHeight * 0.850;
-    const sigW = pdfWidth * 0.160;
-    const sigH = pdfHeight * 0.075;
-    doc.addImage(CEO_SIGNATURE_BASE64, 'PNG', sigX, sigY, sigW, sigH);
-  } catch (sigErr) {
-    console.warn('Failed to embed CEO signature in jsPDF:', sigErr);
-  }
-
-  return doc;
+  return renderOfficialReceiptToJsPdf(doc, {
+    padTitle: 'DELIVERY BILL PAD',
+    billNo,
+    refNo: billNo,
+    formattedBillNo,
+    dateStr,
+    distName,
+    rawItems,
+    total
+  });
 }
 
 // --- GENERATE SIGNED DELIVERY PAD PDF ---
@@ -1015,7 +1139,7 @@ export async function generateDistributorPadPdf(sale, distributor = null) {
   const billNo = saleWithDist.billNo || saleWithDist.reference_number || "SALE";
   const filename = `${billNo}.pdf`;
   const padWidthPt = 595.28;
-  const padHeightPt = (1024 / 668) * 595.28;
+  const padHeightPt = (1024 / 792) * 595.28;
 
   if (typeof document === 'undefined' || typeof window === 'undefined') {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: [padWidthPt, padHeightPt] });
