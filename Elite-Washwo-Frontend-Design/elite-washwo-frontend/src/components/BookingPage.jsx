@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { fetchBookings, fetchProducts, fetchDistributors, submitBooking, addBookingRecovery, fetchRecoveries } from '../lib/db';
+import { 
+  fetchBookings, fetchProducts, fetchDistributors, submitBooking, 
+  addBookingRecovery, fetchRecoveries, fetchDistributorOutstanding, 
+  submitDistributorCommissionSettlement 
+} from '../lib/db';
 import { printBookingPad, shareBookingPadOnWhatsApp, formatPakistaniPhoneForWhatsApp } from '../lib/exportUtils';
 
 const fmtNum  = (n) => Number(n || 0).toLocaleString('en-PK');
@@ -67,8 +71,17 @@ export default function BookingPage() {
   const [recoveryAmount,  setRecoveryAmount]  = useState('');
   const [paymentMethod,   setPaymentMethod]   = useState('Cash');
   const [recoveryDate,    setRecoveryDate]    = useState(todayISO());
-  const [recoveryNotes,   setRecoveryNotes]   = useState('');
-  const [receiptNo,       setReceiptNo]       = useState('');
+  const [recoveryNotes,    setRecoveryNotes]    = useState('');
+  const [receiptNo,        setReceiptNo]        = useState('');
+  const [recoveryCommRate, setRecoveryCommRate] = useState('');
+
+  // ── Commission payment fields within recovery modal ──────────────────────
+  const [commPaidNow,       setCommPaidNow]       = useState('No');
+  const [commPaidAmount,    setCommPaidAmount]    = useState('');
+  const [commPaymentMethod, setCommPaymentMethod] = useState('Cash');
+  const [commPaymentRef,    setCommPaymentRef]    = useState('');
+  const [commPaymentNotes,  setCommPaymentNotes]  = useState('');
+  const [distributorPayable, setDistributorPayable] = useState(0);
 
   // ── Pending tab filters ───────────────────────────────────────────────────
   const [pendingSearch,     setPendingSearch]     = useState('');
@@ -132,15 +145,36 @@ export default function BookingPage() {
     setCommissionRate('');
   }
 
-  function openRecoveryModal(b) {
+  async function openRecoveryModal(b) {
     setRecoveryBooking(b);
     setRecoveryAmount(b.remaining_balance || '');
     setPaymentMethod('Cash');
     setRecoveryDate(todayISO());
     setRecoveryNotes('');
     setReceiptNo('');
+    const agreedRate = b.commission_percentage !== undefined && b.commission_percentage !== null 
+      ? String(b.commission_percentage) 
+      : '0';
+    setRecoveryCommRate(agreedRate);
+    setCommPaidNow('No');
+    setCommPaidAmount('');
+    setCommPaymentMethod('Cash');
+    setCommPaymentRef('');
+    setCommPaymentNotes('');
+    setDistributorPayable(0);
     setMsg('');
     setShowRecovery(true);
+
+    if (b.distributor_id) {
+      try {
+        const out = await fetchDistributorOutstanding(b.distributor_id);
+        if (out && typeof out.commissionPayable === 'number') {
+          setDistributorPayable(out.commissionPayable);
+        }
+      } catch (err) {
+        console.warn('Could not load distributor payable commission:', err);
+      }
+    }
   }
 
   // ── Load recoveries whenever recDistFilter changes ───────────────────────
@@ -268,16 +302,37 @@ export default function BookingPage() {
     }
     const amt = Number(recoveryAmount);
     if (!amt || amt <= 0) {
-      setMsg('err:Amount must be greater than zero.'); return;
+      setMsg('err:Recovery amount must be greater than zero.'); return;
     }
     if (amt > Number(recoveryBooking.remaining_balance || 0)) {
-      setMsg(`err:Amount exceeds remaining pending balance of Rs. ${fmtNum(recoveryBooking.remaining_balance)}.`); return;
+      setMsg(`err:Recovery amount exceeds remaining pending balance of Rs. ${fmtNum(recoveryBooking.remaining_balance)}.`); return;
     }
-    const commPct = Number(recoveryBooking.commission_percentage || 0);
+
+    const parsedRate = Number(recoveryCommRate);
+    if (recoveryCommRate === '' || isNaN(parsedRate) || parsedRate < 0 || parsedRate > 100) {
+      setMsg('err:Commission Rate on This Recovery must be a valid percentage between 0% and 100%.'); return;
+    }
+    const commPct = parsedRate;
     const commEarned = (amt * commPct) / 100;
+    const maxPayable = Math.max(0, (distributorPayable || 0) + commEarned);
+
+    let paidCommAmt = 0;
+    if (commPaidNow === 'Yes') {
+      paidCommAmt = Number(commPaidAmount);
+      if (isNaN(paidCommAmt) || paidCommAmt <= 0) {
+        setMsg('err:Commission Paid Amount must be greater than zero when Commission Paid Now is Yes.'); return;
+      }
+      if (paidCommAmt > maxPayable) {
+        setMsg(`err:Commission payment (Rs. ${fmtNum(paidCommAmt)}) cannot exceed maximum payable commission of Rs. ${fmtNum(maxPayable)}.`); return;
+      }
+      if (!recoveryBooking.distributor_id) {
+        setMsg('err:Cannot record commission payment because booking has no assigned distributor.'); return;
+      }
+    }
 
     try {
       setLoading(true); setMsg('');
+      // 1. Record Recovery
       await addBookingRecovery({
         bookingId:            recoveryBooking.id,
         bookingRef:           recoveryBooking.reference_number,
@@ -289,10 +344,37 @@ export default function BookingPage() {
         receiptNo:            receiptNo || null,
         commissionPercentage: commPct
       });
-      setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} recorded successfully against ${recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : recoveryBooking.reference_number}. Commission earned: Rs. ${fmtNum(commEarned)} (${commPct}%).`);
+
+      // 2. Record Commission Payment if requested
+      const billLabel = recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : recoveryBooking.reference_number;
+      if (commPaidNow === 'Yes' && paidCommAmt > 0) {
+        const sType = commPaymentMethod === 'Cash' ? 'Commission_Cash_Paid' : 'Commission_Bank_Paid';
+        const pMethod = commPaymentMethod === 'Cash' ? 'Cash' : 'Bank';
+        let finalCommNotes = commPaymentNotes || `Commission payout on recovery for ${billLabel}`;
+        if (commPaymentMethod === 'Cheque') {
+          finalCommNotes = `[Cheque Payment${commPaymentRef ? ` #${commPaymentRef}` : ''}] ` + finalCommNotes;
+        }
+
+        await submitDistributorCommissionSettlement({
+          distributorId: recoveryBooking.distributor_id,
+          amount: paidCommAmt,
+          settlementType: sType,
+          paymentMethod: pMethod,
+          tid: commPaymentRef || null,
+          notes: finalCommNotes
+        });
+      }
+
+      if (commPaidNow === 'Yes' && paidCommAmt > 0) {
+        const remainingPending = Math.max(0, maxPayable - paidCommAmt);
+        setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} and Commission Payment of Rs. ${fmtNum(paidCommAmt)} (${commPaymentMethod}) recorded successfully against ${billLabel}. Remaining pending commission: Rs. ${fmtNum(remainingPending)}.`);
+      } else {
+        setMsg(`ok:Recovery of Rs. ${fmtNum(amt)} recorded successfully against ${billLabel}. Commission earned: Rs. ${fmtNum(commEarned)} (${commPct}%).`);
+      }
+
       await loadBookings();
       await loadRecoveries();
-      setTimeout(() => { setShowRecovery(false); setMsg(''); }, 1500);
+      setTimeout(() => { setShowRecovery(false); setMsg(''); }, 1800);
     } catch (e) {
       setMsg('err:' + e.message);
     } finally { setLoading(false); }
@@ -985,64 +1067,24 @@ async function ensureBookingItems(b) {
             </div>
           )}
 
-          {/* Commission Configuration Section */}
-          {selectedDistributor && (
-            <div className="panel" style={{ marginTop: 16, marginBottom: 16, background: '#F8FAF9', border: '1px solid var(--teal-light)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: 14, color: 'var(--teal)' }}>💰 Agreed Distributor Commission (%)</h4>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                    Percentage-based progressive commission for #{selectedDistributor.code} ({selectedDistributor.name})
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Potential Commission (at 100% recovery)</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--teal)' }}>
-                    {potentialCommission > 0 ? ("Rs. " + fmtNum(potentialCommission)) : "Rs. 0"}
-                  </div>
-                </div>
+          {/* Total Booking Amount (Read-Only) */}
+          <div className="panel" style={{ marginTop: 16, marginBottom: 16, background: '#FAF9F5', border: '1px solid var(--line)' }}>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, alignItems: 'flex-end' }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label style={{ fontWeight: 600, fontSize: 12 }}>Total Booking Amount (Read-Only)</label>
+                <input 
+                  type="text" 
+                  value={totalAmount > 0 ? ("Rs. " + fmtNum(totalAmount)) : "Rs. 0"} 
+                  disabled 
+                  readOnly
+                  style={{ background: '#F0F0EE', fontWeight: 700, color: 'var(--teal)', fontSize: 15, cursor: 'not-allowed' }}
+                />
               </div>
-
-              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                <div className="field">
-                  <label>Agreed Commission Percentage (%) *</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max="100" 
-                    step="0.01" 
-                    value={commissionRate} 
-                    onChange={e => setCommissionRate(e.target.value)} 
-                    placeholder="e.g. 5 for 5%"
-                    required
-                  />
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
-                    Enter any percentage agreed with distributor (e.g. 2%, 5%, 7%, 10%). Commission is earned progressively as recoveries are received.
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Total Booking Amount (Read-Only)</label>
-                  <input 
-                    type="text" 
-                    value={totalAmount > 0 ? ("Rs. " + fmtNum(totalAmount)) : "Rs. 0"} 
-                    disabled 
-                    readOnly
-                    style={{ background: '#F0F0EE', fontWeight: 700, color: 'var(--teal)', cursor: 'not-allowed' }}
-                  />
-                </div>
-                <div className="field">
-                  <label>Progressive Example</label>
-                  <input 
-                    type="text" 
-                    value={"Rs. 20,000 recovery = Rs. " + fmtNum(20000 * ((Number(commissionRate) || 0) / 100)) + " earned"} 
-                    disabled 
-                    readOnly
-                    style={{ background: '#F0F0EE', fontSize: 12, color: 'var(--teal)', fontWeight: 600, cursor: 'not-allowed' }}
-                  />
-                </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-dim)', paddingBottom: 6 }}>
+                Automatically calculated from all line items: Sum of (Quantity × Agreed Price per Packet).
               </div>
             </div>
-          )}
+          </div>
 
           <div className="btn-row" style={{ marginTop: 16 }}>
             <button className="btn primary" onClick={handleSaveBooking} disabled={loading}>
@@ -1171,7 +1213,7 @@ async function ensureBookingItems(b) {
       {/* ── RECOVERY MODAL ────────────────────────────────────────────────── */}
       {showRecovery && recoveryBooking && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="panel" style={{ width: 440, maxWidth: '90%' }}>
+          <div className="panel" style={{ width: 520, maxWidth: '94%', maxHeight: '92vh', overflowY: 'auto' }}>
             <div className="section-head">
               <h2>Record Booking Advance — {recoveryBooking.formattedBillNo ? `Bill #${recoveryBooking.formattedBillNo}` : ''} ({recoveryBooking.reference_number})</h2>
               <button className="btn ghost" style={{ padding: '4px 8px' }} onClick={() => { setShowRecovery(false); setMsg(''); }}>✕</button>
@@ -1183,26 +1225,55 @@ async function ensureBookingItems(b) {
                 <div><strong>Booking Value:</strong> Rs. {fmtNum(recoveryBooking.total_amount)}</div>
                 <div><strong>Advance Paid:</strong> <span style={{ color: 'var(--green)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.total_recovered)}</span></div>
                 <div><strong>Advance Remaining:</strong> <span style={{ color: 'var(--red)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.remaining_balance)}</span></div>
-                <div><strong>Commission Rate:</strong> <span style={{ color: 'var(--teal)', fontWeight: 600 }}>{recoveryBooking.commission_percentage || 0}%</span></div>
+                <div><strong>Agreed Booking Rate:</strong> {recoveryBooking.commission_percentage || 0}%</div>
                 <div><strong>Earned so far:</strong> <span style={{ color: 'var(--teal)', fontWeight: 600 }}>Rs. {fmtNum(recoveryBooking.commission_earned || 0)}</span></div>
               </div>
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--line)', fontSize: 12, color: 'var(--teal)', fontWeight: 600 }}>
-                💡 Progressive Commission earned on this recovery: Rs. {fmtNum((Number(recoveryAmount || 0) * Number(recoveryBooking.commission_percentage || 0)) / 100)}
-              </div>
+              {(() => {
+                const activeRate = recoveryCommRate !== '' && !isNaN(Number(recoveryCommRate))
+                  ? Math.max(0, Math.min(100, Number(recoveryCommRate)))
+                  : 0;
+                const earned = (Number(recoveryAmount || 0) * activeRate) / 100;
+                return (
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--line)', fontSize: 12, color: 'var(--teal)', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+                    <span>💡 Commission Earned on This Recovery:</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>Rs. {fmtNum(earned)} ({activeRate}%)</span>
+                  </div>
+                );
+              })()}
             </div>
 
             <Msg msg={msg} />
 
             <form onSubmit={e => { e.preventDefault(); handleSaveRecovery(); }}>
               <div className="form-grid" style={{ gridTemplateColumns: '1fr', gap: 12 }}>
-                <div className="field">
-                  <label>Recovery Date *</label>
-                  <input
-                    type="date"
-                    value={recoveryDate}
-                    onChange={e => setRecoveryDate(e.target.value)}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="field">
+                    <label>Recovery Date *</label>
+                    <input
+                      type="date"
+                      value={recoveryDate}
+                      onChange={e => setRecoveryDate(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label>Commission Rate on This Recovery (%) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="any"
+                      placeholder="e.g. 30"
+                      value={recoveryCommRate}
+                      onChange={e => setRecoveryCommRate(e.target.value)}
+                      required
+                      style={{ fontSize: 14, fontWeight: 700, color: 'var(--teal)' }}
+                    />
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                      Agreed: {recoveryBooking.commission_percentage || 0}% (Adjustable 0–100%)
+                    </div>
+                  </div>
                 </div>
 
                 <div className="field">
@@ -1218,9 +1289,20 @@ async function ensureBookingItems(b) {
                     required
                     style={{ fontSize: 15, fontWeight: 700 }}
                   />
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
-                    Maximum payable against this booking: Rs. {fmtNum(recoveryBooking.remaining_balance)}
-                  </div>
+                  {(() => {
+                    const activeRate = recoveryCommRate !== '' && !isNaN(Number(recoveryCommRate))
+                      ? Math.max(0, Math.min(100, Number(recoveryCommRate)))
+                      : 0;
+                    const earned = (Number(recoveryAmount || 0) * activeRate) / 100;
+                    return (
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                        <span>Maximum recovery: Rs. {fmtNum(recoveryBooking.remaining_balance)}</span>
+                        <span style={{ color: 'var(--teal)', fontWeight: 600 }}>
+                          ⚡ Earns Rs. {fmtNum(earned)} commission ({activeRate}%)
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="field">
@@ -1251,11 +1333,150 @@ async function ensureBookingItems(b) {
                     onChange={e => setRecoveryNotes(e.target.value)}
                   />
                 </div>
+
+                {/* ── COMMISSION PAYMENT SECTION IN THE SAME FORM ─────────────── */}
+                <div style={{
+                  marginTop: 6,
+                  padding: 12,
+                  borderRadius: 6,
+                  background: commPaidNow === 'Yes' ? '#F6FAF7' : '#FBFBFB',
+                  border: commPaidNow === 'Yes' ? '1px solid var(--teal-light)' : '1px solid var(--line)'
+                }}>
+                  {(() => {
+                    const activeRate = recoveryCommRate !== '' && !isNaN(Number(recoveryCommRate))
+                      ? Math.max(0, Math.min(100, Number(recoveryCommRate)))
+                      : 0;
+                    const curCommEarned = (Number(recoveryAmount || 0) * activeRate) / 100;
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: commPaidNow === 'Yes' ? 12 : 0 }}>
+                        <div>
+                          <strong style={{ fontSize: 13, color: 'var(--ink)' }}>💰 Commission Payment</strong>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 1 }}>
+                            Commission earned on this recovery: <strong style={{ color: 'var(--teal)' }}>Rs. {fmtNum(curCommEarned)}</strong> ({activeRate}%)
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Commission Paid Now?</label>
+                          <select
+                            value={commPaidNow}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setCommPaidNow(val);
+                              if (val === 'No') setCommPaidAmount('');
+                            }}
+                            style={{ padding: '4px 10px', fontSize: 12, fontWeight: 600 }}
+                          >
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {commPaidNow === 'Yes' && (() => {
+                    const activeRate = recoveryCommRate !== '' && !isNaN(Number(recoveryCommRate))
+                      ? Math.max(0, Math.min(100, Number(recoveryCommRate)))
+                      : 0;
+                    const curCommEarned = (Number(recoveryAmount || 0) * activeRate) / 100;
+                    const maxPayable = Math.max(0, (distributorPayable || 0) + curCommEarned);
+                    const paidNum = Number(commPaidAmount || 0);
+                    const isOver = paidNum > maxPayable;
+                    const remainingAfter = Math.max(0, maxPayable - (isNaN(paidNum) ? 0 : paidNum));
+
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginTop: 10 }}>
+                        {/* Maximum payable display banner */}
+                        <div style={{ background: '#FFF8E7', border: '1px solid #F0D78C', borderRadius: 4, padding: '8px 12px', fontSize: 12, color: '#856404', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                          <div>
+                            <div><strong>Outstanding Earned Commission:</strong> <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--teal)' }}>Rs. {fmtNum(maxPayable)}</span></div>
+                            <div style={{ fontSize: 10.5, color: '#856404', marginTop: 2 }}>
+                              (Prior Unpaid: Rs. {fmtNum(distributorPayable)} + This Recovery: Rs. {fmtNum(curCommEarned)} @ {activeRate}%)
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{ padding: '3px 10px', fontSize: 11, background: '#fff', border: '1px solid #F0D78C' }}
+                            onClick={() => setCommPaidAmount(String(maxPayable))}
+                            disabled={maxPayable <= 0}
+                          >
+                            Pay Full (Rs. {fmtNum(maxPayable)})
+                          </button>
+                        </div>
+
+                        <div className="field">
+                          <label>Commission Paid Amount (Rs.) *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={maxPayable}
+                            step="any"
+                            placeholder={`e.g. ${maxPayable > 0 ? maxPayable : 1000}`}
+                            value={commPaidAmount}
+                            onChange={e => setCommPaidAmount(e.target.value)}
+                            required={commPaidNow === 'Yes'}
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              borderColor: isOver ? 'var(--red)' : undefined
+                            }}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-dim)', marginTop: 2, flexWrap: 'wrap', gap: 4 }}>
+                            <span>
+                              {isOver ? (
+                                <strong style={{ color: 'var(--red)' }}>⚠️ Amount exceeds outstanding earned commission (Rs. {fmtNum(maxPayable)})</strong>
+                              ) : paidNum > 0 ? (
+                                <span style={{ color: 'var(--teal)', fontWeight: 600 }}>
+                                  {paidNum === maxPayable ? '✓ Full commission payment' : '✓ Partial commission payment'}
+                                </span>
+                              ) : (
+                                'Enter full or partial payment amount'
+                              )}
+                            </span>
+                            <span>
+                              Pending after payment: <strong>Rs. {fmtNum(remainingAfter)}</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="field">
+                          <label>Commission Payment Method *</label>
+                          <select value={commPaymentMethod} onChange={e => setCommPaymentMethod(e.target.value)}>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                          </select>
+                        </div>
+
+                        <div className="field">
+                          <label>Commission Payment Reference (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Voucher #, Bank TID, Cheque #123456"
+                            value={commPaymentRef}
+                            onChange={e => setCommPaymentRef(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="field">
+                          <label>Commission Payment Notes (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Commission paid upon receiving booking advance"
+                            value={commPaymentNotes}
+                            onChange={e => setCommPaymentNotes(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="btn-row" style={{ marginTop: 20 }}>
                 <button type="submit" className="btn primary" disabled={loading}>
-                  {loading ? 'Processing...' : 'Save Recovery'}
+                  {loading ? 'Processing...' : commPaidNow === 'Yes' ? 'Save Recovery & Record Commission Paid' : 'Save Recovery'}
                 </button>
                 <button type="button" className="btn ghost" onClick={() => { setShowRecovery(false); setMsg(''); }}>Cancel</button>
               </div>
